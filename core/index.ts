@@ -269,6 +269,8 @@ export {
   resolveInboundAccessRequest,
   prepareExternalAction,
   planContactSubmission,
+  prepareInterview,
+  prepareOffer,
   prepareOpportunity,
   preparePlan,
   transitionApplication,
@@ -576,3 +578,4 @@ export {
   type AccessLength,
   type AccessState,
 } from "./access";
+export { distinctPairKey, prepareDistinctPair, type DistinctPair } from "./distinct-roles";

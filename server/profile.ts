@@ -12,6 +12,7 @@ import {
 } from "../core/profile";
 import { saveEvidence } from "./career-memory";
 import { readProfile, type ProfileRow } from "./occupant";
+import { uploadPath } from "./upload-path";
 
 export class ProfileError extends Error {
   readonly code: string;
@@ -110,14 +111,14 @@ export function storeAvatar(
   mkdirSync(uploadsDir, { recursive: true });
   const previous = avatarStoredName(db, occupantId);
   const storedName = `avatar-${randomUUID()}.${ext}`;
-  writeFileSync(join(uploadsDir, storedName), file.bytes);
+  writeFileSync(uploadPath(uploadsDir, storedName), file.bytes);
   const now = new Date().toISOString();
   db.prepare(
     "UPDATE profiles SET avatar_stored_name = ?, updated_at = ? WHERE occupant_id = ?",
   ).run(storedName, now, occupantId);
   if (previous) {
     try {
-      unlinkSync(join(uploadsDir, previous));
+      unlinkSync(uploadPath(uploadsDir, previous));
     } catch {
       /* leftover file is harmless */
     }
@@ -132,16 +133,18 @@ export function removeAvatar(
   uploadsDir: string,
 ): ProfileRow {
   const previous = avatarStoredName(db, occupantId);
-  db.prepare(
-    "UPDATE profiles SET avatar_stored_name = NULL, updated_at = ? WHERE occupant_id = ?",
-  ).run(new Date().toISOString(), occupantId);
+  // The file goes first. If it can't be deleted, the profile keeps its name so
+  // removing can be tried again; a file that's already gone is fine.
   if (previous) {
     try {
       unlinkSync(join(uploadsDir, previous));
-    } catch {
-      /* leftover file is harmless */
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw new ProfileError("avatar-delete-failed");
     }
   }
+  db.prepare(
+    "UPDATE profiles SET avatar_stored_name = NULL, updated_at = ? WHERE occupant_id = ?",
+  ).run(new Date().toISOString(), occupantId);
   return readProfile(db, occupantId);
 }
 
@@ -161,7 +164,7 @@ export function loadAvatar(
           ? "image/gif"
           : "image/jpeg";
   try {
-    return { bytes: new Uint8Array(readFileSync(join(uploadsDir, stored))), type };
+    return { bytes: new Uint8Array(readFileSync(uploadPath(uploadsDir, stored))), type };
   } catch {
     return null;
   }
@@ -196,7 +199,7 @@ export function storeResume(
   mkdirSync(uploadsDir, { recursive: true });
   const id = randomUUID();
   const storedName = `${id}.bin`;
-  const fullPath = join(uploadsDir, storedName);
+  const fullPath = uploadPath(uploadsDir, storedName);
   writeFileSync(fullPath, file.bytes);
   const now = new Date().toISOString();
   try {

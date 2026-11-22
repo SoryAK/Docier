@@ -202,7 +202,7 @@ export function createProjection(
   return projection;
 }
 
-export async function publishProjection(
+async function publishProjectionNow(
   db: DatabaseSync,
   occupantId: string,
   projectionId: string,
@@ -276,8 +276,8 @@ export async function publishProjection(
     db.prepare(
       `INSERT INTO publications
         (id, occupant_id, projection_id, slug, audience, published_at,
-         expires_at, revoked_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, NULL)`,
+         expires_at, revoked_at, relayed)
+       VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?)`,
     ).run(
       publicationId,
       occupantId,
@@ -286,6 +286,7 @@ export async function publishProjection(
       projection.visibility,
       now,
       projection.expiresAt,
+      relay ? 1 : 0,
     );
     db.prepare(
       "UPDATE interactive_projections SET status = 'published' WHERE id = ?",
@@ -315,7 +316,7 @@ export async function publishProjection(
   return { id: publicationId, slug: projection.slug, publishedAt: now };
 }
 
-export async function revokeProjection(
+async function revokeProjectionNow(
   db: DatabaseSync,
   occupantId: string,
   projectionId: string,
@@ -372,7 +373,7 @@ export type GrantFor = {
   sections: string[] | null;
 };
 
-export async function createProjectionGrant(
+async function createProjectionGrantNow(
   db: DatabaseSync,
   occupantId: string,
   projectionId: string,
@@ -406,8 +407,8 @@ export async function createProjectionGrant(
     db.prepare(
       `INSERT INTO projection_access_grants
         (id, projection_id, token_hash, expires_at, revoked_at, created_at, request_id,
-         person_name, person_email, source, sections_json, link_token)
-       VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?)`,
+         person_name, person_email, source, sections_json, link_token, relayed)
+       VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       grantId,
       projectionId,
@@ -422,6 +423,7 @@ export async function createProjectionGrant(
       // Kept here, on the occupant's machine, so the link can be copied again.
       // The Relay only ever holds its hash.
       token,
+      relay?.grant ? 1 : 0,
     );
     persistAuditEvent(db, {
       id: randomUUID(),
@@ -493,7 +495,7 @@ export function listProjectionGrants(
 }
 
 /** Takes back one access link; everyone else keeps theirs. */
-export async function revokeProjectionGrant(
+async function revokeProjectionGrantNow(
   db: DatabaseSync,
   occupantId: string,
   projectionId: string,
@@ -504,12 +506,17 @@ export async function revokeProjectionGrant(
   if (!projection) throw new ProjectionStoreError("projection-missing");
   const grant = db
     .prepare(
-      `SELECT token_hash, revoked_at FROM projection_access_grants
+      `SELECT token_hash, revoked_at, relayed FROM projection_access_grants
         WHERE id = ? AND projection_id = ?`,
     )
-    .get(grantId, projectionId) as { token_hash: string; revoked_at: string | null } | undefined;
+    .get(grantId, projectionId) as
+    | { token_hash: string; revoked_at: string | null; relayed: number | null }
+    | undefined;
   if (!grant) throw new ProjectionStoreError("grant-missing");
   if (grant.revoked_at) return;
+  // A link that lives on the Relay is only revoked there; without a Relay to
+  // reach, nothing changes here either, rather than showing it revoked.
+  if (grant.relayed === 1 && !relay?.revokeGrant) throw new ProjectionStoreError("relay-not-configured");
   const now = new Date().toISOString();
   const minted = await mintOccupantApproval(occupantId, {
     purpose: "Revoke projection access link",
@@ -556,7 +563,7 @@ export async function revokeProjectionGrant(
  * trail stay, as the record that it existed and was removed. Opportunities that
  * came from its access requests stay in Opportunities.
  */
-export async function removeProjection(
+async function removeProjectionNow(
   db: DatabaseSync,
   occupantId: string,
   projectionId: string,
@@ -564,6 +571,9 @@ export async function removeProjection(
 ) {
   const projection = readProjection(db, occupantId, projectionId);
   if (!projection) throw new ProjectionStoreError("projection-missing");
+  // A page with a copy on the Relay is erased there first. Without a Relay to
+  // reach, nothing is deleted here, so the page never looks gone while it's live.
+  if (!relay?.erase && hasRelayCopy(db, projectionId)) throw new ProjectionStoreError("relay-not-configured");
   const now = new Date().toISOString();
   const minted = await mintOccupantApproval(occupantId, {
     purpose: "Remove interactive projection",
@@ -877,3 +887,43 @@ export class ProjectionStoreError extends Error {
     super(code);
   }
 }
+
+function hasRelayCopy(db: DatabaseSync, projectionId: string): boolean {
+  return Boolean(
+    db.prepare("SELECT 1 FROM publications WHERE projection_id = ? AND relayed = 1 LIMIT 1").get(projectionId) ??
+      db.prepare("SELECT 1 FROM projection_access_grants WHERE projection_id = ? AND relayed = 1 LIMIT 1").get(projectionId),
+  );
+}
+
+/**
+ * Changes to one page run one at a time: publish, take offline, remove, and
+ * hand out or revoke a link. Each waits for the Relay before the next starts,
+ * so a late publish can't bring back a removed page and a late link can't
+ * outlive its revocation.
+ */
+const pageQueues = new Map<string, Promise<unknown>>();
+
+function oneAtATime<T>(projectionId: string, run: () => Promise<T>): Promise<T> {
+  const previous = pageQueues.get(projectionId) ?? Promise.resolve();
+  const next = previous.then(run, run);
+  const settled = next.then(
+    () => undefined,
+    () => undefined,
+  );
+  pageQueues.set(projectionId, settled);
+  void settled.then(() => {
+    if (pageQueues.get(projectionId) === settled) pageQueues.delete(projectionId);
+  });
+  return next;
+}
+
+export const publishProjection = (...args: Parameters<typeof publishProjectionNow>) =>
+  oneAtATime(args[2], () => publishProjectionNow(...args));
+export const revokeProjection = (...args: Parameters<typeof revokeProjectionNow>) =>
+  oneAtATime(args[2], () => revokeProjectionNow(...args));
+export const createProjectionGrant = (...args: Parameters<typeof createProjectionGrantNow>) =>
+  oneAtATime(args[2], () => createProjectionGrantNow(...args));
+export const revokeProjectionGrant = (...args: Parameters<typeof revokeProjectionGrantNow>) =>
+  oneAtATime(args[2], () => revokeProjectionGrantNow(...args));
+export const removeProjection = (...args: Parameters<typeof removeProjectionNow>) =>
+  oneAtATime(args[2], () => removeProjectionNow(...args));

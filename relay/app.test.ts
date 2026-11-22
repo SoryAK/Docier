@@ -550,6 +550,25 @@ describe("share links with an access token", () => {
     }
   });
 
+  it("counts an open from the page cookie, once per half hour", async () => {
+    const { db, app } = await protectedRelay();
+    try {
+      const first = await app.request("https://relay.test/r/systems?token=viewer-token");
+      const cookie = (first.headers.get("set-cookie") ?? "").split(";")[0];
+      const visit = () => app.request("https://relay.test/r/systems", { headers: { cookie } });
+      expect((await visit()).status).toBe(200);
+      expect((await visit()).status).toBe(200);
+      const listed = await app.request("/relay/grants/opens", {
+        headers: { authorization: "Bearer owner-secret" },
+      });
+      const { opens } = (await listed.json()) as { opens: { slug: string }[] };
+      expect(opens).toHaveLength(1);
+      expect(opens[0].slug).toBe("systems");
+    } finally {
+      db.close();
+    }
+  });
+
   it("sets the cookie Secure whatever the request claims, unless told not to", async () => {
     const { db, app } = await protectedRelay();
     try {

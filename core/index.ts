@@ -133,7 +133,11 @@ export {
   LLAMA_CPP_BASE_URL,
   OPENAI_BASE_URL,
   OPENROUTER_BASE_URL,
+  CLOUD_PROVIDERS,
+  cloudDestination,
+  cloudProviderFor,
   prepareModelConnection,
+  type CloudProviderId,
   type ModelHosting,
 } from "./model-connection";
 export { parseDiscoveredModels } from "./model-list";

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  cloudDestination,
+  cloudProviderFor,
   DEFAULT_LOCAL_BASE_URL,
+  OPENAI_BASE_URL,
+  OPENROUTER_BASE_URL,
   prepareModelConnection,
 } from "./model-connection";
 
@@ -41,5 +45,18 @@ describe("prepareModelConnection", () => {
     expect(
       prepareModelConnection({ hosting: "local", baseUrl: "ollama.local" }),
     ).toEqual({ ok: false, error: "url-invalid" });
+  });
+});
+
+describe("cloud providers in setup", () => {
+  it("knows a listed provider by its address and calls anything else custom", () => {
+    expect(cloudProviderFor(OPENROUTER_BASE_URL + "/")).toBe("openrouter");
+    expect(cloudProviderFor("https://models.example.com/v1")).toBe("custom");
+  });
+
+  it("names where a resume would go", () => {
+    expect(cloudDestination(OPENAI_BASE_URL)).toBe("OpenAI (api.openai.com)");
+    expect(cloudDestination("https://models.example.com/v1")).toBe("models.example.com");
+    expect(cloudDestination("not an address")).toBe("");
   });
 });

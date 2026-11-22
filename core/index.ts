@@ -587,3 +587,4 @@ export {
 } from "./access";
 export { distinctPairKey, prepareDistinctPair, type DistinctPair } from "./distinct-roles";
 export { describeModelFailure, type ModelFailure, type ModelFailureKind } from "./model-failure";
+export { nextOnboardingStep, onboardingSteps, previousOnboardingStep, type OnboardingStepId } from "./onboarding-steps";

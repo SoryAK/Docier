@@ -222,3 +222,47 @@ describe("when the model fails", () => {
     }
   });
 });
+
+describe("a .docx resume", () => {
+  it("is read on this machine and its text sent to the model", async () => {
+    const { Document, Packer, Paragraph } = await import("docx");
+    const doc = new Document({
+      sections: [{ children: resumeText.trim().split("\n").map((line) => new Paragraph(line)) }],
+    });
+    const bytes = new Uint8Array(await Packer.toBuffer(doc));
+    let sent = "";
+    const ctx = setup({
+      complete: async (input) => {
+        sent = String(input.messages.at(-1)?.content);
+        return {
+          model: input.model,
+          text: JSON.stringify({ profile: {}, experience: [{ company: "Acme Corp", title: "Lead Electrician" }] }),
+        };
+      },
+    });
+    try {
+      await saveLocalModel(ctx.app);
+      const form = new FormData();
+      form.append("file", new File([bytes], "cv.docx"));
+      const res = await ctx.app.request("/api/resumes/extract", { method: "POST", body: form });
+      expect(res.status).toBe(200);
+      expect(sent).toContain("Acme Corp — Lead Electrician, 2019–2024");
+    } finally {
+      ctx.close();
+    }
+  });
+
+  it("says so when the file isn't a readable .docx", async () => {
+    const ctx = setup({ complete: async () => ({ model: "m", text: "{}" }) });
+    try {
+      await saveLocalModel(ctx.app);
+      const form = new FormData();
+      form.append("file", new File(["not a zip"], "cv.docx"));
+      const res = await ctx.app.request("/api/resumes/extract", { method: "POST", body: form });
+      expect(res.status).toBe(422);
+      await expect(res.json()).resolves.toMatchObject({ error: "Could not read that .docx file." });
+    } finally {
+      ctx.close();
+    }
+  });
+});

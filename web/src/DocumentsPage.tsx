@@ -15,6 +15,8 @@ import { DOCUMENT_KINDS, type DocumentKind } from "@core/document-vault";
 import { File as FileIcon, Upload } from "lucide-react";
 import { getDocument, GlobalWorkerOptions, type PDFDocumentProxy, type RenderTask } from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import { readDocxText } from "@core/docx-text";
+import { DOCX_MEDIA_TYPE } from "@core/resume-preview";
 
 GlobalWorkerOptions.workerSrc = workerUrl;
 
@@ -392,6 +394,7 @@ function FilePreview({ file }: { file: VaultDocument }) {
   if (isVideo(file)) return <video className="documents-preview-media" src={url} controls />;
   if (isAudio(file)) return <audio src={url} controls />;
   if (isText(file)) return <TextPreview url={url} />;
+  if (isDocx(file)) return <TextPreview url={url} docx />;
   return (
     <p className="documents-preview-note">
       This file can’t be shown here. Download it to open it on this computer.
@@ -507,19 +510,26 @@ function PdfPreview({ url }: { url: string }) {
   );
 }
 
-function TextPreview({ url }: { url: string }) {
+/** A text file as it is, or a .docx as its text, unpacked on this machine. */
+function TextPreview({ url, docx = false }: { url: string; docx?: boolean }) {
   const [text, setText] = useState("");
   useEffect(() => {
     const controller = new AbortController();
     void fetch(url, { signal: controller.signal })
-      .then((response) => (response.ok ? response.text() : Promise.reject(new Error("unreadable"))))
+      .then(async (response) => {
+        if (!response.ok) throw new Error("unreadable");
+        if (!docx) return response.text();
+        const read = readDocxText(new Uint8Array(await response.arrayBuffer()));
+        if (read === null) throw new Error("unreadable");
+        return read;
+      })
       .then((body) => setText(body.slice(0, 100_000)))
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
         setText("Could not read this file.");
       });
     return () => controller.abort();
-  }, [url]);
+  }, [url, docx]);
   return <pre className="documents-preview-text">{text}</pre>;
 }
 
@@ -557,6 +567,10 @@ function isVideo(document: VaultDocument): boolean {
 
 function isAudio(document: VaultDocument): boolean {
   return document.mediaType.startsWith("audio/") || /\.(mp3|wav|m4a)$/i.test(document.originalName);
+}
+
+function isDocx(document: VaultDocument): boolean {
+  return document.mediaType === DOCX_MEDIA_TYPE || /\.docx$/i.test(document.originalName);
 }
 
 function isText(document: VaultDocument): boolean {

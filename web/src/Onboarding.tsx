@@ -8,6 +8,7 @@ import { Selector } from "@astryxdesign/core/Selector";
 import { SelectableCard } from "@astryxdesign/core/SelectableCard";
 import { Stepper, Step } from "@astryxdesign/core/Stepper";
 import { Heading, Text } from "@astryxdesign/core/Text";
+import { RESUME_FILE_ACCEPT } from "@core/resume-preview";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import {
   CLOUD_PROVIDERS,
@@ -1438,7 +1439,7 @@ export function Onboarding({
                     ref={fileInputRef}
                     type="file"
                     multiple
-                    accept="application/pdf,text/plain,.pdf,.txt,.md"
+                    accept={RESUME_FILE_ACCEPT}
                     onChange={(event) => {
                       const picked = event.target.files ? [...event.target.files] : [];
                       event.target.value = "";
@@ -1453,7 +1454,7 @@ export function Onboarding({
                     type="file"
                     multiple
                     hidden
-                    accept="application/pdf,text/plain,.pdf,.txt,.md"
+                    accept={RESUME_FILE_ACCEPT}
                     onChange={(event) => {
                       const picked = event.target.files ? [...event.target.files] : [];
                       event.target.value = "";

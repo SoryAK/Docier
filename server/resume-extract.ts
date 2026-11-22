@@ -5,6 +5,7 @@ import {
   type ExtractedResume,
 } from "../core/resume-extract";
 import { describeModelFailure, type ModelFailureKind } from "../core/model-failure";
+import { readDocxText } from "../core/docx-text";
 import { classifyResumePreview } from "../core/resume-preview";
 import { loadLatestModelConnection } from "./models";
 import { completeOpenAiChat, isAbortError, type CompleteFn } from "./openai-compat";
@@ -59,8 +60,12 @@ export async function extractResumeFromFile(
     } catch {
       throw new ResumeExtractError("Could not read that PDF.", 422);
     }
+  } else if (kind === "docx") {
+    const read = readDocxText(file.bytes);
+    if (read === null) throw new ResumeExtractError("Could not read that .docx file.", 422);
+    text = read.trim();
   } else {
-    throw new ResumeExtractError("Extract currently supports PDF and text files.", 400);
+    throw new ResumeExtractError("Extract supports PDF, .docx, and text files.", 400);
   }
 
   if (!isExtractableResumeText(text)) {

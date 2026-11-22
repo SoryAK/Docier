@@ -12,6 +12,7 @@ import {
   parseHistoryResumeId,
   type ExtractedResume,
 } from "../core/resume-extract";
+import { parseFirstRunUpdate } from "../core/first-run";
 import { evidenceLinksFit, parseHistoryEvidence, parseHistoryRoleIds } from "../core/resume-compare";
 import {
   completeOpenAiChat,
@@ -110,6 +111,7 @@ import { prepareProfile } from "../core/profile";
 import {
   ProfileError,
   completeOnboarding,
+  updateFirstRun,
   evidenceIdForResume,
   loadAvatar,
   saveProfile,
@@ -689,6 +691,14 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
     return c.body(Buffer.from(avatar.bytes), 200, {
       "content-type": avatar.type,
     });
+  });
+
+  app.put("/api/first-run", async (c) => {
+    const occupant = ensureOccupant(db);
+    const parsed = parseFirstRunUpdate(await c.req.json().catch(() => null));
+    if (!parsed.ok) return c.json({ error: "Could not read that first-run update." }, 400);
+    const profile = updateFirstRun(db, occupant.id, parsed.update);
+    return c.json({ occupant, profile });
   });
 
   app.post("/api/onboarding/complete", (c) => {

@@ -13,7 +13,11 @@ import { WorkMapPreviewPage } from "./WorkMapPreview";
 
 type Me = {
   occupant: { id: string };
-  profile: OnboardingProfileValue & { onboardingCompletedAt: string | null };
+  profile: OnboardingProfileValue & {
+    onboardingCompletedAt: string | null;
+    welcomeSeenAt?: string | null;
+    tourCompletedAt?: string | null;
+  };
 };
 
 const EMPTY_CAREER: CareerFile = { jobs: [], schools: [], skills: [] };

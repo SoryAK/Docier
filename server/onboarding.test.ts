@@ -243,4 +243,31 @@ describe("onboarding HTTP", () => {
       ctx.close();
     }
   });
+
+  it("marks the welcome seen and the tour done, and can clear them to show again", async () => {
+    const ctx = setup();
+    try {
+      const put = (body: unknown) =>
+        ctx.app.request("/api/first-run", {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(body),
+        });
+      const seen = await put({ welcomeSeen: true, tourDone: true });
+      expect(seen.status).toBe(200);
+      const marked = (await seen.json()) as { profile: { welcomeSeenAt: string | null; tourCompletedAt: string | null } };
+      expect(marked.profile.welcomeSeenAt).toEqual(expect.any(String));
+      expect(marked.profile.tourCompletedAt).toEqual(expect.any(String));
+
+      const again = await put({ tourDone: false });
+      const cleared = (await again.json()) as { profile: { welcomeSeenAt: string | null; tourCompletedAt: string | null } };
+      expect(cleared.profile.tourCompletedAt).toBeNull();
+      expect(cleared.profile.welcomeSeenAt).toEqual(marked.profile.welcomeSeenAt);
+
+      expect((await put({})).status).toBe(400);
+      expect((await put({ welcomeSeen: "yes" })).status).toBe(400);
+    } finally {
+      ctx.close();
+    }
+  });
 });

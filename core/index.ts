@@ -588,3 +588,12 @@ export {
 export { distinctPairKey, prepareDistinctPair, type DistinctPair } from "./distinct-roles";
 export { describeModelFailure, type ModelFailure, type ModelFailureKind } from "./model-failure";
 export { nextOnboardingStep, onboardingSteps, previousOnboardingStep, type OnboardingStepId } from "./onboarding-steps";
+export {
+  parseFirstRunUpdate,
+  shouldWelcome,
+  tourSteps,
+  welcomeSavedLine,
+  type FirstRunUpdate,
+  type TourAnchor,
+  type TourStep,
+} from "./first-run";

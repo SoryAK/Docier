@@ -25,6 +25,7 @@ export function HomeBar({
   onMenu,
   onSettings,
   onEditProfile,
+  onTour,
   onSearch,
   onProforna,
   onRequests,
@@ -46,6 +47,8 @@ export function HomeBar({
   onMenu: () => void;
   onSettings: (section?: "profile" | "publication") => void;
   onEditProfile?: () => void;
+  /** Starts the tour of Home again. */
+  onTour?: () => void;
   onSearch: () => void;
   onProforna?: () => void;
   /** Opens the full Requests dialog on a tab, optionally on one request. */
@@ -445,6 +448,7 @@ export function HomeBar({
         <button
           type="button"
           className="home-search-pill"
+          data-tour="search"
           aria-label="Search"
           onClick={onSearch}
         >
@@ -455,13 +459,14 @@ export function HomeBar({
         <button
           type="button"
           className="home-search-icon"
+          data-tour="search"
           aria-label="Search"
           title="Search"
           onClick={onSearch}
         >
           <Icon name="search" />
         </button>
-        <div className={`home-sync is-${relayState ?? "unknown"}`}>
+        <div className={`home-sync is-${relayState ?? "unknown"}`} data-tour="share">
           <button
             type="button"
             className="home-sync-track"
@@ -954,6 +959,19 @@ export function HomeBar({
               >
                 Settings
               </button>
+              {onTour ? (
+                <button
+                  type="button"
+                  className="home-user-item"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenu(null);
+                    onTour();
+                  }}
+                >
+                  Take the tour
+                </button>
+              ) : null}
               <div className="home-user-separator" role="separator" />
               <a
                 className="home-user-item"

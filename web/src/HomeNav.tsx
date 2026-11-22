@@ -148,6 +148,7 @@ export function HomeNav({
         <NavRow
           icon="history"
           label="Career History"
+          tour="history-nav"
           current={customId ? false : page === "history"}
           slim={slim}
           onSelect={() => {
@@ -292,12 +293,15 @@ function NavRow({
   current,
   slim,
   onSelect,
+  tour,
 }: {
   icon: IconName;
   label: string;
   current?: boolean;
   slim: boolean;
   onSelect?: () => void;
+  /** Where the tour points at this row. */
+  tour?: string;
 }) {
   const className = ["home-nav-item", current ? "is-current" : ""]
     .filter(Boolean)
@@ -310,7 +314,7 @@ function NavRow({
   );
   if (!onSelect) {
     return (
-      <span className={className} title={slim ? label : undefined}>
+      <span className={className} title={slim ? label : undefined} data-tour={tour}>
         {inner}
       </span>
     );
@@ -321,6 +325,7 @@ function NavRow({
       className={className}
       title={slim ? label : undefined}
       aria-current={current ? "page" : undefined}
+      data-tour={tour}
       onClick={onSelect}
     >
       {inner}

@@ -31,6 +31,8 @@ describe("GET /api/me", () => {
           portfolioUrl: "",
           avatarUrl: null,
           onboardingCompletedAt: null,
+          welcomeSeenAt: null,
+          tourCompletedAt: null,
         },
       });
     } finally {

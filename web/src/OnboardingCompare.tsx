@@ -26,6 +26,7 @@ import {
   rememberSkills,
   roleFieldDiffs,
   type SkillEdit,
+  NO_RESUME_FILE,
   roleTookFile,
   type HeldRole,
   type HeldSkill,
@@ -645,9 +646,12 @@ export function AllResumesVerify({
   /** What else was entered (profile, resumes), shown above the jobs and schools. */
   submitted?: ReactNode;
 }) {
-  const [rows, setRows] = useState<OnboardingTimelineRow[]>(
-    () => initialRows ?? overlayFileEdits(buildTimeline(bundles), editedItems, editedFileIndex),
-  );
+  const [rows, setRows] = useState<OnboardingTimelineRow[]>(() => {
+    const read = () => overlayFileEdits(buildTimeline(bundles), editedItems, editedFileIndex);
+    if (!initialRows) return read();
+    // Only rows typed by hand were kept, so the resumes' rows are built again beside them.
+    return initialRows.every((row) => row.fileIndex === NO_RESUME_FILE) ? [...read(), ...initialRows] : initialRows;
+  });
   const [prior, setPrior] = useState(priorHeld);
   const [declined, setDeclined] = useState(initialDeclined);
   const [opened, setOpened] = useState<string[]>([]);
@@ -754,7 +758,9 @@ export function AllResumesVerify({
   }
 
   function keptRoles(): HeldRole[] {
-    let held: HeldRole[] = prior.filter((role) => bundles.some((bundle) => roleTookFile(role, bundle.fileIndex)));
+    let held: HeldRole[] = prior.filter(
+      (role) => roleTookFile(role, NO_RESUME_FILE) || bundles.some((bundle) => roleTookFile(role, bundle.fileIndex)),
+    );
     for (const row of rows) {
       if (row.removed || isBlankOnboardingCheckItem(row.item)) continue;
       if (!row.adopted && hintSetAside(asides, row.item)) continue;
@@ -784,10 +790,10 @@ export function AllResumesVerify({
 
   function add(kind: OnboardingCheckItem["kind"]) {
     const item = blankOnboardingCheckItem(kind, nextOnboardingSourceIndex(rows.map((row) => row.item), kind));
-    const fileIndex = bundles[0]?.fileIndex ?? 0;
+    // Typed here, not read: no resume backs it, and removing a resume leaves it.
     const row: OnboardingTimelineRow = {
-      id: `file-${fileIndex}-${item.source}-${item.sourceIndex}`,
-      fileIndex,
+      id: `hand-${item.source}-${item.sourceIndex}`,
+      fileIndex: NO_RESUME_FILE,
       item,
       removed: false,
       adopted: true,

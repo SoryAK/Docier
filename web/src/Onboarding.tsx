@@ -61,6 +61,7 @@ import { ArrowRight, ChevronDown, Cloud, FileText, Laptop, PencilLine, Plus, Tri
 import {
   dropSetAside,
   historyFromHeld,
+  NO_RESUME_FILE,
   resumesToQueue,
   rememberSetAside,
   rememberSkills,
@@ -170,6 +171,8 @@ export function Onboarding({
   // A local model is tested as soon as it is chosen; a cloud one on Continue.
   const [modelCheck, setModelCheck] = useState<{ key: string; state: "checking" | "ok" | "failed" } | null>(null);
   const modelCheckKeyRef = useRef("");
+  // A draft was loaded or saved in this session, so emptying it must be saved too.
+  const draftSavedRef = useRef(false);
   // The last read stopped on a model failure, so the Resume step offers a way on.
   const [readFailed, setReadFailed] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -236,6 +239,7 @@ export function Onboarding({
     void loadOnboardingDraft()
       .then((draft) => {
         if (cancel || !draft) return;
+        draftSavedRef.current = true;
         extractsRef.current = new Map(draft.extracts.map((row) => [row.digest, row.data]));
         setFiles(
           draft.files.map((row) => ({
@@ -309,7 +313,10 @@ export function Onboarding({
 
   useEffect(() => {
     // Jobs typed on Verify without a model are kept too, with or without a resume.
-    if (!draftReady || (files.length === 0 && held.length === 0 && !timeline?.length)) return;
+    // Once a draft exists, an emptied one is saved as well, so a removed last resume stays removed.
+    const empty = files.length === 0 && held.length === 0 && !timeline?.length;
+    if (!draftReady || (empty && !draftSavedRef.current)) return;
+    draftSavedRef.current = true;
     let cancel = false;
     void (async () => {
       const stored = await Promise.all(
@@ -564,6 +571,15 @@ export function Onboarding({
     if (!cloudKey.trim()) return "Add your key to continue.";
     return "Choose a model to continue.";
   }
+  // A test still answering belongs to the choice it was sent for. Leaving Model, or
+  // changing the choice, drops it so its answer can't move the steps along.
+  useEffect(() => {
+    const live = step === "model" ? modelCheckKey() : "";
+    if (!modelCheckKeyRef.current || modelCheckKeyRef.current === live) return;
+    modelCheckKeyRef.current = "";
+    setModelCheck((current) => (current?.state === "checking" ? null : current));
+  }, [step, baseUrl, selected, hosting, cloudKey]);
+
   useEffect(() => {
     if (!localModelKey || modelCheck?.key === localModelKey) return;
     setError(null);
@@ -845,7 +861,11 @@ export function Onboarding({
     }
     const first = files[0] ? extractsRef.current.get(files[0].digest) : undefined;
     if (first) setProfileExtract(first.profile);
-    setTimeline(null);
+    // Read rows are built again from the resumes; jobs and schools typed by hand stay.
+    setTimeline((current) => {
+      const typed = current?.filter((row) => row.fileIndex === NO_RESUME_FILE) ?? [];
+      return typed.length > 0 ? typed : null;
+    });
     setDeclinedPairs([]);
     setItems([]);
     setPass("verify");
@@ -1013,12 +1033,13 @@ export function Onboarding({
                 roleIds: history.experienceRoleIds,
                 educationRoleIds: history.educationRoleIds,
                 evidence: manual ? null : {
+                  // A job or school typed by hand lists no resume, so none is attached to it.
                   experience: history.experienceEvidence.map((source) => ({
-                    resumeIds: source.files.map((index) => resumeIds[index]),
-                    achievements: source.achievements.map((index) => resumeIds[index]),
+                    resumeIds: source.files.flatMap((index) => resumeIds[index] ?? []),
+                    achievements: source.achievements.map((index) => resumeIds[index] ?? ""),
                   })),
                   education: history.educationEvidence.map((source) => ({
-                    resumeIds: source.files.map((index) => resumeIds[index]),
+                    resumeIds: source.files.flatMap((index) => resumeIds[index] ?? []),
                   })),
                   skills: history.skillFiles.map((index) => (index >= 0 ? (resumeIds[index] ?? "") : "")),
                 },

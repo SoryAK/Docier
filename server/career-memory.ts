@@ -74,7 +74,7 @@ export function saveEvidence(
  * names this evidence. Approved facts were judged against it, so it stays as
  * captured while anything cites it.
  */
-function evidenceCited(db: DatabaseSync, occupantId: string, evidenceId: string): boolean {
+export function evidenceCited(db: DatabaseSync, occupantId: string, evidenceId: string): boolean {
   const quoted = `%${JSON.stringify(evidenceId)}%`;
   const fact = db
     .prepare("SELECT 1 FROM career_facts WHERE occupant_id = ? AND evidence_ids_json LIKE ? LIMIT 1")

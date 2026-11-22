@@ -663,6 +663,8 @@ export function openDatabase(path: string): DatabaseSync {
   addColumnIfMissing(db, "outgoing_requests", "cleared_at", "TEXT");
   // A photo on a My Network contact, stored in uploads like the profile photo.
   addColumnIfMissing(db, "contacts", "photo_stored_name", "TEXT");
+  // A resume added in onboarding is listed in My Docs, where its kind can change like any file (#189).
+  addColumnIfMissing(db, "resumes", "category", "TEXT NOT NULL DEFAULT 'resume'");
   // Access (managed from the Relay menu): who each link is for, what it opens,
   // the link itself so it can be copied again, and when it was last opened.
   addColumnIfMissing(db, "projection_access_grants", "person_name", "TEXT NOT NULL DEFAULT ''");

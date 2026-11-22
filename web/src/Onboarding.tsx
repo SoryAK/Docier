@@ -8,6 +8,7 @@ import { Selector } from "@astryxdesign/core/Selector";
 import { Stepper, Step } from "@astryxdesign/core/Stepper";
 import { Heading, Text } from "@astryxdesign/core/Text";
 import { RESUME_FILE_ACCEPT } from "@core/resume-preview";
+import { TextArea } from "@astryxdesign/core/TextArea";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import {
   CLOUD_PROVIDERS,
@@ -123,6 +124,8 @@ export function Onboarding({
   // A photo saved before (when setup is run again) is removed on finish.
   const [photoRemoved, setPhotoRemoved] = useState(false);
   const [headline, setHeadline] = useState(initialProfile.headline);
+  // Changed on Verify, where a bio read from a resume is shown before it is saved.
+  const [bio, setBio] = useState(initialProfile.bio);
   const [place, setPlace] = useState<OnboardingPlaceAnswer>({
     street: initialProfile.address,
     city: initialProfile.city,
@@ -263,6 +266,8 @@ export function Onboarding({
           setFirstName(draft.about.firstName);
           setLastName(draft.about.lastName);
           if (draft.about.headline !== undefined) setHeadline(draft.about.headline);
+          if (draft.about.bio !== undefined) setBio(draft.about.bio);
+          if (draft.about.links) setLinks(draft.about.links);
           setPlace(draft.about.place);
         }
         setStep(draft.step);
@@ -344,7 +349,7 @@ export function Onboarding({
         declinedPairs,
         profileExtract,
         modelChoice: modelChoiceForDraft(),
-        about: { firstName, lastName, headline, place },
+        about: { firstName, lastName, headline, bio, links, place },
       });
       } catch {
         /* the questions still continue in this page */
@@ -353,7 +358,7 @@ export function Onboarding({
     return () => {
       cancel = true;
     };
-  }, [draftReady, files, readDigests, held, heldSkills, setAsides, cursor, pass, step, items, timeline, declinedPairs, profileExtract, wantsModel, hosting, selected, baseUrl, endpointMode, localUrl, firstName, lastName, headline, place]);
+  }, [draftReady, files, readDigests, held, heldSkills, setAsides, cursor, pass, step, items, timeline, declinedPairs, profileExtract, wantsModel, hosting, selected, baseUrl, endpointMode, localUrl, firstName, lastName, headline, bio, links, place]);
 
   useEffect(() => {
     let cancel = false;
@@ -937,6 +942,7 @@ export function Onboarding({
         firstName,
         lastName,
         headline,
+        bio,
         place,
         links,
       });
@@ -1636,22 +1642,36 @@ export function Onboarding({
             <AllResumesVerify
               manual={wantsModel !== true}
               submitted={
-                wantsModel !== true ? (
-                  <SubmittedSummary
-                    firstName={firstName}
-                    lastName={lastName}
-                    headline={headline}
-                    place={place}
-                    photo={photoPreview}
-                    resumes={files.map((row) => row.file.name)}
-                    onFirstName={setFirstName}
-                    onLastName={setLastName}
-                    onHeadline={setHeadline}
-                    onPlace={setPlace}
-                    onRemoveResume={removeResume}
-                    onAddResumes={addResumes}
-                  />
-                ) : null
+                // What Finish will save, including what a resume filled in where a field was left blank.
+                <SubmittedSummary
+                  firstName={firstName}
+                  lastName={lastName}
+                  headline={headline}
+                  bio={bio}
+                  place={place}
+                  links={links}
+                  saved={profileAfterOnboarding({
+                    current: profileRef.current,
+                    extracted: profileExtract,
+                    firstName,
+                    lastName,
+                    headline,
+                    bio,
+                    place,
+                    links,
+                  })}
+                  photo={photoPreview}
+                  resumes={files.map((row) => row.file.name)}
+                  onFirstName={setFirstName}
+                  onLastName={setLastName}
+                  onHeadline={setHeadline}
+                  onBio={setBio}
+                  onPlace={setPlace}
+                  onLinks={setLinks}
+                  // Read resumes stay; without a model they can still be changed here.
+                  onRemoveResume={wantsModel !== true ? removeResume : undefined}
+                  onAddResumes={wantsModel !== true ? addResumes : undefined}
+                />
               }
               bundles={wantsModel !== true ? [] : resumeBundles(files, extractsRef.current)}
               initialRows={timeline}
@@ -1870,42 +1890,76 @@ function SubmittedSummary({
   firstName,
   lastName,
   headline,
+  bio,
   place,
+  links,
+  saved,
   photo,
   resumes,
   onFirstName,
   onLastName,
   onHeadline,
+  onBio,
   onPlace,
+  onLinks,
   onRemoveResume,
   onAddResumes,
 }: {
   firstName: string;
   lastName: string;
   headline: string;
+  bio: string;
   place: OnboardingPlaceAnswer;
+  links: OnboardingLinkAnswer;
+  /** The profile Finish will save: what was typed, and what a resume filled in where a field was blank. */
+  saved: ProfileFields;
   photo: string | null;
   resumes: string[];
   onFirstName: (value: string) => void;
   onLastName: (value: string) => void;
   onHeadline: (value: string) => void;
+  onBio: (value: string) => void;
   onPlace: (place: OnboardingPlaceAnswer) => void;
-  onRemoveResume: (index: number) => void;
-  onAddResumes: (files: File[]) => void;
+  onLinks: (links: OnboardingLinkAnswer) => void;
+  /** Left out once resumes are read; they are shown but not changed here. */
+  onRemoveResume?: (index: number) => void;
+  onAddResumes?: (files: File[]) => void;
 }) {
   const [open, setOpen] = useState({ profile: true, resumes: true });
   const [editing, setEditing] = useState<"profile" | "resumes" | null>(null);
   const resumeInput = useRef<HTMLInputElement>(null);
   const name = joinPersonName(firstName, lastName);
-  const where = [place.city.trim(), place.state.trim()].filter(Boolean).join(", ");
-  const detail = [headline.trim(), where].filter(Boolean).join(" · ");
+  const where = [saved.city.trim(), saved.state.trim()].filter(Boolean).join(", ");
+  const detail = [saved.headline.trim(), where].filter(Boolean).join(" · ");
   const facts = [
     { label: "First name", value: firstName.trim() },
     { label: "Last name", value: lastName.trim() },
-    { label: "City", value: place.city.trim() },
-    { label: "State", value: place.state.trim() },
-    { label: "Professional headline", value: headline.trim() },
+    { label: "City", value: saved.city.trim() },
+    { label: "State", value: saved.state.trim() },
+    { label: "Professional headline", value: saved.headline.trim() },
+    { label: "Bio", value: saved.bio.trim() },
+    { label: "LinkedIn", value: saved.linkedinUrl.trim() },
+    { label: "GitHub", value: saved.githubUrl.trim() },
+    { label: "Website", value: saved.portfolioUrl.trim() },
   ].filter((fact) => fact.value);
+  const badLink = [links.linkedinUrl, links.githubUrl, links.portfolioUrl].some(
+    (url) => url.trim() !== "" && !isHttpUrl(url.trim()),
+  );
+  const canEditResumes = Boolean(onRemoveResume && onAddResumes);
+  // Editing starts from what is shown, so a value a resume filled in can be changed or cleared.
+  function startProfileEdit() {
+    if (!headline.trim() && saved.headline) onHeadline(saved.headline);
+    if (!bio.trim() && saved.bio) onBio(saved.bio);
+    if ((!place.city.trim() && saved.city) || (!place.state.trim() && saved.state)) {
+      onPlace({ ...place, city: place.city.trim() || saved.city, state: place.state.trim() || saved.state });
+    }
+    onLinks({
+      linkedinUrl: links.linkedinUrl.trim() || saved.linkedinUrl,
+      githubUrl: links.githubUrl.trim() || saved.githubUrl,
+      portfolioUrl: links.portfolioUrl.trim() || saved.portfolioUrl,
+    });
+    setEditing("profile");
+  }
   const toggle = (key: "profile" | "resumes") => {
     if (editing === key) return;
     setOpen((current) => ({ ...current, [key]: !current[key] }));
@@ -1933,8 +1987,8 @@ function SubmittedSummary({
               label={editing === "profile" ? "Done" : "Edit"}
               variant="ghost"
               size="sm"
-              isDisabled={editing === "profile" && !name}
-              onClick={() => setEditing(editing === "profile" ? null : "profile")}
+              isDisabled={editing === "profile" && (!name || badLink)}
+              onClick={() => (editing === "profile" ? setEditing(null) : startProfileEdit())}
             />
           ) : null}
           <button
@@ -1981,7 +2035,32 @@ function SubmittedSummary({
                   width="100%"
                   onChange={onHeadline}
                 />
+                <TextArea label="Bio" value={bio} rows={3} width="100%" onChange={onBio} />
+                <TextInput
+                  label="LinkedIn"
+                  value={links.linkedinUrl}
+                  type="url"
+                  width="100%"
+                  onChange={(linkedinUrl) => onLinks({ ...links, linkedinUrl })}
+                />
+                <div className="onboarding-field-row">
+                  <TextInput
+                    label="GitHub"
+                    value={links.githubUrl}
+                    type="url"
+                    width="100%"
+                    onChange={(githubUrl) => onLinks({ ...links, githubUrl })}
+                  />
+                  <TextInput
+                    label="Website"
+                    value={links.portfolioUrl}
+                    type="url"
+                    width="100%"
+                    onChange={(portfolioUrl) => onLinks({ ...links, portfolioUrl })}
+                  />
+                </div>
                 {name ? null : <p className="onboarding-why">Add your name to continue.</p>}
+                {badLink ? <p className="onboarding-why">Links start with http:// or https://.</p> : null}
               </div>
             ) : (
               <dl className="onboarding-submitted-facts">
@@ -2014,10 +2093,10 @@ function SubmittedSummary({
                 {open.resumes ? null : <span>{resumes.join(", ")}</span>}
               </span>
             </button>
-            {open.resumes && editing === "resumes" ? (
+            {open.resumes && canEditResumes && editing === "resumes" ? (
               <Button label="Add resume" icon={<Icon icon={Plus} />} size="sm" onClick={() => resumeInput.current?.click()} />
             ) : null}
-            {open.resumes ? (
+            {open.resumes && canEditResumes ? (
               <Button
                 label={editing === "resumes" ? "Done" : "Edit"}
                 variant="ghost"
@@ -2044,7 +2123,7 @@ function SubmittedSummary({
                   <li key={`${fileName}-${index}`}>
                     <span title={fileName}>{fileName}</span>
                     {editing === "resumes" ? (
-                      <Button label="Remove" variant="ghost" size="sm" onClick={() => onRemoveResume(index)} />
+                      <Button label="Remove" variant="ghost" size="sm" onClick={() => onRemoveResume?.(index)} />
                     ) : null}
                   </li>
                 ))}
@@ -2058,7 +2137,7 @@ function SubmittedSummary({
                 onChange={(event) => {
                   const picked = event.target.files ? [...event.target.files] : [];
                   event.target.value = "";
-                  onAddResumes(picked);
+                  onAddResumes?.(picked);
                 }}
               />
             </div>

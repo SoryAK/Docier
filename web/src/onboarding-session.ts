@@ -1,4 +1,4 @@
-import type { OnboardingCheckItem, OnboardingPlaceAnswer } from "@core/onboarding-review";
+import type { OnboardingCheckItem, OnboardingLinkAnswer, OnboardingPlaceAnswer } from "@core/onboarding-review";
 import type { ExtractedProfile, ExtractedResume } from "@core/resume-extract";
 import type { HeldRole, HeldSkill, SetAsideRole } from "@core/resume-compare";
 
@@ -41,7 +41,14 @@ export type OnboardingDraft = {
   declinedPairs?: string[];
   modelChoice?: OnboardingModelChoice | null;
   /** The Profile answers, so a reload partway through doesn't lose the name. */
-  about?: { firstName: string; lastName: string; headline?: string; place: OnboardingPlaceAnswer } | null;
+  about?: {
+    firstName: string;
+    lastName: string;
+    headline?: string;
+    bio?: string;
+    links?: OnboardingLinkAnswer;
+    place: OnboardingPlaceAnswer;
+  } | null;
 };
 
 export async function loadOnboardingDraft(): Promise<OnboardingDraft | null> {

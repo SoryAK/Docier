@@ -6,6 +6,7 @@ import { bodyLimit } from "hono/body-limit";
 import { getCookie, setCookie } from "hono/cookie";
 import { checkRequestBody, isMissingJsonBody } from "../server/request-body";
 import { groupLinkedEvidence, type PublishedLinkedEvidence } from "../core/index";
+import { registerAsks } from "./asks";
 import { handleMcp, type PublicationRead, type PublicationSnapshot } from "./mcp";
 
 type RelayProjection = PublicationSnapshot;
@@ -37,6 +38,8 @@ export function createRelayApp(db: DatabaseSync, ownerToken: string, options: Re
     }
     return c.text("Internal Server Error", 500);
   });
+
+  registerAsks(app, db, (c) => isOwner(c.req.header("authorization"), ownerToken));
 
   app.get("/health", (c) => c.json({ ok: true, service: "proforna-relay" }));
 

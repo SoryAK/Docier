@@ -1,9 +1,20 @@
+/* Onboarding uses the product's light look; these override the app-wide
+   dark defaults from index.css for setup only. */
 .onboarding {
+  --bg: #f3f3f4;
+  --text: #171717;
+  --muted: #6b6b70;
+  --glass: #fff;
+  --glass-border: #e4e4e7;
+  --gold: #8a6d4f;
+  --gold-light: #7a5f44;
+  --gold-hover: #5c4632;
   min-height: 100vh;
   position: relative;
   overflow-x: hidden;
   overflow-y: auto;
-  background: none;
+  background: var(--bg);
+  color: var(--text);
 }
 
 .onboarding-stage {
@@ -44,7 +55,7 @@
   place-items: center;
   width: 2rem;
   height: 2rem;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(23, 23, 23, 0.14);
   border-radius: 50%;
   color: var(--muted);
   font-size: 0.75rem;
@@ -90,7 +101,7 @@
 .onboarding-progress-bar {
   width: 0.85rem;
   height: 2px;
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(23, 23, 23, 0.12);
 }
 
 @media (min-width: 640px) {
@@ -124,7 +135,7 @@
 .onboarding-footnote {
   margin: 0.9rem 0 0;
   padding: 0 1.4rem;
-  color: #fff;
+  color: #171717;
   font-size: 0.85rem;
   font-weight: 400;
   line-height: 1.45;
@@ -147,11 +158,11 @@
   max-height: calc(100vh - 8rem);
   overflow: auto;
   isolation: isolate;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(23, 23, 23, 0.1);
   border-radius: 24px;
   background: var(--glass);
   backdrop-filter: blur(10px);
-  box-shadow: 0 0 80px rgba(167, 139, 113, 0.16);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 12px 32px rgba(0, 0, 0, 0.06);
   animation: onboarding-enter 1s var(--reveal) both;
 }
 
@@ -177,7 +188,7 @@
 
 .onboarding-card h1 {
   margin: 0;
-  color: #fff;
+  color: #171717;
   font-size: clamp(1.35rem, 3vw, 1.6rem);
   font-weight: 600;
   letter-spacing: -0.02em;
@@ -219,7 +230,7 @@
 }
 
 .onboarding-card .onboarding-actions button[data-variant="ghost"] {
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  border: 1px solid rgba(23, 23, 23, 0.22);
   border-radius: 999px !important;
 }
 
@@ -238,7 +249,7 @@
   gap: 0.65rem;
   flex: 1;
   min-width: 0;
-  color: #f5f2ee;
+  color: #171717;
   font-weight: 600;
 }
 
@@ -280,9 +291,9 @@
   justify-items: center;
   gap: 0.55rem;
   padding: 2.5rem 1.25rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(23, 23, 23, 0.1);
   border-radius: 16px;
-  background: rgba(0, 0, 0, 0.25);
+  background: #fff;
   text-align: center;
 }
 
@@ -295,7 +306,7 @@
 }
 
 .onboarding-extract-pulse strong {
-  color: #fff;
+  color: #171717;
   font-size: 1rem;
   font-weight: 600;
 }
@@ -321,8 +332,8 @@
 
 .onboarding-btn-solid {
   border: 0;
-  background: #fff;
-  color: #0a0a0a;
+  background: #171717;
+  color: #fff;
 }
 
 .onboarding-btn-solid:hover:not(:disabled) {
@@ -330,7 +341,7 @@
 }
 
 .onboarding-btn-ghost {
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(23, 23, 23, 0.18);
   background: transparent;
   color: var(--gold-light);
 }
@@ -383,10 +394,10 @@
 .onboarding-verify-btn {
   min-height: 2rem;
   padding: 0.28rem 0.75rem;
-  border: 1px solid rgba(232, 213, 183, 0.45);
+  border: 1px solid rgba(138, 109, 79, 0.45);
   border-radius: 999px;
   background: rgba(167, 139, 113, 0.12);
-  color: #fff;
+  color: #171717;
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.03em;
@@ -407,10 +418,10 @@
   margin-top: 0.85rem;
   min-height: 2.6rem;
   padding: 0.55rem 0.9rem;
-  border: 1px solid rgba(232, 213, 183, 0.55);
+  border: 1px solid rgba(138, 109, 79, 0.55);
   border-radius: 999px;
   background: rgba(167, 139, 113, 0.16);
-  color: #fff;
+  color: #171717;
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -437,10 +448,10 @@
   width: 100%;
   box-sizing: border-box;
   padding: 0.55rem 0.8rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(23, 23, 23, 0.1);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.03);
-  color: #fff;
+  background: rgba(23, 23, 23, 0.03);
+  color: #171717;
   font: 400 0.9rem var(--sans);
   outline: none;
   transition: border-color 0.4s var(--ease);
@@ -448,12 +459,12 @@
 
 .onboarding-field select {
   color-scheme: dark;
-  background-color: #171513;
+  background-color: #fff;
 }
 
 .onboarding-field select option {
-  background-color: #171513;
-  color: #f5f2ee;
+  background-color: #fff;
+  color: #171717;
 }
 
 .onboarding-field textarea {
@@ -472,8 +483,8 @@
   border-radius: 999px;
   min-height: 2.75rem;
   padding: 0.45rem 2.4rem 0.45rem 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(23, 23, 23, 0.22);
+  background-color: rgba(23, 23, 23, 0.03);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.2 6 6.2 11 1.2' fill='none' stroke='%23f5f2ee' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 1rem center;
@@ -583,7 +594,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #fff;
+  color: #171717;
   font-weight: 500;
 }
 
@@ -655,7 +666,7 @@
 .onboarding-diff p + p {
   margin-top: 0.15rem;
   padding-top: 0.75rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid rgba(23, 23, 23, 0.1);
 }
 
 .onboarding:has(.onboarding-compare) {
@@ -700,7 +711,7 @@
   overscroll-behavior: contain;
   padding-right: 0.35rem;
   scrollbar-width: thin;
-  scrollbar-color: rgba(232, 213, 183, 0.55) transparent;
+  scrollbar-color: rgba(138, 109, 79, 0.55) transparent;
 }
 
 .onboarding-compare .onboarding-choices::-webkit-scrollbar {
@@ -710,13 +721,13 @@
 .onboarding-compare .onboarding-choices::-webkit-scrollbar-thumb {
   border: 2px solid transparent;
   border-radius: 999px;
-  background: rgba(232, 213, 183, 0.55);
+  background: rgba(138, 109, 79, 0.55);
   background-clip: padding-box;
 }
 
 .onboarding-alert {
   margin: 0.85rem 0 0;
-  color: #e8d5b7;
+  color: #6b4f33;
   font-size: 14px;
 }
 
@@ -737,7 +748,7 @@
   display: block;
   font-size: 0.95rem;
   font-weight: 600;
-  color: #fff;
+  color: #171717;
 }
 
 .onboarding-host-card span {
@@ -745,7 +756,7 @@
   margin-top: 0.2rem;
   font-size: 0.82rem;
   line-height: 1.4;
-  color: rgba(255, 255, 255, 0.72);
+  color: rgba(23, 23, 23, 0.72);
 }
 
 .onboarding-choice {
@@ -753,9 +764,9 @@
   gap: 0.25rem;
   width: 100%;
   padding: 0.8rem 0.95rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(23, 23, 23, 0.1);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(23, 23, 23, 0.03);
   color: inherit;
   text-align: left;
   transition:
@@ -782,7 +793,7 @@
 .onboarding-choice strong {
   font-size: 0.95rem;
   font-weight: 600;
-  color: #fff;
+  color: #171717;
 }
 
 .onboarding-choice span {
@@ -795,7 +806,7 @@
 .onboarding-note {
   margin: 1rem 0 0;
   padding: 0.85rem 1rem;
-  border: 1px solid rgba(232, 213, 183, 0.28);
+  border: 1px solid rgba(138, 109, 79, 0.28);
   border-radius: 16px;
   background: rgba(167, 139, 113, 0.12);
   color: var(--gold-light);
@@ -807,9 +818,9 @@
 .onboarding-preview {
   margin-top: 1.4rem;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(23, 23, 23, 0.1);
   border-radius: 24px;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(23, 23, 23, 0.03);
 }
 
 .onboarding-preview-frame {
@@ -817,7 +828,7 @@
   width: 100%;
   height: 28rem;
   border: 0;
-  background: #111;
+  background: #f3f3f4;
 }
 
 .onboarding-preview-pages {
@@ -825,7 +836,7 @@
   overflow: auto;
   background: #f3efe6;
   scrollbar-width: thin;
-  scrollbar-color: rgba(232, 213, 183, 0.55) transparent;
+  scrollbar-color: rgba(138, 109, 79, 0.55) transparent;
 }
 
 .onboarding-preview-pages canvas {
@@ -896,13 +907,13 @@
   gap: 0.2rem;
   margin-bottom: 0.65rem;
   padding: 0.85rem 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(23, 23, 23, 0.1);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(23, 23, 23, 0.03);
 }
 
 .onboarding-fact strong {
-  color: #fff;
+  color: #171717;
   font-size: 0.95rem;
   font-weight: 600;
 }
@@ -954,9 +965,9 @@
   gap: 0.75rem 1rem;
   align-items: center;
   padding: 0.7rem 0.85rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(23, 23, 23, 0.1);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(23, 23, 23, 0.03);
   text-align: left;
 }
 
@@ -967,7 +978,7 @@
 
 .onboarding-model-row strong {
   display: block;
-  color: #fff;
+  color: #171717;
   font-size: 0.9rem;
 }
 
@@ -1025,7 +1036,7 @@
 
 .onboarding-model-chip {
   padding: 0.35rem 0.7rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(23, 23, 23, 0.12);
   border-radius: 999px;
   background: transparent;
   color: var(--gold-light);
@@ -1035,7 +1046,7 @@
 .onboarding-model-chip[data-active="true"] {
   border-color: var(--gold);
   background: rgba(167, 139, 113, 0.18);
-  color: #fff;
+  color: #171717;
 }
 
 .onboarding-model-quiet {
@@ -1082,7 +1093,7 @@
 
 .onboarding-extract h3 {
   margin: 1.1rem 0 0.35rem;
-  color: #fff;
+  color: #171717;
   font-size: 0.92rem;
   font-weight: 600;
 }
@@ -1116,7 +1127,7 @@
 
 .onboarding-job-head strong {
   display: block;
-  color: #fff;
+  color: #171717;
   font-size: 1rem;
 }
 
@@ -1142,8 +1153,8 @@
 }
 
 .onboarding-place-matches button {
-  border-color: rgba(255, 255, 255, 0.12);
-  color: #f5f2ee;
+  border-color: rgba(23, 23, 23, 0.12);
+  color: #171717;
 }
 
 .onboarding-lookup-row {
@@ -1156,7 +1167,7 @@
   height: 14rem;
   margin-top: 0.65rem;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(23, 23, 23, 0.1);
   border-radius: 14px;
 }
 
@@ -1164,7 +1175,7 @@
 .onboarding-google-map {
   height: 100%;
   min-height: 0;
-  background: #14110e;
+  background: #fff;
 }
 
 .onboarding-duties {
@@ -1184,10 +1195,10 @@
   width: 100%;
   box-sizing: border-box;
   padding: 0.65rem 0.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(23, 23, 23, 0.12);
   border-radius: 10px;
-  background: rgba(0, 0, 0, 0.25);
-  color: #fff;
+  background: #fff;
+  color: #171717;
   font: inherit;
 }
 
@@ -1259,7 +1270,7 @@
 }
 
 .onboarding-steps li[data-state="current"] {
-  color: #fff;
+  color: #171717;
 }
 
 .onboarding-steps li[data-state="done"] {
@@ -1289,9 +1300,9 @@
   gap: 0.55rem;
   margin-top: 1rem;
   padding: 0.95rem 1rem 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(23, 23, 23, 0.14);
   border-radius: 14px;
-  background: rgba(0, 0, 0, 0.28);
+  background: #fff;
 }
 
 .onboarding-found[data-state="found"] {
@@ -1308,7 +1319,7 @@
   align-items: center;
   gap: 0.55rem;
   margin: 0;
-  color: #fff;
+  color: #171717;
   font-size: 0.95rem;
   font-weight: 600;
 }
@@ -1355,7 +1366,7 @@
   font: inherit;
   font-size: 0.82rem;
   text-decoration: underline;
-  text-decoration-color: rgba(255, 255, 255, 0.3);
+  text-decoration-color: rgba(23, 23, 23, 0.3);
   text-underline-offset: 3px;
   cursor: pointer;
 }
@@ -1380,13 +1391,13 @@
 
 .onboarding-cloud {
   margin-top: 0.7rem;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(23, 23, 23, 0.14);
   border-radius: 14px;
-  background: rgba(0, 0, 0, 0.28);
+  background: #fff;
 }
 
 .onboarding-cloud[data-open="true"] {
-  border-color: rgba(255, 255, 255, 0.34);
+  border-color: rgba(23, 23, 23, 0.34);
 }
 
 .onboarding-cloud-head {
@@ -1396,7 +1407,7 @@
   padding: 0.8rem 1rem;
   border: 0;
   background: transparent;
-  color: #fff;
+  color: #171717;
   font: inherit;
   text-align: left;
   cursor: pointer;
@@ -1475,7 +1486,7 @@
   min-width: 0;
   margin: 1rem 0 0;
   padding: 0.6rem 1rem 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(23, 23, 23, 0.14);
   border-radius: 14px;
 }
 
@@ -1533,13 +1544,13 @@
   justify-items: center;
   gap: 0.25rem;
   padding: 0.85rem 0.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(23, 23, 23, 0.14);
   border-radius: 14px;
   text-align: center;
 }
 
 .onboarding-counts strong {
-  color: #fff;
+  color: #171717;
   font-size: 1.5rem;
   font-weight: 600;
 }
@@ -1560,13 +1571,13 @@
 }
 
 .onboarding-detect-row {
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(23, 23, 23, 0.14);
   border-radius: 12px;
-  background: rgba(0, 0, 0, 0.28);
+  background: #fff;
 }
 
 .onboarding-detect-row[data-open="true"] {
-  border-color: rgba(255, 255, 255, 0.34);
+  border-color: rgba(23, 23, 23, 0.34);
 }
 
 .onboarding-detect-head {
@@ -1578,7 +1589,7 @@
   padding: 0.7rem 0.9rem;
   border: 0;
   background: transparent;
-  color: #fff;
+  color: #171717;
   text-align: left;
   cursor: pointer;
 }
@@ -1593,7 +1604,7 @@
 .onboarding-detect-head span,
 .onboarding-detect-model span:last-child:not(:first-child) {
   flex-shrink: 0;
-  color: #fff;
+  color: #171717;
   font-size: 0.75rem;
   font-weight: 500;
 }
@@ -1635,7 +1646,7 @@
   justify-content: space-between;
   gap: 0.75rem;
   margin: 0.55rem 0 0;
-  color: #fff;
+  color: #171717;
   font-size: 0.85rem;
 }
 
@@ -1656,10 +1667,10 @@
   width: 100%;
   min-height: 2.4rem;
   padding: 0.35rem 0.55rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(23, 23, 23, 0.1);
   border-radius: 8px;
   background: transparent;
-  color: #fff;
+  color: #171717;
   text-align: left;
   cursor: pointer;
 }
@@ -1671,7 +1682,7 @@
 }
 
 .onboarding-detect-model[aria-pressed="true"] {
-  border-color: #fff;
+  border-color: #171717;
 }
 
 .onboarding-chips {
@@ -1684,7 +1695,7 @@
 .onboarding-chips button {
   min-height: 2rem;
   padding: 0.25rem 0.7rem;
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(23, 23, 23, 0.16);
   border-radius: 999px;
   color: var(--text);
   background: transparent;
@@ -1692,9 +1703,9 @@
 }
 
 .onboarding-chips button[aria-pressed="true"] {
-  border-color: #fff;
+  border-color: #171717;
   color: #1a1510;
-  background: #fff;
+  background: #171717;
 }
 
 .onboarding-quiet {
@@ -1708,9 +1719,9 @@
   margin: 0.35rem 0 0;
   padding: 0.25rem;
   list-style: none;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(23, 23, 23, 0.12);
   border-radius: 8px;
-  background: #14110e;
+  background: #fff;
 }
 
 .onboarding-suggest button {
@@ -1725,7 +1736,7 @@
 }
 
 .onboarding-suggest button:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(23, 23, 23, 0.06);
 }
 
 .onboarding-read {
@@ -1737,7 +1748,7 @@
   margin-top: 0.85rem;
   overflow: hidden;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(23, 23, 23, 0.1);
 }
 
 .onboarding-read-bar {
@@ -1801,7 +1812,7 @@
   overscroll-behavior: contain;
   list-style: none;
   scrollbar-width: thin;
-  scrollbar-color: rgba(232, 213, 183, 0.55) transparent;
+  scrollbar-color: rgba(138, 109, 79, 0.55) transparent;
 }
 
 .onboarding-roster::-webkit-scrollbar {
@@ -1811,7 +1822,7 @@
 .onboarding-roster::-webkit-scrollbar-thumb {
   border: 2px solid transparent;
   border-radius: 999px;
-  background: rgba(232, 213, 183, 0.55);
+  background: rgba(138, 109, 79, 0.55);
   background-clip: padding-box;
 }
 
@@ -1827,7 +1838,7 @@
 
 .onboarding-roster .onboarding-place:hover,
 .onboarding-roster .onboarding-place:focus-visible {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(23, 23, 23, 0.06);
 }
 
 .onboarding-roster .onboarding-place > div span {
@@ -1870,11 +1881,11 @@
   padding: 0.85rem 0.7rem 0.35rem 0.55rem;
   overflow-x: hidden;
   overflow-y: auto;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(23, 23, 23, 0.1);
   border-radius: 16px;
-  background: rgba(0, 0, 0, 0.28);
+  background: #fff;
   scrollbar-width: thin;
-  scrollbar-color: rgba(232, 213, 183, 0.55) transparent;
+  scrollbar-color: rgba(138, 109, 79, 0.55) transparent;
 }
 
 .onboarding-verify-box:focus {
@@ -1892,7 +1903,7 @@
 
 .onboarding-verify-box::-webkit-scrollbar-thumb {
   border-radius: 999px;
-  background: rgba(232, 213, 183, 0.55);
+  background: rgba(138, 109, 79, 0.55);
 }
 
 .onboarding-verify-rail {
@@ -1902,7 +1913,7 @@
   margin: 0.2rem 0 0.25rem;
   padding: 0 0 0 1.35rem;
   list-style: none;
-  border-left: 1px solid rgba(255, 255, 255, 0.16);
+  border-left: 1px solid rgba(23, 23, 23, 0.16);
 }
 
 .onboarding-verify-rail > li,
@@ -1928,9 +1939,9 @@
   max-width: 100%;
   margin: 0 0 0.4rem;
   padding: 0.35rem 0.7rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(23, 23, 23, 0.08);
   border-radius: 10px;
-  background: #0a0908;
+  background: #fff;
   color: inherit;
   font: inherit;
   text-align: left;
@@ -2055,12 +2066,12 @@ button.onboarding-verify-row {
   padding: 0.7rem 0.85rem 0.85rem 1.45rem;
   list-style: disc;
   line-height: 1.45;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(23, 23, 23, 0.1);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(23, 23, 23, 0.03);
   overflow: auto;
   scrollbar-width: thin;
-  scrollbar-color: rgba(232, 213, 183, 0.55) transparent;
+  scrollbar-color: rgba(138, 109, 79, 0.55) transparent;
 }
 
 .onboarding-review-body[data-work="split"] .onboarding-did-lines {
@@ -2091,7 +2102,7 @@ button.onboarding-verify-row {
 
 .onboarding-did-lines::-webkit-scrollbar-thumb {
   border-radius: 999px;
-  background: rgba(232, 213, 183, 0.55);
+  background: rgba(138, 109, 79, 0.55);
 }
 
 .onboarding .onboarding-did-lines textarea {
@@ -2103,7 +2114,7 @@ button.onboarding-verify-row {
   border: 0;
   border-radius: 0;
   background: transparent;
-  color: #f5f2ee;
+  color: #171717;
   font: inherit;
   line-height: 1.45;
   resize: none;
@@ -2129,9 +2140,9 @@ button.onboarding-verify-row {
 
 .onboarding-stay button {
   padding: 0.7rem 0.85rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(23, 23, 23, 0.12);
   border-radius: 12px;
-  background: #0a0908;
+  background: #fff;
   color: inherit;
   font: inherit;
   text-align: left;
@@ -2157,7 +2168,7 @@ button.onboarding-verify-row {
   margin-top: 1rem;
   padding: 0.7rem 0.8rem;
   border-radius: 12px;
-  background: rgba(0, 0, 0, 0.28);
+  background: #fff;
 }
 
 .onboarding-place > div {
@@ -2178,7 +2189,7 @@ button.onboarding-verify-row {
   flex-shrink: 0;
   min-height: 2rem;
   padding: 0.25rem 0.7rem;
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(23, 23, 23, 0.16);
   border-radius: 999px;
   color: var(--text);
   background: transparent;
@@ -2204,7 +2215,7 @@ button.onboarding-verify-row {
   gap: 0.55rem;
   align-items: center;
   margin-top: 0.75rem;
-  color: #fff;
+  color: #171717;
   font-size: 0.9rem;
 }
 
@@ -2220,11 +2231,11 @@ button.onboarding-verify-row {
   margin: auto;
   padding: 1.35rem 1.4rem 1.25rem;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(23, 23, 23, 0.1);
   border-radius: 24px;
-  background: #14110e;
-  color: #fff;
-  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.55);
+  background: #fff;
+  color: #171717;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.18);
 }
 
 .onboarding-review[data-compare="true"] {
@@ -2275,11 +2286,11 @@ button.onboarding-verify-row {
 .onboarding-review[open] > .onboarding-actions {
   flex: none;
   margin-top: 1rem;
-  background: #14110e;
+  background: #fff;
 }
 
 .onboarding-review::backdrop {
-  background: rgba(5, 5, 5, 0.72);
+  background: rgba(0, 0, 0, 0.35);
 }
 
 .onboarding-review-head {
@@ -2295,7 +2306,7 @@ button.onboarding-verify-row {
 
 .onboarding-review h2 {
   margin: 0.35rem 0 0;
-  color: #fff;
+  color: #171717;
   font-size: clamp(1.25rem, 3vw, 1.5rem);
   font-weight: 600;
   letter-spacing: -0.02em;
@@ -2340,9 +2351,9 @@ button.onboarding-verify-row {
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(23, 23, 23, 0.14);
   border-radius: 16px;
-  background: rgba(0, 0, 0, 0.28);
+  background: #fff;
 }
 
 .onboarding-review-source h3,
@@ -2456,7 +2467,7 @@ button.onboarding-verify-row {
 .onboarding-role-map .leaflet-container {
   width: 100%;
   height: 100%;
-  background: #141210;
+  background: #f3f3f4;
   font: inherit;
 }
 
@@ -2467,9 +2478,9 @@ button.onboarding-verify-row {
   max-height: 12rem;
   overflow: auto;
   padding: 0.85rem 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(23, 23, 23, 0.14);
   border-radius: 16px;
-  background: rgba(0, 0, 0, 0.28);
+  background: #fff;
 }
 
 .onboarding-job-info h2 {
@@ -2484,7 +2495,7 @@ button.onboarding-verify-row {
 .onboarding-job-info p,
 .onboarding-job-info li {
   margin: 0;
-  color: #fff;
+  color: #171717;
   font-size: 0.9rem;
   font-weight: 400;
   line-height: 1.5;
@@ -2505,7 +2516,7 @@ button.onboarding-verify-row {
 
 .onboarding-notes .onboarding-quiet,
 .onboarding-notes .onboarding-work {
-  color: #fff;
+  color: #171717;
 }
 
 .onboarding-note-clamp {
@@ -2530,7 +2541,7 @@ button.onboarding-verify-row {
   margin: 0.55rem 0 0;
   padding-left: 1.1rem;
   overflow: auto;
-  color: #fff;
+  color: #171717;
   font-size: 0.88rem;
 }
 
@@ -2552,11 +2563,11 @@ button.onboarding-verify-row {
   background: rgba(214, 160, 92, 0.08);
   font-size: 0.82rem;
   line-height: 1.45;
-  color: rgba(255, 255, 255, 0.82);
+  color: rgba(23, 23, 23, 0.82);
 }
 
 .onboarding-cloud-destination strong {
-  color: #fff;
+  color: #171717;
   font-weight: 600;
 }
 

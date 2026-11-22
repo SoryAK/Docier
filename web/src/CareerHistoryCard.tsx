@@ -40,6 +40,7 @@ export function CareerHistoryCard({
   attach,
   selectedRoleIds,
   onAttachApplied,
+  addRequest,
 }: {
   revision?: number;
   focusRoleId?: string | null;
@@ -53,6 +54,8 @@ export function CareerHistoryCard({
   attach?: { id: string; nonce: number } | null;
   selectedRoleIds?: readonly string[];
   onAttachApplied?: (nonce: number) => void;
+  /** Opens a new job or school to fill in, as from the add menu. */
+  addRequest?: { kind: CareerHistorySectionKey; nonce: number } | null;
 }) {
   const [roles, setRoles] = useState<WorkMapRole[]>([]);
   const [ready, setReady] = useState(false);
@@ -164,6 +167,10 @@ export function CareerHistoryCard({
     draftSession.current += 1;
     setDraftKind(kind);
   }
+
+  useEffect(() => {
+    if (addRequest) openDraft(addRequest.kind);
+  }, [addRequest?.nonce]);
 
   function closeDraft() {
     draftSession.current += 1;
@@ -550,7 +557,17 @@ export function CareerHistoryCard({
               </section>
               );
             })}
-            {ready && shown.length === 0 ? <p className="pch-empty">No roles match.</p> : null}
+            {ready && roles.length === 0 ? (
+              <div className="pch-empty pch-start">
+                <p>No jobs or schools yet.</p>
+                <div className="pch-start-actions">
+                  <Button label="Add a job" variant="primary" size="sm" onClick={() => openDraft("job")} />
+                  <Button label="Add a school" variant="secondary" size="sm" onClick={() => openDraft("school")} />
+                </div>
+              </div>
+            ) : ready && shown.length === 0 ? (
+              <p className="pch-empty">No roles match that search or filter.</p>
+            ) : null}
           </ScrollableArea>
         </div>
       )}

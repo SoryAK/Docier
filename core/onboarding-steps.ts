@@ -3,11 +3,17 @@ export type OnboardingStepId = "name" | "model" | "integrations" | "file" | "che
 
 /**
  * The steps this occupant will actually see. Integrations shows only when at
- * least one account can be signed into; a step with nothing to do is left out
- * of the progress bar and skipped.
+ * least one account can be signed into, and Verify only when a model will read
+ * the resume; a step with nothing to do is left out of the progress bar.
  */
-export function onboardingSteps(input: { canConnect: boolean }): OnboardingStepId[] {
-  return ["name", "model", ...(input.canConnect ? (["integrations"] as const) : []), "file", "check"];
+export function onboardingSteps(input: { canConnect: boolean; reading?: boolean }): OnboardingStepId[] {
+  return [
+    "name",
+    "model",
+    ...(input.canConnect ? (["integrations"] as const) : []),
+    "file",
+    ...(input.reading === false ? [] : (["check"] as const)),
+  ];
 }
 
 /** The step after `current`, or `current` when it is the last. */

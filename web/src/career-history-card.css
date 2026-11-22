@@ -240,6 +240,18 @@
   font-size: 0.875rem;
 }
 
+/* No roles at all: say so, and offer the first one. */
+.pch-start p {
+  margin: 0;
+}
+
+.pch-start-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+
 .pch-bulk .astryx-toolbar {
   flex-wrap: wrap;
   height: auto;

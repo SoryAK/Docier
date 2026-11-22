@@ -574,6 +574,33 @@
   font-size: 0.875rem;
 }
 
+/* The empty story: a first step instead of a blank page. */
+.home-center-start {
+  max-width: 34rem;
+  margin: 1.5rem 0 0;
+}
+
+.home-center-start h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #1c1c1e);
+}
+
+.home-center-start p {
+  margin: 0.4rem 0 0;
+  color: #6b6b70;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.home-center-start-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
 .home-center-live:has(.home-story-layout) .home-center-stage {
   display: flex;
   flex-direction: column;

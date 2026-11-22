@@ -7,6 +7,10 @@ describe("onboarding steps", () => {
     expect(onboardingSteps({ canConnect: true })).toEqual(["name", "model", "integrations", "file", "check"]);
   });
 
+  it("leaves Verify out when no model will read the resume", () => {
+    expect(onboardingSteps({ canConnect: false, reading: false })).toEqual(["name", "model", "file"]);
+  });
+
   it("moves between the steps that are shown", () => {
     const steps = onboardingSteps({ canConnect: false });
     expect(nextOnboardingStep(steps, "model")).toBe("file");

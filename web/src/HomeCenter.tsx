@@ -23,10 +23,13 @@ export function HomeCenter({
   onSelectRole,
   viewRequest = null,
   pageContent = null,
+  onStart,
 }: {
   revision?: number;
   focusRoleId: string | null;
   onSelectRole: (id: string) => void;
+  /** A first step when the story is empty: add a job or school, or import a resume. */
+  onStart?: (action: "job" | "school" | "import") => void;
   viewRequest?: { id: number; updates: boolean; updateId: string | null } | null;
   pageContent?: ReactNode;
 }) {
@@ -35,6 +38,8 @@ export function HomeCenter({
   const [view, setView] = useState<CenterView>("story");
   const [updateId, setUpdateId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  // The roles have loaded once, so an empty story is really empty.
+  const [loaded, setLoaded] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const [recentLens, setRecentLens] = useState<RecentLens>("recent");
   const [recentQuery, setRecentQuery] = useState("");
@@ -60,6 +65,7 @@ export function HomeCenter({
         const body = (await response.json()) as { roles?: WorkMapRole[] };
         if (cancelled) return;
         setRoles(body.roles ?? []);
+        setLoaded(true);
         setError("");
       })
       .catch((error: unknown) => {
@@ -240,7 +246,22 @@ export function HomeCenter({
                   </section>
                 </div>
               ) : (
-                <p className="home-center-empty">{error || "Nothing in the story yet."}</p>
+                error || !loaded || !onStart ? (
+                  <p className="home-center-empty">{error || (loaded ? "Nothing in the story yet." : "")}</p>
+                ) : (
+                  <section className="home-center-start" aria-labelledby="home-center-start-title">
+                    <h2 id="home-center-start-title">Start your story</h2>
+                    <p>
+                      Add the jobs and schools you&apos;ve had. Each one becomes part of your story and your map, and
+                      you can add detail as you go.
+                    </p>
+                    <div className="home-center-start-actions">
+                      <Button label="Add your first job" variant="primary" onClick={() => onStart("job")} />
+                      <Button label="Add a school" variant="secondary" onClick={() => onStart("school")} />
+                      <Button label="Read a resume" variant="ghost" onClick={() => onStart("import")} />
+                    </div>
+                  </section>
+                )
               )}
                 <section className="home-story-recent" aria-label="Recent events">
                   <div className="home-story-recent-switch">

@@ -68,6 +68,8 @@ export function Home({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSection, setSettingsSection] = useState<SettingsSection>("profile");
   const [importOpen, setImportOpen] = useState(false);
+  // A first job or school started from the empty Home opens in Career History.
+  const [addRequest, setAddRequest] = useState<{ kind: "job" | "school"; nonce: number } | null>(null);
   const [careerRevision, setCareerRevision] = useState(0);
   const [searchOpen, setSearchOpen] = useState(false);
   const [centerView, setCenterView] = useState<{
@@ -502,6 +504,7 @@ export function Home({
                         goHome();
                       }}
                       onImport={() => setImportOpen(true)}
+                      addRequest={addRequest}
                       onAsk={() => {
                         if (!profornaOpen) togglePanel();
                       }}
@@ -553,6 +556,15 @@ export function Home({
               setEditing(false);
               setFocusJobId(id);
               goPage("history");
+            }}
+            onStart={(action) => {
+              if (action === "import") {
+                setImportOpen(true);
+                return;
+              }
+              setFocusJobId(null);
+              goPage("history");
+              setAddRequest({ kind: action, nonce: Date.now() });
             }}
           />
         )}

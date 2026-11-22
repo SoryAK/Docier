@@ -488,7 +488,10 @@ export function Onboarding({
     return () => window.removeEventListener("hashchange", openConnectedPreview);
   }, []);
 
-  const steps = onboardingSteps({ canConnect: canConnect !== false || previewConnected });
+  const steps = onboardingSteps({
+    canConnect: canConnect !== false || previewConnected,
+    reading: wantsModel !== false,
+  });
   const afterModel = nextOnboardingStep(steps, "model");
 
   const foundModels = scanned.flatMap((hit) => hit.models.map((id) => ({ address: hit.baseUrl, id })));

@@ -139,3 +139,100 @@ describe("document vault", () => {
     }
   });
 });
+
+describe("a resume added during onboarding", () => {
+  async function onboardingResume() {
+    const uploadsDir = mkdtempSync(join(tmpdir(), "docier-resume-docs-"));
+    const db = openDatabase(":memory:");
+    const app = createApp(db, { uploadsDir });
+    const form = new FormData();
+    form.set("file", new File(["%PDF-1.4 resume"], "cv.pdf", { type: "application/pdf" }));
+    const uploaded = await app.request("/api/resumes", { method: "POST", body: form });
+    expect(uploaded.status).toBe(201);
+    const { resume } = (await uploaded.json()) as { resume: { id: string } };
+    const list = async () =>
+      ((await (await app.request("/api/documents")).json()) as {
+        documents: Array<{ id: string; originalName: string; category: string; mediaType: string; sizeBytes: number }>;
+      }).documents;
+    return { uploadsDir, db, app, resumeId: resume.id, list };
+  }
+
+  it("is listed in My Docs and opens as the file it is", async () => {
+    const ctx = await onboardingResume();
+    try {
+      expect(await ctx.list()).toEqual([
+        expect.objectContaining({
+          id: ctx.resumeId,
+          originalName: "cv.pdf",
+          category: "resume",
+          mediaType: "application/pdf",
+          sizeBytes: 15,
+        }),
+      ]);
+      const opened = await ctx.app.request(`/api/documents/${ctx.resumeId}?inline=1`);
+      expect(opened.status).toBe(200);
+      expect(opened.headers.get("content-type")).toBe("application/pdf");
+      expect(await opened.text()).toBe("%PDF-1.4 resume");
+    } finally {
+      rmSync(ctx.uploadsDir, { recursive: true, force: true });
+    }
+  });
+
+  it("is renamed and its kind changed with the same fields as any file", async () => {
+    const ctx = await onboardingResume();
+    try {
+      const changed = await ctx.app.request(`/api/documents/${ctx.resumeId}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: "Resume 2026", kind: "evidence" }),
+      });
+      expect(changed.status).toBe(200);
+      expect(await ctx.list()).toEqual([
+        expect.objectContaining({ id: ctx.resumeId, originalName: "Resume 2026", category: "evidence" }),
+      ]);
+      const evidence = ctx.db
+        .prepare("SELECT title FROM evidence WHERE source_type = 'resume' AND source_ref = ?")
+        .get(ctx.resumeId) as { title: string };
+      expect(evidence.title).toBe("Resume 2026");
+    } finally {
+      rmSync(ctx.uploadsDir, { recursive: true, force: true });
+    }
+  });
+
+  it("is removed with its file when nothing was read from it", async () => {
+    const ctx = await onboardingResume();
+    try {
+      const stored = ctx.db.prepare("SELECT stored_name FROM resumes WHERE id = ?").get(ctx.resumeId) as {
+        stored_name: string;
+      };
+      expect(existsSync(join(ctx.uploadsDir, stored.stored_name))).toBe(true);
+      const removed = await ctx.app.request(`/api/documents/${ctx.resumeId}`, { method: "DELETE" });
+      expect(removed.status).toBe(200);
+      expect(await ctx.list()).toEqual([]);
+      expect(existsSync(join(ctx.uploadsDir, stored.stored_name))).toBe(false);
+      expect(
+        (ctx.db.prepare("SELECT COUNT(*) AS n FROM evidence WHERE source_type = 'resume'").get() as { n: number }).n,
+      ).toBe(0);
+    } finally {
+      rmSync(ctx.uploadsDir, { recursive: true, force: true });
+    }
+  });
+
+  it("stays while jobs read from it still point at it", async () => {
+    const ctx = await onboardingResume();
+    try {
+      const saved = await ctx.app.request("/api/history", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ resumeId: ctx.resumeId, experience: [{ company: "Acme", title: "Lead" }] }),
+      });
+      expect(saved.status).toBe(201);
+      const removed = await ctx.app.request(`/api/documents/${ctx.resumeId}`, { method: "DELETE" });
+      expect(removed.status).toBe(409);
+      expect(((await removed.json()) as { error: string }).error).toBe("in-use");
+      expect(await ctx.list()).toHaveLength(1);
+    } finally {
+      rmSync(ctx.uploadsDir, { recursive: true, force: true });
+    }
+  });
+});

@@ -13,7 +13,7 @@ import {
   prepareDocumentRemoval,
   prepareStoredDocument,
 } from "../core/document-vault";
-import { saveEvidence } from "./career-memory";
+import { evidenceCited, saveEvidence } from "./career-memory";
 import { uploadPath } from "./upload-path";
 
 /** Largest document or resume an occupant can upload. */
@@ -29,20 +29,35 @@ export type DocumentRow = {
   createdAt: string;
 };
 
+/**
+ * Every file in the vault, newest first. A resume added during onboarding is
+ * kept in its own store, with resume Evidence that its jobs point at; it is
+ * listed here beside uploaded files so it can be opened, changed, and removed.
+ */
 export function listDocuments(
   db: DatabaseSync,
   occupantId: string,
 ): DocumentRow[] {
-  return (
+  const uploaded = db
+    .prepare(
+      `SELECT id, original_name AS originalName, stored_name AS storedName,
+              media_type AS mediaType, size_bytes AS sizeBytes, checksum,
+              category, created_at AS createdAt
+       FROM documents WHERE occupant_id = ?`,
+    )
+    .all(occupantId) as unknown as Array<DocumentRow & { storedName: string }>;
+  const resumes = (
     db
       .prepare(
         `SELECT id, original_name AS originalName, stored_name AS storedName,
-                media_type AS mediaType, size_bytes AS sizeBytes, checksum,
                 category, created_at AS createdAt
-         FROM documents WHERE occupant_id = ? ORDER BY created_at DESC`,
+         FROM resumes WHERE occupant_id = ?`,
       )
-      .all(occupantId) as unknown as Array<DocumentRow & { storedName: string }>
-  ).map(presentDocument);
+      .all(occupantId) as unknown as ResumeRecord[]
+  ).map((row) => resumeDocument(db, occupantId, row));
+  return [...uploaded, ...resumes]
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .map(presentDocument);
 }
 
 export function storeDocument(
@@ -122,14 +137,17 @@ export function updateDocument(
   if (!planned.ok) throw new DocumentStoreError(planned.error);
   const current = loadDocumentRecord(db, occupantId, removal.value);
   if (!current) throw new DocumentStoreError("not-found");
+  const table = current.store === "resume" ? "resumes" : "documents";
   db.prepare(
-    `UPDATE documents SET original_name = ?, category = ?
+    `UPDATE ${table} SET original_name = ?, category = ?
       WHERE id = ? AND occupant_id = ?`,
   ).run(planned.value.name, planned.value.kind, current.id, occupantId);
+  // Only the title follows the new name. The Evidence content stays as it was
+  // captured, so the jobs that cite it keep pointing at the same file.
   db.prepare(
     `UPDATE evidence SET title = ?
-      WHERE occupant_id = ? AND source_type = 'document' AND source_ref = ?`,
-  ).run(planned.value.name, occupantId, current.id);
+      WHERE occupant_id = ? AND source_type = ? AND source_ref = ?`,
+  ).run(planned.value.name, occupantId, current.store, current.id);
   return presentDocument({
     ...current,
     originalName: planned.value.name,
@@ -147,6 +165,14 @@ export function removeDocument(
   if (!planned.ok) throw new DocumentStoreError(planned.error);
   const current = loadDocumentRecord(db, occupantId, planned.value);
   if (!current) throw new DocumentStoreError("not-found");
+  const evidence = db
+    .prepare("SELECT id FROM evidence WHERE occupant_id = ? AND source_type = ? AND source_ref = ?")
+    .get(occupantId, current.store, current.id) as { id: string } | undefined;
+  // Jobs and schools read from a resume cite it. Like any cited Evidence, it
+  // stays while they do.
+  if (current.store === "resume" && evidence && evidenceCited(db, occupantId, evidence.id)) {
+    throw new DocumentStoreError("in-use");
+  }
   const fullPath = vaultFilePath(uploadsDir, current.storedName);
   if (fullPath) {
     try {
@@ -157,26 +183,68 @@ export function removeDocument(
   }
   db.prepare(
     `DELETE FROM evidence
-      WHERE occupant_id = ? AND source_type = 'document' AND source_ref = ?`,
-  ).run(occupantId, current.id);
-  db.prepare(`DELETE FROM documents WHERE id = ? AND occupant_id = ?`).run(current.id, occupantId);
+      WHERE occupant_id = ? AND source_type = ? AND source_ref = ?`,
+  ).run(occupantId, current.store, current.id);
+  const table = current.store === "resume" ? "resumes" : "documents";
+  db.prepare(`DELETE FROM ${table} WHERE id = ? AND occupant_id = ?`).run(current.id, occupantId);
 }
+
+type StoredRecord = DocumentRow & { storedName: string; store: "document" | "resume" };
+
+type ResumeRecord = {
+  id: string;
+  originalName: string;
+  storedName: string;
+  category: string;
+  createdAt: string;
+};
 
 function loadDocumentRecord(
   db: DatabaseSync,
   occupantId: string,
   id: string,
-): (DocumentRow & { storedName: string }) | null {
-  return (
-    db
-      .prepare(
-        `SELECT id, original_name AS originalName, stored_name AS storedName,
-                media_type AS mediaType, size_bytes AS sizeBytes, checksum,
-                category, created_at AS createdAt
-         FROM documents WHERE id = ? AND occupant_id = ?`,
-      )
-      .get(id, occupantId) as (DocumentRow & { storedName: string }) | undefined
-  ) ?? null;
+): StoredRecord | null {
+  const uploaded = db
+    .prepare(
+      `SELECT id, original_name AS originalName, stored_name AS storedName,
+              media_type AS mediaType, size_bytes AS sizeBytes, checksum,
+              category, created_at AS createdAt
+       FROM documents WHERE id = ? AND occupant_id = ?`,
+    )
+    .get(id, occupantId) as (DocumentRow & { storedName: string }) | undefined;
+  if (uploaded) return { ...uploaded, store: "document" };
+  const resume = db
+    .prepare(
+      `SELECT id, original_name AS originalName, stored_name AS storedName,
+              category, created_at AS createdAt
+       FROM resumes WHERE id = ? AND occupant_id = ?`,
+    )
+    .get(id, occupantId) as ResumeRecord | undefined;
+  return resume ? resumeDocument(db, occupantId, resume) : null;
+}
+
+/** A stored resume as a vault file. Its size and checksum were kept on its Evidence. */
+function resumeDocument(db: DatabaseSync, occupantId: string, resume: ResumeRecord): StoredRecord {
+  const evidence = db
+    .prepare(
+      `SELECT checksum, content_json AS contentJson FROM evidence
+        WHERE occupant_id = ? AND source_type = 'resume' AND source_ref = ?`,
+    )
+    .get(occupantId, resume.id) as { checksum: string; contentJson: string } | undefined;
+  let content: { checksum?: unknown; sizeBytes?: unknown } = {};
+  try {
+    content = evidence ? (JSON.parse(evidence.contentJson) as typeof content) : {};
+  } catch {
+    content = {};
+  }
+  return {
+    ...resume,
+    // Resumes were stored without a media type; it is read from the name.
+    mediaType: "application/octet-stream",
+    sizeBytes: typeof content.sizeBytes === "number" ? content.sizeBytes : 0,
+    checksum: typeof content.checksum === "string" ? content.checksum : (evidence?.checksum ?? ""),
+    store: "resume",
+  };
 }
 
 const EXTENSION_TYPES: Record<string, string> = {
@@ -199,13 +267,16 @@ export function servedMediaType(name: string, mediaType: string, storedName = ""
   const stored = mediaType.trim();
   if (isActiveMarkup(stored)) return "text/plain; charset=utf-8";
   if (stored && stored !== "application/octet-stream") return stored;
-  const extension = fileExtension(storedName) || fileExtension(name);
-  const known = Object.hasOwn(EXTENSION_TYPES, extension) ? EXTENSION_TYPES[extension] : undefined;
+  // A resume is stored as `<id>.bin`, so an unknown stored extension falls
+  // back to the extension of the name the occupant gave it.
+  const known = [fileExtension(storedName), fileExtension(name)]
+    .map((extension) => (Object.hasOwn(EXTENSION_TYPES, extension) ? EXTENSION_TYPES[extension] : undefined))
+    .find(Boolean);
   return known ?? (stored || "application/octet-stream");
 }
 
-function presentDocument(record: DocumentRow & { storedName?: string }): DocumentRow {
-  const { storedName = "", ...row } = record;
+function presentDocument(record: DocumentRow & { storedName?: string; store?: string }): DocumentRow {
+  const { storedName = "", store: _store, ...row } = record;
   return { ...row, mediaType: servedMediaType(row.originalName, row.mediaType, storedName) };
 }
 

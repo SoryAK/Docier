@@ -585,5 +585,8 @@ function documentError(code: string | undefined): string {
   if (code === "name-required") return "A file needs a name.";
   if (code === "kind-invalid") return "Choose a kind.";
   if (code === "not-found") return "That file is no longer here.";
+  if (code === "in-use") {
+    return "Jobs or schools read from this resume still point at it, so it stays. Remove them in Career History first.";
+  }
   return "Could not store that file.";
 }

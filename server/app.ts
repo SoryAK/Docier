@@ -2673,7 +2673,7 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
       return c.json({ ok: true });
     } catch (error) {
       if (error instanceof DocumentStoreError) {
-        const status = error.code === "not-found" ? 404 : 400;
+        const status = error.code === "not-found" ? 404 : error.code === "in-use" ? 409 : 400;
         return c.json({ error: error.code }, status);
       }
       throw error;

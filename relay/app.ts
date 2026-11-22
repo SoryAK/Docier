@@ -2,6 +2,9 @@ import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { Hono, type Context } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
+import { bodyLimit } from "hono/body-limit";
+import { getCookie, setCookie } from "hono/cookie";
+import { checkRequestBody, isMissingJsonBody } from "../server/request-body";
 import { groupLinkedEvidence, type PublishedLinkedEvidence } from "../core/index";
 import { registerAsks } from "./asks";
 import { handleMcp, type PublicationRead, type PublicationSnapshot } from "./mcp";
@@ -10,8 +13,31 @@ type RelayProjection = PublicationSnapshot;
 
 type JsonObject = Record<string, unknown>;
 
-export function createRelayApp(db: DatabaseSync, ownerToken: string): Hono {
+export type RelayOptions = {
+  /**
+   * Issue the access cookie without `Secure`, for trying the Relay over plain
+   * HTTP from another device on a local network. Never set it on a hosted Relay.
+   */
+  insecureCookies?: boolean;
+};
+
+export function createRelayApp(db: DatabaseSync, ownerToken: string, options: RelayOptions = {}): Hono {
   const app = new Hono();
+
+  // Visitors only send small forms and events; the owner sends whole publications.
+  const tooLarge = (c: Context) => c.json({ error: "too-large" }, 413);
+  app.use("/r/*", bodyLimit({ maxSize: 64 * 1024, onError: tooLarge }));
+  app.use("/mcp", bodyLimit({ maxSize: 64 * 1024, onError: tooLarge }));
+  app.use("/relay/*", bodyLimit({ maxSize: 10 * 1024 * 1024, onError: tooLarge }));
+  // /mcp answers bad JSON in its own JSON-RPC shape, so it is not checked here.
+  app.use("/r/*", checkRequestBody());
+  app.use("/relay/*", checkRequestBody());
+  app.onError((err, c) => {
+    if (isMissingJsonBody(err, c)) {
+      return c.json({ error: "invalid-body" }, 400);
+    }
+    return c.text("Internal Server Error", 500);
+  });
 
   registerAsks(app, db, (c) => isOwner(c.req.header("authorization"), ownerToken));
 
@@ -86,7 +112,8 @@ export function createRelayApp(db: DatabaseSync, ownerToken: string): Hono {
       projection.slug,
       JSON.stringify(projection),
       projection.visibility,
-      projection.expiresAt,
+      // A page sent without an expiry never expires.
+      projection.expiresAt ?? null,
       now,
     );
     return c.json({ slug: projection.slug, publishedAt: now }, 201);
@@ -130,12 +157,71 @@ export function createRelayApp(db: DatabaseSync, ownerToken: string): Hono {
     return c.json({ ok: true }, 201);
   });
 
+  app.delete("/relay/publications/:slug/grants/:tokenHash", (c) => {
+    if (!isOwner(c.req.header("authorization"), ownerToken)) {
+      return c.json({ error: "Unauthorized." }, 401);
+    }
+    // The owner names the link by the hash of its token; the token itself is
+    // never sent back once it has been handed out.
+    db.prepare(
+      `UPDATE relay_grants SET revoked_at = ?
+        WHERE slug = ? AND token_hash = ? AND revoked_at IS NULL`,
+    ).run(new Date().toISOString(), c.req.param("slug"), c.req.param("tokenHash"));
+    return c.json({ ok: true });
+  });
+
+  app.post("/relay/publications/:slug/erase", (c) => {
+    if (!isOwner(c.req.header("authorization"), ownerToken)) {
+      return c.json({ error: "Unauthorized." }, 401);
+    }
+    const slug = c.req.param("slug");
+    db.exec("BEGIN");
+    try {
+      for (const table of ["relay_events", "relay_requests", "relay_grants", "relay_publications"]) {
+        db.prepare(`DELETE FROM ${table} WHERE slug = ?`).run(slug);
+      }
+      db.exec("COMMIT");
+    } catch (error) {
+      db.exec("ROLLBACK");
+      throw error;
+    }
+    // Erasing a page that is already gone is not an error.
+    return c.json({ ok: true });
+  });
+
   app.get("/r/:slug", (c) => {
-    const projection = resolveProjection(
-      db,
-      c.req.param("slug"),
-      c.req.query("token") ?? null,
-    );
+    const slug = c.req.param("slug");
+    // Never pass this page's address on to the map tiles, scripts or links it loads.
+    c.header("Referrer-Policy", "no-referrer");
+    const linkToken = c.req.query("token");
+    if (linkToken !== undefined) {
+      // A share link carries its token once. Trade it for a cookie scoped to
+      // this page, then send the viewer to the same address without it, so the
+      // token leaves the address bar, history and any later request lines.
+      const expiresAt = grantExpiry(db, slug, linkToken);
+      const clean = new URL(c.req.url);
+      clean.searchParams.delete("token");
+      if (expiresAt) {
+        setCookie(c, ACCESS_COOKIE, linkToken, {
+          path: `/r/${encodeURIComponent(slug)}`,
+          httpOnly: true,
+          // Always Secure: a hosted Relay is reached over HTTPS, and browsers
+          // accept Secure cookies on http://localhost. No request header decides it.
+          secure: !options.insecureCookies,
+          sameSite: "Lax",
+          // The grant is checked on every visit; the cookie only decides when
+          // the viewer has to open the link again.
+          expires: new Date(
+            Math.min(Date.parse(expiresAt), Date.now() + 30 * 86_400_000),
+          ),
+        });
+      }
+      c.header("Cache-Control", "no-store");
+      return c.redirect(`${clean.pathname}${clean.search}`, 303);
+    }
+    const accessToken = getCookie(c, ACCESS_COOKIE) ?? null;
+    if (accessToken) c.header("Cache-Control", "private, no-store");
+    const projection = resolveProjection(db, slug, accessToken);
     if (!projection) {
       if (requiresAccess(db, c.req.param("slug"))) {
         return framedHtml(
@@ -196,6 +282,11 @@ export function createRelayApp(db: DatabaseSync, ownerToken: string): Hono {
     if (!["section", "contact"].includes(eventType)) {
       return c.json({ error: "Unsupported event." }, 400);
     }
+    // A page left open after its page was erased must not bring its events back.
+    const live = db
+      .prepare("SELECT 1 FROM relay_publications WHERE slug = ? AND revoked_at IS NULL")
+      .get(c.req.param("slug"));
+    if (!live) return c.json({ error: "Publication not found." }, 404);
     db.prepare(
       `INSERT INTO relay_events
         (id, slug, event_type, section, occurred_at)
@@ -278,6 +369,23 @@ function resolveProjection(
     if (!grant) return null;
   }
   return JSON.parse(String(row.projection_json)) as RelayProjection;
+}
+
+const ACCESS_COOKIE = "proforna_access";
+
+/** When a token opens an access-controlled page, the time its grant runs out. */
+function grantExpiry(db: DatabaseSync, slug: string, token: string): string | null {
+  if (!token) return null;
+  const grant = db
+    .prepare(
+      `SELECT expires_at FROM relay_grants
+       WHERE slug = ? AND token_hash = ? AND revoked_at IS NULL
+         AND expires_at > ?`,
+    )
+    .get(slug, hashToken(token), new Date().toISOString()) as
+    | { expires_at: string }
+    | undefined;
+  return grant?.expires_at ?? null;
 }
 
 function requiresAccess(db: DatabaseSync, slug: string): boolean {

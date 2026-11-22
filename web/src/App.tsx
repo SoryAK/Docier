@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { Theme } from "@astryxdesign/core/theme";
+import { neutralTheme } from "@astryxdesign/theme-neutral/built";
 import { needsOnboarding } from "@core/onboarding";
 import type { CareerFile } from "@core/career-file";
-import { DevPrototypeScreen, readDevPrototype, readReviewOnboarding } from "./dev-routes";
+import { readReviewOnboarding } from "./dev-routes";
 import { Home } from "./Home";
 import { readEvidenceRole, writeEvidenceRole } from "./onboarding-evidence";
 import { Onboarding } from "./Onboarding";
@@ -21,14 +23,12 @@ export function App() {
   const [career, setCareer] = useState<CareerFile>(EMPTY_CAREER);
   const [error, setError] = useState<string | null>(null);
   const [careerError, setCareerError] = useState<string | null>(null);
-  const [prototype, setPrototype] = useState(readDevPrototype);
   const [reviewOnboarding, setReviewOnboarding] = useState(readReviewOnboarding);
   const [previewWindow, setPreviewWindow] = useState(isPreviewWindow);
   const [focusJobId, setFocusJobId] = useState<string | null>(readEvidenceRole);
 
   useEffect(() => {
     function onHash() {
-      setPrototype(readDevPrototype());
       setReviewOnboarding(readReviewOnboarding());
       setPreviewWindow(isPreviewWindow());
     }
@@ -37,9 +37,8 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    if (prototype) return;
     void load();
-  }, [prototype]);
+  }, []);
 
   async function load() {
     try {
@@ -65,10 +64,6 @@ export function App() {
     }
   }
 
-  if (prototype) {
-    return <DevPrototypeScreen kind={prototype} />;
-  }
-
   if (previewWindow) {
     return <WorkMapPreviewPage />;
   }
@@ -92,19 +87,23 @@ export function App() {
   }
 
   if (needsOnboarding(me.profile) || reviewOnboarding) {
+    // Setup is always drawn on a dark stage, so its components use the dark
+    // scheme even when the system is set to light.
     return (
-      <Onboarding
-        initialProfile={me.profile}
-        onFinished={(next, exit) => {
-          const focus = exit.page === "history" ? (exit.focusJobId ?? null) : null;
-          writeEvidenceRole(focus);
-          setMe(next);
-          setReviewOnboarding(false);
-          setFocusJobId(focus);
-          window.location.hash = exit.page === "history" ? "#/history" : "#/";
-          void loadCareer();
-        }}
-      />
+      <Theme theme={neutralTheme} mode="dark">
+        <Onboarding
+          initialProfile={me.profile}
+          onFinished={(next, exit) => {
+            const focus = exit.page === "history" ? (exit.focusJobId ?? null) : null;
+            writeEvidenceRole(focus);
+            setMe(next);
+            setReviewOnboarding(false);
+            setFocusJobId(focus);
+            window.location.hash = exit.page === "history" ? "#/history" : "#/";
+            void loadCareer();
+          }}
+        />
+      </Theme>
     );
   }
 

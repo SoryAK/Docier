@@ -14,9 +14,14 @@ import {
 } from "../core/resume-extract";
 import { evidenceLinksFit, parseHistoryEvidence, parseHistoryRoleIds } from "../core/resume-compare";
 import {
+  completeOpenAiChat,
   listOpenAiCompatModels,
   type CompleteFn,
 } from "./openai-compat";
+import { describeModelFailure } from "../core/model-failure";
+
+/** How long a model gets to answer the test prompt, loading included. */
+const MODEL_TEST_TIMEOUT_MS = 120_000;
 import { pingDatabase } from "./db";
 import { RelayTransportError } from "./relay-client";
 import {
@@ -744,6 +749,44 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
     return c.json({ models: result.models });
   });
 
+  // Sends a tiny prompt, so a model that is listed but can't answer (not
+  // loaded, out of memory, wrong key) is caught before a resume is sent to it.
+  app.post("/api/models/test", async (c) => {
+    let body: Record<string, unknown>;
+    try {
+      body = (await c.req.json()) as Record<string, unknown>;
+    } catch {
+      return c.json({ error: "invalid-body" }, 400);
+    }
+    const baseUrl = normalizeBaseUrl(body.baseUrl);
+    const model = typeof body.model === "string" ? body.model.trim() : "";
+    if (!baseUrl || !isHttpUrl(baseUrl) || !model) {
+      return c.json({ error: "Choose a model and its address first." }, 400);
+    }
+    const apiKey = typeof body.apiKey === "string" && body.apiKey.trim() ? body.apiKey.trim() : null;
+    const complete = extractDeps.complete ?? completeOpenAiChat;
+    try {
+      await complete({
+        baseUrl,
+        apiKey,
+        model,
+        messages: [{ role: "user", content: "Reply with the word OK." }],
+        jsonObject: false,
+        // A large local model can take a while to load the first time.
+        signal: AbortSignal.any([c.req.raw.signal, AbortSignal.timeout(MODEL_TEST_TIMEOUT_MS)]),
+      });
+      return c.json({ ok: true });
+    } catch (err) {
+      const failure = describeModelFailure(
+        err instanceof Error && err.name === "TimeoutError" ? "timeout" : err,
+      );
+      return c.json(
+        { error: failure.message, failure: failure.kind, detail: err instanceof Error ? err.message : "" },
+        502,
+      );
+    }
+  });
+
   app.post("/api/models", async (c) => {
     const occupant = ensureOccupant(db);
     const body = (await c.req.json()) as Record<string, unknown>;
@@ -887,7 +930,10 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
       return c.json(result);
     } catch (err) {
       if (err instanceof ResumeExtractError) {
-        return c.json({ error: err.message }, err.status);
+        return c.json(
+          err.failure ? { error: err.message, failure: err.failure, detail: err.detail } : { error: err.message },
+          err.status,
+        );
       }
       throw err;
     }

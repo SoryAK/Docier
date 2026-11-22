@@ -245,6 +245,13 @@
   font-weight: 600;
 }
 
+/* After a failed read: try again, choose another model, or go on without one. */
+.onboarding-read-failed {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .onboarding-action-pair {
   display: flex;
   flex-wrap: wrap;

@@ -59,6 +59,8 @@ function loadSignInFile(path: string) {
 }
 
 const port = Number(process.env.PORT ?? 3000);
-const hostname = process.env.HOST;
-serve(hostname ? { fetch: app.fetch, port, hostname } : { fetch: app.fetch, port });
-console.log(`Docier http://${hostname ?? "localhost"}:${port}`);
+// Only this machine by default. The web dev server forwards /api here, so a
+// tablet on the same Wi-Fi still works. Set HOST=0.0.0.0 to open the API itself.
+const hostname = process.env.HOST ?? "127.0.0.1";
+serve({ fetch: app.fetch, port, hostname });
+console.log(`Docier http://${hostname}:${port}`);

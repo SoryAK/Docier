@@ -288,7 +288,7 @@ export function ProfileSettingsPanel({
         next = failed.profile;
       } else if (removePhoto) {
         const removed = await fetch("/api/profile/avatar", { method: "DELETE" });
-        const body = (await removed.json()) as { profile?: OnboardingProfileValue };
+        const body = (await removed.json().catch(() => ({}))) as { profile?: OnboardingProfileValue };
         if (!removed.ok || !body.profile) {
           setError("Could not remove the photo.");
           return;
@@ -296,6 +296,9 @@ export function ProfileSettingsPanel({
         next = body.profile;
       }
       onSaved(next);
+    } catch {
+      // A failed request (or a reply that isn't JSON) keeps the form as typed, to retry.
+      setError("Could not reach Docier, so not everything was saved. Try again.");
     } finally {
       setBusy(false);
     }
@@ -1854,23 +1857,37 @@ export function PublicationSettingsPanel() {
   }
 
 
+  const relayMessage = (status: number, error: string | undefined, nothing: string) =>
+    status === 502
+      ? `The relay could not be reached, so ${nothing}. Try again.`
+      : error === "relay-not-configured"
+        ? `This lives on your relay, and no relay is set up right now, so ${nothing}.`
+        : null;
+
   async function removePage(page: PublishedPage) {
     setBusy(true);
     setError("");
     setMessage("");
     try {
-      const response = await fetch(`/api/projections/${page.id}`, { method: "DELETE" });
+      let response: Response;
+      try {
+        response = await fetch(`/api/projections/${page.id}`, { method: "DELETE" });
+      } catch {
+        setError("Could not reach Docier, so nothing was removed. Try again.");
+        return;
+      }
       if (!response.ok) {
-        setError(
-          response.status === 502
-            ? "The relay could not be reached, so nothing was removed. Try again."
-            : "Could not remove that page.",
-        );
+        const body = (await response.json().catch(() => ({}))) as { error?: string };
+        setError(relayMessage(response.status, body.error, "nothing was removed") ?? "Could not remove that page.");
         return;
       }
       setMessage(`/r/${page.slug} was removed.`);
       announceRelayChange();
-      await reloadPages();
+      try {
+        await reloadPages();
+      } catch {
+        setError("The page was removed, but the list couldn't be refreshed. Reopen Settings to see it.");
+      }
     } finally {
       setBusy(false);
     }

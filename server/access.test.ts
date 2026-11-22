@@ -62,9 +62,17 @@ async function setup() {
   await send("POST", "/api/history", { experience: [{ company: "Acme Systems", title: "Controls Tech", isCurrent: true }] });
   await send("PUT", "/api/work-map/settings", { slug: "sory", visibility: "access-controlled", sections: ["profile", "history"] });
   expect((await send("POST", "/api/work-map/publish")).status).toBe(201);
-  /** The page as a link opens it on the Relay. */
+  /**
+   * The page as a link opens it on the Relay, the way a browser does: the link
+   * trades its token for a cookie, then the page loads with that cookie.
+   */
   const open = async (link: string) => {
-    const response = await relayApp.request(link.slice(ORIGIN.length));
+    const first = await relayApp.request(link);
+    const cookie = (first.headers.get("set-cookie") ?? "").split(";")[0];
+    const location = first.headers.get("location");
+    const response = location
+      ? await relayApp.request(new URL(location, ORIGIN).href, cookie ? { headers: { cookie } } : {})
+      : first;
     return { status: response.status, html: await response.text() };
   };
   return { db, relayDb, app, send, open };

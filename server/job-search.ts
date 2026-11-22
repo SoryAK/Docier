@@ -91,7 +91,7 @@ async function postingFromSavedPage(
     const page = await readPage(site.url, {
       headers: {
         accept: "text/html,text/plain",
-        "user-agent": "Proforna",
+        "user-agent": "Docier",
       },
       timeoutMs: 8000,
     });

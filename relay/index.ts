@@ -16,4 +16,4 @@ const app = createRelayApp(db, ownerToken, {
 });
 
 serve({ fetch: app.fetch, port });
-console.log(`Proforna relay http://localhost:${port}`);
+console.log(`Docier relay http://localhost:${port}`);

@@ -1,7 +1,7 @@
 import type { MiddlewareHandler } from "hono";
 
 /**
- * Proforna runs on the occupant's own machine. Requests must name this machine
+ * Docier runs on the occupant's own machine. Requests must name this machine
  * or a private home-network address, both in Host and (when a browser sends it)
  * in Origin. This turns away pages on other sites and DNS-rebinding tricks,
  * while a phone or tablet on the same Wi-Fi opening the app by IP still works.

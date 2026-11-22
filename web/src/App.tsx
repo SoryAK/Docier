@@ -71,7 +71,7 @@ export function App() {
   if (error) {
     return (
       <div className="boot">
-        <h1>Proforna</h1>
+        <h1>Docier</h1>
         <p role="alert">{error}</p>
       </div>
     );
@@ -80,7 +80,7 @@ export function App() {
   if (!me) {
     return (
       <div className="boot">
-        <h1>Proforna</h1>
+        <h1>Docier</h1>
         <p>Checking…</p>
       </div>
     );

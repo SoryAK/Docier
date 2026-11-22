@@ -137,6 +137,8 @@ export function Onboarding({
   const [lastName, setLastName] = useState(openedName.lastName);
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(initialProfile.avatarUrl);
+  // A photo saved before (when setup is run again) is removed on finish.
+  const [photoRemoved, setPhotoRemoved] = useState(false);
   const [place, setPlace] = useState<OnboardingPlaceAnswer>({
     street: initialProfile.address,
     city: initialProfile.city,
@@ -459,6 +461,12 @@ export function Onboarding({
     };
   }, [step, hosting, baseUrl, cloudKey]);
 
+  // Onboarding opens with the cursor in the first name, ready to type.
+  useEffect(() => {
+    if (step !== "name") return;
+    document.querySelector<HTMLInputElement>('.onboarding-sheet input[autocomplete="given-name"]')?.focus();
+  }, [step]);
+
   useEffect(() => {
     if (step === "model" && localProbe === "idle") {
       void scanRange(String(LOCAL_SCAN_PORT_MIN), String(LOCAL_SCAN_PORT_MAX));
@@ -499,6 +507,14 @@ export function Onboarding({
   const foundKey = foundPick || (foundModels[0] ? `${foundModels[0].address} ${foundModels[0].id}` : "");
   const usingFound =
     wantsModel === true && hosting === "local" && endpointMode === "scanned" && `${baseUrl} ${selected}` === foundKey;
+
+  // Choosing Local with a model found picks it; there's no separate "use" click.
+  useEffect(() => {
+    if (step !== "model" || hosting !== "local" || localProbe !== "ready" || advancedOpen) return;
+    if (endpointMode !== null) return;
+    const hit = foundModels.find((model) => `${model.address} ${model.id}` === foundKey);
+    if (hit) chooseLocal(hit.address, hit.id);
+  }, [step, hosting, localProbe, advancedOpen, endpointMode, foundKey]);
 
   function pickHosting(next: "local" | "cloud") {
     if (hosting === next) return;
@@ -563,6 +579,8 @@ export function Onboarding({
   function pickPhoto(next: File | null) {
     if (!next) {
       setPhoto(null);
+      setPhotoPreview(null);
+      setPhotoRemoved(Boolean(initialProfile.avatarUrl));
       return;
     }
     if (!isAvatarType(next.type)) {
@@ -574,6 +592,7 @@ export function Onboarding({
       return;
     }
     setError(null);
+    setPhotoRemoved(false);
     setPhoto(next);
   }
 
@@ -920,6 +939,13 @@ export function Onboarding({
         setError(profileBody.error ?? "Could not save your profile.");
         return;
       }
+      if (!photo && photoRemoved) {
+        const removed = await fetch("/api/profile/avatar", { method: "DELETE" });
+        if (!removed.ok) {
+          setError("Could not remove the photo.");
+          return;
+        }
+      }
       if (photo) {
         const avatar = new FormData();
         avatar.append("avatar", photo);
@@ -1087,7 +1113,6 @@ export function Onboarding({
         <WashProgress step={step} steps={steps} />
         <div
           className="onboarding-sheet"
-          data-wide={step === "name" || step === "check" || step === "integrations" ? "true" : undefined}
         >
         <section className="onboarding-card">
           {recoveryError ? (
@@ -1217,7 +1242,11 @@ export function Onboarding({
                     width="100%"
                     value={foundKey}
                     isReadOnly={foundModels.length === 1}
-                    onChange={setFoundPick}
+                    onChange={(value) => {
+                      setFoundPick(value);
+                      const hit = foundModels.find((model) => `${model.address} ${model.id}` === value);
+                      if (hit) chooseLocal(hit.address, hit.id);
+                    }}
                     options={foundModels.map((hit) => ({
                       value: `${hit.address} ${hit.id}`,
                       label: `${presentModelId(hit.id)}${scanned.length > 1 ? ` · ${presentScanAddress(hit.address)}` : ""}`,
@@ -1231,17 +1260,6 @@ export function Onboarding({
                 ) : null}
                 {localProbe === "ready" ? (
                   <div className="onboarding-found-actions">
-                    {!advancedOpen && foundModels.length > 0 ? (
-                      <Button
-                        label={usingFound ? "Using this model" : "Use this model"}
-                        variant="primary"
-                        aria-pressed={usingFound}
-                        onClick={() => {
-                          const hit = foundModels.find((model) => `${model.address} ${model.id}` === foundKey);
-                          if (hit) chooseLocal(hit.address, hit.id);
-                        }}
-                      />
-                    ) : null}
                     <Button
                       label="Advanced"
                       variant="ghost"
@@ -1415,15 +1433,6 @@ export function Onboarding({
                       </>
                     )}
                   </Heading>
-                  {files.length > 0 ? (
-                    <Button
-                      className="onboarding-file-add"
-                      label="Add resume"
-                      icon={<Icon icon={Plus} />}
-                      isDisabled={extracting}
-                      onClick={() => fileInputRef.current?.click()}
-                    />
-                  ) : null}
                 </div>
               </div>
               {extracting ? (
@@ -1507,6 +1516,15 @@ export function Onboarding({
                       );
                     })}
                   </ul>
+                  <Button
+                    className="onboarding-file-add"
+                    label="Add another resume"
+                    variant="ghost"
+                    size="sm"
+                    icon={<Icon icon={Plus} />}
+                    isDisabled={extracting}
+                    onClick={() => fileInputRef.current?.click()}
+                  />
                 </>
               )}
                   {previewIndex != null && files[previewIndex] ? (
@@ -2101,8 +2119,20 @@ function ProfileStep({
             accept="image/jpeg,image/png,image/webp,image/gif"
             value={null}
             width="100%"
-            onChange={(file) => onPhoto(file instanceof File ? file : null)}
+            placeholder={photoPreview ? "Change photo" : "Choose a photo"}
+            onChange={(file) => {
+              if (file instanceof File) onPhoto(file);
+            }}
           />
+          {photoPreview ? (
+            <Button
+              className="onboarding-photo-remove"
+              label="Remove photo"
+              variant="ghost"
+              size="sm"
+              onClick={() => onPhoto(null)}
+            />
+          ) : null}
         </div>
         <div className="onboarding-badge-identity">
           <fieldset className="onboarding-group">

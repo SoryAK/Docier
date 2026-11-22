@@ -39,7 +39,7 @@ One occupant on this machine. Docier runs locally, or from the desktop package.
 - **Desktop (`web/src-tauri`):** The desktop window.
 - **Storage:** SQLite on disk.
 
-First run moves through Welcome, Profile, and Resume. The resume is optional. `GET /api/me` creates the `local` vault if needed.
+First run moves through Profile, Model, Integrations, Resume, and Verify. Integrations shows only when an account can be connected, and Verify only when a model reads the resume. The model and the resume are optional. `GET /api/me` creates the `local` vault if needed.
 
 ---
 

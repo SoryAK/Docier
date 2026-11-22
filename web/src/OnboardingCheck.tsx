@@ -28,6 +28,7 @@ import {
   ONBOARDING_NO_PLACE,
   type OnboardingCheckItem,
 } from "@core/onboarding-review";
+import { readDocxText } from "@core/docx-text";
 import { classifyResumePreview } from "@core/resume-preview";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { getDocument, GlobalWorkerOptions } from "pdfjs-dist";
@@ -914,9 +915,13 @@ export function ResumePreview({ file, paged = false }: { file: File; paged?: boo
   }, [page, pageCount, paged]);
 
   useEffect(() => {
-    if (kind !== "text") return;
+    if (kind !== "text" && kind !== "docx") return;
     let cancel = false;
-    void file.text().then((text) => {
+    // A .docx is unpacked here, on this machine, and shown as its text.
+    void (kind === "docx"
+      ? file.arrayBuffer().then((buffer) => readDocxText(new Uint8Array(buffer)) ?? "This .docx file couldn't be read.")
+      : file.text()
+    ).then((text) => {
       if (!cancel) setTextPreview(text);
     });
     return () => {
@@ -957,7 +962,9 @@ export function ResumePreview({ file, paged = false }: { file: File; paged?: boo
           ) : null}
         </>
       ) : null}
-      {kind === "text" ? <pre className="onboarding-preview-text">{textPreview ?? "Reading…"}</pre> : null}
+      {kind === "text" || kind === "docx" ? (
+        <pre className="onboarding-preview-text">{textPreview ?? "Reading…"}</pre>
+      ) : null}
       {kind === "other" ? (
         <p className="onboarding-preview-fallback">{file.name} cannot be shown here. You can still continue.</p>
       ) : null}

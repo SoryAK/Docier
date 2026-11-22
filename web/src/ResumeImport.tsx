@@ -20,10 +20,10 @@ import {
   type SetAsideRole,
 } from "@core/resume-compare";
 import { AllResumesVerify, type ResumeBundle } from "./OnboardingCompare";
+import { RESUME_FILE_ACCEPT } from "@core/resume-preview";
 import "./onboarding.css";
 import "./resume-import.css";
 
-const RESUME_ACCEPT = "application/pdf,text/plain,.pdf,.txt,.md";
 
 type QueuedFile = { file: File; digest: string };
 
@@ -286,7 +286,7 @@ export function ResumeImport({ onClose, onDone }: { onClose: () => void; onDone:
                 isLabelHidden
                 mode="dropzone"
                 isMultiple
-                accept={RESUME_ACCEPT}
+                accept={RESUME_FILE_ACCEPT}
                 value={null}
                 placeholder="Drop resumes here, or click to choose"
                 width="100%"
@@ -311,7 +311,7 @@ export function ResumeImport({ onClose, onDone }: { onClose: () => void; onDone:
                   label="Add resumes"
                   mode="input"
                   isMultiple
-                  accept={RESUME_ACCEPT}
+                  accept={RESUME_FILE_ACCEPT}
                   value={null}
                   placeholder="Add resumes"
                   width="100%"

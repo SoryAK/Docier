@@ -15,12 +15,17 @@ describe("classifyResumePreview", () => {
     expect(classifyResumePreview({ name: "cv.md", type: "" })).toBe("text");
   });
 
-  it("falls back when the file cannot be shown inline", () => {
+  it("reads a .docx as its text", () => {
     expect(
       classifyResumePreview({
         name: "cv.docx",
         type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       }),
-    ).toBe("other");
+    ).toBe("docx");
+    expect(classifyResumePreview({ name: "CV.DOCX", type: "" })).toBe("docx");
+  });
+
+  it("falls back when the file cannot be shown inline", () => {
+    expect(classifyResumePreview({ name: "cv.pages", type: "application/octet-stream" })).toBe("other");
   });
 });

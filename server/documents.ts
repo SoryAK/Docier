@@ -13,6 +13,7 @@ import {
   prepareDocumentRemoval,
   prepareStoredDocument,
 } from "../core/document-vault";
+import { DOCX_MEDIA_TYPE } from "../core/resume-preview";
 import { evidenceCited, saveEvidence } from "./career-memory";
 import { uploadPath } from "./upload-path";
 
@@ -254,6 +255,7 @@ const EXTENSION_TYPES: Record<string, string> = {
   gif: "image/gif",
   webp: "image/webp",
   pdf: "application/pdf",
+  docx: DOCX_MEDIA_TYPE,
   txt: "text/plain; charset=utf-8",
   md: "text/plain; charset=utf-8",
   csv: "text/csv; charset=utf-8",

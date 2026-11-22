@@ -2540,3 +2540,25 @@ button.onboarding-verify-row {
 .onboarding-work li + li {
   margin-top: 0.3rem;
 }
+
+/* Cloud setup: say where the resume goes, next to the fields that send it. */
+.onboarding-cloud {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.onboarding-cloud-destination {
+  margin: 0;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid rgba(214, 160, 92, 0.35);
+  border-radius: 12px;
+  background: rgba(214, 160, 92, 0.08);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.onboarding-cloud-destination strong {
+  color: #fff;
+  font-weight: 600;
+}

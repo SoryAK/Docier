@@ -67,3 +67,32 @@ export function prepareModelConnection(
 
   return { ok: true, value: { hosting, baseUrl, model, apiKey } };
 }
+
+/** A cloud provider an occupant can choose in setup. "custom" is any compatible address. */
+export type CloudProviderId = "openai" | "openrouter" | "custom";
+
+export const CLOUD_PROVIDERS: ReadonlyArray<{ id: Exclude<CloudProviderId, "custom">; label: string; baseUrl: string }> = [
+  { id: "openai", label: "OpenAI", baseUrl: OPENAI_BASE_URL },
+  { id: "openrouter", label: "OpenRouter", baseUrl: OPENROUTER_BASE_URL },
+];
+
+/** The provider an address belongs to, or "custom" for any other address. */
+export function cloudProviderFor(baseUrl: string): CloudProviderId {
+  const address = baseUrl.trim().replace(/\/+$/, "");
+  return CLOUD_PROVIDERS.find((provider) => provider.baseUrl === address)?.id ?? "custom";
+}
+
+/**
+ * Where a resume goes when this cloud model reads it, said plainly: the
+ * provider's name and host, or just the host for another address.
+ */
+export function cloudDestination(baseUrl: string): string {
+  let host = "";
+  try {
+    host = new URL(baseUrl.trim()).host;
+  } catch {
+    return "";
+  }
+  const provider = CLOUD_PROVIDERS.find((row) => row.id === cloudProviderFor(baseUrl));
+  return provider ? `${provider.label} (${host})` : host;
+}

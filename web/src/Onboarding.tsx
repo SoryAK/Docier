@@ -9,7 +9,15 @@ import { SelectableCard } from "@astryxdesign/core/SelectableCard";
 import { Stepper, Step } from "@astryxdesign/core/Stepper";
 import { Heading, Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
-import { isHttpUrl, OPENAI_BASE_URL, type ModelHosting } from "@core/model-connection";
+import {
+  CLOUD_PROVIDERS,
+  cloudDestination,
+  cloudProviderFor,
+  isHttpUrl,
+  OPENAI_BASE_URL,
+  type CloudProviderId,
+  type ModelHosting,
+} from "@core/model-connection";
 import {
   LOCAL_SCAN_PORT_MAX,
   LOCAL_SCAN_PORT_MIN,
@@ -144,6 +152,12 @@ export function Onboarding({
   const [wantsModel, setWantsModel] = useState<boolean | null>(null);
   const [hosting, setHosting] = useState<ModelHosting | null>(null);
   const [cloudKey, setCloudKey] = useState("");
+  // The cloud provider chosen in setup; its address is `baseUrl`.
+  const [cloudProvider, setCloudProvider] = useState<CloudProviderId>("openai");
+  // The provider's own model list, fetched once a key is entered.
+  const [cloudModels, setCloudModels] = useState<
+    { state: "loading" } | { state: "listed"; models: string[] } | { state: "failed"; error: string } | null
+  >(null);
   const [selected, setSelected] = useState("");
   const [foundPick, setFoundPick] = useState("");
   const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -207,6 +221,7 @@ export function Onboarding({
     setEndpointMode(choice.endpoint);
     if (choice.endpoint === "custom") setLocalUrl(choice.baseUrl);
     if (choice.endpoint === "scanned" && choice.model) setFoundPick(`${choice.baseUrl} ${choice.model}`);
+    if (choice.hosting === "cloud") setCloudProvider(cloudProviderFor(choice.baseUrl));
   }
 
   useEffect(() => {
@@ -402,6 +417,40 @@ export function Onboarding({
     }
   }
 
+  // Once a cloud key is entered, ask the provider which models it offers.
+  useEffect(() => {
+    const address = baseUrl.trim();
+    if (step !== "model" || hosting !== "cloud" || !isHttpUrl(address) || !cloudKey.trim()) {
+      setCloudModels(null);
+      return;
+    }
+    const abort = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setCloudModels({ state: "loading" });
+      try {
+        const res = await fetch("/api/models/discover", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ baseUrl: address, apiKey: cloudKey.trim() }),
+          signal: abort.signal,
+        });
+        const body = (await res.json().catch(() => ({}))) as { models?: string[]; error?: string };
+        if (abort.signal.aborted) return;
+        if (res.ok && body.models && body.models.length > 0) {
+          setCloudModels({ state: "listed", models: body.models });
+        } else {
+          setCloudModels({ state: "failed", error: body.error ?? "The provider didn't list its models." });
+        }
+      } catch {
+        if (!abort.signal.aborted) setCloudModels({ state: "failed", error: "Could not reach the provider." });
+      }
+    }, 600);
+    return () => {
+      abort.abort();
+      window.clearTimeout(timer);
+    };
+  }, [step, hosting, baseUrl, cloudKey]);
+
   useEffect(() => {
     if (step === "model" && localProbe === "idle") {
       void scanRange(String(LOCAL_SCAN_PORT_MIN), String(LOCAL_SCAN_PORT_MAX));
@@ -433,7 +482,20 @@ export function Onboarding({
     setBaseUrl("");
     setAdvancedOpen(false);
     setError(null);
+    setCloudModels(null);
     if (next === "local") setCloudKey("");
+    if (next === "cloud") {
+      setCloudProvider("openai");
+      setBaseUrl(OPENAI_BASE_URL);
+    }
+  }
+
+  function pickCloudProvider(next: CloudProviderId) {
+    setCloudProvider(next);
+    setBaseUrl(CLOUD_PROVIDERS.find((provider) => provider.id === next)?.baseUrl ?? "");
+    setSelected("");
+    setCloudModels(null);
+    setError(null);
   }
 
   function chooseLocal(address: string, id: string) {
@@ -464,7 +526,11 @@ export function Onboarding({
       hosting === "local" &&
       ((endpointMode === "scanned" && Boolean(selected) && isHttpUrl(baseUrl)) ||
         (endpointMode === "custom" && isHttpUrl(localUrl.trim()) && Boolean(selected.trim())))) ||
-    (wantsModel === true && hosting === "cloud" && Boolean(selected.trim()) && Boolean(cloudKey.trim()));
+    (wantsModel === true &&
+      hosting === "cloud" &&
+      isHttpUrl(baseUrl.trim()) &&
+      Boolean(selected.trim()) &&
+      Boolean(cloudKey.trim()));
 
   function pickPhoto(next: File | null) {
     if (!next) {
@@ -566,8 +632,7 @@ export function Onboarding({
   }
 
   function modelCheckKey() {
-    const address = hosting === "cloud" ? OPENAI_BASE_URL : baseUrl;
-    return `${address} ${selected} ${hosting === "cloud" ? cloudKey : ""}`;
+    return `${baseUrl} ${selected} ${hosting === "cloud" ? cloudKey : ""}`;
   }
 
   async function continueFromModel() {
@@ -587,7 +652,7 @@ export function Onboarding({
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          baseUrl: hosting === "cloud" ? OPENAI_BASE_URL : baseUrl,
+          baseUrl: baseUrl.trim(),
           model: selected,
           apiKey: hosting === "cloud" ? cloudKey : "",
         }),
@@ -636,7 +701,7 @@ export function Onboarding({
           headers: { "content-type": "application/json" },
           body: JSON.stringify(
             hosting === "cloud"
-              ? { hosting: "cloud", baseUrl: OPENAI_BASE_URL, model: selected, apiKey: cloudKey }
+              ? { hosting: "cloud", baseUrl: baseUrl.trim(), model: selected, apiKey: cloudKey }
               : { hosting: "local", baseUrl, model: selected, apiKey: "" },
           ),
           signal: abort.signal,
@@ -1160,15 +1225,30 @@ export function Onboarding({
               </section>
               ) : null}
               {hosting === "cloud" ? (
-                <section className="onboarding-found">
-                  <TextInput
-                    label="Model"
-                    value={selected}
-                    autoComplete="off"
-                    placeholder="model name"
+                <section className="onboarding-found onboarding-cloud">
+                  <Selector
+                    label="Provider"
                     width="100%"
-                    onChange={setSelected}
+                    value={cloudProvider}
+                    onChange={(value) => pickCloudProvider(value as CloudProviderId)}
+                    options={[
+                      ...CLOUD_PROVIDERS.map((provider) => ({ value: provider.id, label: provider.label })),
+                      { value: "custom", label: "Another provider" },
+                    ]}
                   />
+                  {cloudProvider === "custom" ? (
+                    <TextInput
+                      label="Address"
+                      value={baseUrl}
+                      autoComplete="off"
+                      placeholder="https://…/v1"
+                      width="100%"
+                      onChange={(value) => {
+                        setBaseUrl(value);
+                        setSelected("");
+                      }}
+                    />
+                  ) : null}
                   <TextInput
                     label="Key"
                     type="password"
@@ -1177,6 +1257,35 @@ export function Onboarding({
                     width="100%"
                     onChange={setCloudKey}
                   />
+                  {cloudModels?.state === "listed" ? (
+                    <Selector
+                      label="Model"
+                      width="100%"
+                      hasSearch={cloudModels.models.length > 8}
+                      placeholder="Choose a model"
+                      value={cloudModels.models.includes(selected) ? selected : undefined}
+                      onChange={(value) => setSelected(String(value))}
+                      options={cloudModels.models.map((id) => ({ value: id, label: id }))}
+                    />
+                  ) : (
+                    <TextInput
+                      label="Model"
+                      value={selected}
+                      autoComplete="off"
+                      placeholder={cloudModels?.state === "loading" ? "Finding the provider's models…" : "model name"}
+                      width="100%"
+                      onChange={setSelected}
+                    />
+                  )}
+                  {cloudModels?.state === "failed" ? (
+                    <p className="onboarding-quiet">{cloudModels.error} Type the model name instead.</p>
+                  ) : null}
+                  {cloudDestination(baseUrl) ? (
+                    <p className="onboarding-cloud-destination" role="note">
+                      Your resume will be sent to <strong>{cloudDestination(baseUrl)}</strong>. A cloud provider may
+                      read, keep, report, and train on what you send.
+                    </p>
+                  ) : null}
                 </section>
               ) : null}
               {modelCheck?.state === "checking" ? (

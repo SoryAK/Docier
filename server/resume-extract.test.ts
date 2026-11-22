@@ -157,3 +157,68 @@ describe("resume extract HTTP", () => {
     }
   });
 });
+
+describe("when the model fails", () => {
+  const closed = async () => {
+    throw new Error("Cannot connect to API: other side closed");
+  };
+
+  it("explains a failed read plainly and keeps the server's words as detail", async () => {
+    const ctx = setup({ complete: closed });
+    try {
+      await saveLocalModel(ctx.app);
+      const form = new FormData();
+      form.append("file", new File([resumeText], "cv.txt", { type: "text/plain" }));
+      const res = await ctx.app.request("/api/resumes/extract", { method: "POST", body: form });
+      expect(res.status).toBe(502);
+      const body = (await res.json()) as { error: string; failure: string; detail: string };
+      expect(body.failure).toBe("stopped");
+      expect(body.error).toContain("memory");
+      expect(body.detail).toBe("Cannot connect to API: other side closed");
+    } finally {
+      ctx.close();
+    }
+  });
+
+  it("tests a model with a short prompt before a resume is sent to it", async () => {
+    const prompts: string[] = [];
+    const ctx = setup({
+      complete: async (input) => {
+        prompts.push(String(input.messages.at(-1)?.content));
+        return { model: input.model, text: "OK" };
+      },
+    });
+    try {
+      const ok = await ctx.app.request("/api/models/test", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ baseUrl: DEFAULT_LOCAL_BASE_URL, model: "small:1b" }),
+      });
+      expect(ok.status).toBe(200);
+      expect(prompts).toEqual(["Reply with the word OK."]);
+    } finally {
+      ctx.close();
+    }
+  });
+
+  it("says why a model that can't answer the test won't do", async () => {
+    const ctx = setup({ complete: closed });
+    try {
+      const failed = await ctx.app.request("/api/models/test", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ baseUrl: DEFAULT_LOCAL_BASE_URL, model: "big:27b" }),
+      });
+      expect(failed.status).toBe(502);
+      await expect(failed.json()).resolves.toMatchObject({ failure: "stopped" });
+      const missing = await ctx.app.request("/api/models/test", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ baseUrl: DEFAULT_LOCAL_BASE_URL, model: "" }),
+      });
+      expect(missing.status).toBe(400);
+    } finally {
+      ctx.close();
+    }
+  });
+});

@@ -582,3 +582,4 @@ export {
   type AccessState,
 } from "./access";
 export { distinctPairKey, prepareDistinctPair, type DistinctPair } from "./distinct-roles";
+export { describeModelFailure, type ModelFailure, type ModelFailureKind } from "./model-failure";

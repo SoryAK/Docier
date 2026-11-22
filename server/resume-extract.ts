@@ -4,6 +4,7 @@ import {
   parseExtractedResumeText,
   type ExtractedResume,
 } from "../core/resume-extract";
+import { describeModelFailure, type ModelFailureKind } from "../core/model-failure";
 import { classifyResumePreview } from "../core/resume-preview";
 import { loadLatestModelConnection } from "./models";
 import { completeOpenAiChat, isAbortError, type CompleteFn } from "./openai-compat";
@@ -12,9 +13,18 @@ import type { DatabaseSync } from "node:sqlite";
 
 export class ResumeExtractError extends Error {
   readonly status: 400 | 422 | 502;
-  constructor(message: string, status: 400 | 422 | 502) {
+  /** Why a model call failed, when it was the model; the raw message is `detail`. */
+  readonly failure: ModelFailureKind | null;
+  readonly detail: string | null;
+  constructor(
+    message: string,
+    status: 400 | 422 | 502,
+    model?: { failure: ModelFailureKind; detail: string },
+  ) {
     super(message);
     this.status = status;
+    this.failure = model?.failure ?? null;
+    this.detail = model?.detail ?? null;
   }
 }
 
@@ -77,10 +87,11 @@ export async function extractResumeFromFile(
     if (isAbortError(err)) {
       throw new ResumeExtractError("Extract cancelled.", 400);
     }
-    throw new ResumeExtractError(
-      err instanceof Error ? err.message : "The model could not extract this resume.",
-      502,
-    );
+    const failure = describeModelFailure(err);
+    throw new ResumeExtractError(failure.message, 502, {
+      failure: failure.kind,
+      detail: err instanceof Error ? err.message : "",
+    });
   }
 
   const data = parseExtractedResumeText(reply.text);

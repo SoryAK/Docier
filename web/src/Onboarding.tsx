@@ -162,6 +162,11 @@ export function Onboarding({
   const [items, setItems] = useState<OnboardingCheckItem[]>([]);
   const [extracted, setExtracted] = useState<ExtractedResume | null>(null);
   const [extracting, setExtracting] = useState(false);
+  // A model is sent a short test before a resume, so one that is listed but
+  // can't answer is caught on the Model step. Keyed by address, model, and key.
+  const [modelCheck, setModelCheck] = useState<{ key: string; state: "checking" | "ok" } | null>(null);
+  // The last read stopped on a model failure, so the Resume step offers a way on.
+  const [readFailed, setReadFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
@@ -244,6 +249,11 @@ export function Onboarding({
         setProfileExtract(draft.profileExtract);
         setExtracted(draft.extracts.find((row) => row.digest === draft.files[draft.cursor]?.digest)?.data ?? null);
         restoreModelChoice(draft.modelChoice);
+        if (draft.about) {
+          setFirstName(draft.about.firstName);
+          setLastName(draft.about.lastName);
+          setPlace(draft.about.place);
+        }
         setStep(draft.step);
       })
       .catch(() => undefined)
@@ -319,6 +329,7 @@ export function Onboarding({
         declinedPairs,
         profileExtract,
         modelChoice: modelChoiceForDraft(),
+        about: { firstName, lastName, place },
       });
       } catch {
         /* the questions still continue in this page */
@@ -327,7 +338,7 @@ export function Onboarding({
     return () => {
       cancel = true;
     };
-  }, [draftReady, files, readDigests, held, heldSkills, setAsides, cursor, pass, step, items, timeline, declinedPairs, profileExtract, wantsModel, hosting, selected, baseUrl, endpointMode, localUrl]);
+  }, [draftReady, files, readDigests, held, heldSkills, setAsides, cursor, pass, step, items, timeline, declinedPairs, profileExtract, wantsModel, hosting, selected, baseUrl, endpointMode, localUrl, firstName, lastName, place]);
 
   useEffect(() => {
     let cancel = false;
@@ -553,6 +564,62 @@ export function Onboarding({
     void finishSession(held, heldSkills, false);
   }
 
+  function modelCheckKey() {
+    const address = hosting === "cloud" ? OPENAI_BASE_URL : baseUrl;
+    return `${address} ${selected} ${hosting === "cloud" ? cloudKey : ""}`;
+  }
+
+  async function continueFromModel() {
+    setError(null);
+    if (wantsModel !== true) {
+      setStep("integrations");
+      return;
+    }
+    const key = modelCheckKey();
+    if (modelCheck?.key === key && modelCheck.state === "ok") {
+      setStep("integrations");
+      return;
+    }
+    setModelCheck({ key, state: "checking" });
+    try {
+      const res = await fetch("/api/models/test", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          baseUrl: hosting === "cloud" ? OPENAI_BASE_URL : baseUrl,
+          model: selected,
+          apiKey: hosting === "cloud" ? cloudKey : "",
+        }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      if (res.ok) {
+        setModelCheck({ key, state: "ok" });
+        setStep("integrations");
+        return;
+      }
+      setModelCheck(null);
+      setError(body.error ?? "The model didn't answer. Try again, choose another model, or skip.");
+    } catch {
+      setModelCheck(null);
+      setError("Could not reach Docier to test the model. Try again.");
+    }
+  }
+
+  function stopReading() {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setExtracting(false);
+    setError("Stopped. The resume is still here; read it again, or continue without a model.");
+    setReadFailed(true);
+  }
+
+  function continueWithoutModel() {
+    clearModel();
+    setWantsModel(false);
+    setReadFailed(false);
+    continueWithoutRead();
+  }
+
   async function readAll() {
     if (extracting || wantsModel !== true || !selected || files.length === 0) return;
     abortRef.current?.abort();
@@ -560,6 +627,7 @@ export function Onboarding({
     abortRef.current = abort;
     setExtracting(true);
     setError(null);
+    setReadFailed(false);
     try {
       if (hosting === "cloud" || endpointMode === "custom" || selected !== savedModel) {
         const saved = await fetch("/api/models", {
@@ -590,6 +658,7 @@ export function Onboarding({
         if (abort.signal.aborted) return;
         if (!res.ok || !body.data) {
           setError(body.error ?? `Could not read ${row.file.name}.`);
+          setReadFailed(true);
           return;
         }
         if (onboardingCheckItems(body.data).length === 0) {
@@ -604,6 +673,7 @@ export function Onboarding({
     } catch (err) {
       if (abort.signal.aborted) return;
       setError(err instanceof Error ? err.message : "Could not read the resume.");
+      setReadFailed(true);
     } finally {
       if (abortRef.current === abort) {
         abortRef.current = null;
@@ -741,6 +811,8 @@ export function Onboarding({
             ? "Use an http(s) URL for LinkedIn, GitHub, or a site."
             : "A name is required.",
         );
+        // The name is asked on Profile; show the step where it can be added.
+        if (prepared.error !== "url-invalid") setStep("name");
         return;
       }
       profileRef.current = prepared.value;
@@ -1102,6 +1174,11 @@ export function Onboarding({
                   />
                 </section>
               ) : null}
+              {modelCheck?.state === "checking" ? (
+                <p className="onboarding-quiet" role="status">
+                  Sending the model a short test. A large model can take a minute to load the first time.
+                </p>
+              ) : null}
               {error ? (
                 <Banner status="error" title={error} container="section" collapsible={false} role="alert" />
               ) : null}
@@ -1127,13 +1204,10 @@ export function Onboarding({
                   />
                   <Button
                     className="onboarding-nav"
-                    label="Continue"
+                    label={modelCheck?.state === "checking" ? "Checking the model…" : "Continue"}
                     variant="primary"
-                    isDisabled={wantsModel !== true || !modelReady}
-                    onClick={() => {
-                      setError(null);
-                      setStep("integrations");
-                    }}
+                    isDisabled={wantsModel !== true || !modelReady || modelCheck?.state === "checking"}
+                    onClick={() => void continueFromModel()}
                   />
                 </div>
               </div>
@@ -1321,6 +1395,26 @@ export function Onboarding({
                   {error ? (
                     <Banner status="error" title={error} container="section" collapsible={false} role="alert" />
                   ) : null}
+                  {readFailed && !extracting && wantsModel === true ? (
+                    <div className="onboarding-read-failed" role="group" aria-label="What to do next">
+                      <Button
+                        label="Choose another model"
+                        variant="ghost"
+                        onClick={() => {
+                          setError(null);
+                          setReadFailed(false);
+                          setModelCheck(null);
+                          setStep("model");
+                        }}
+                      />
+                      <Button
+                        label={busy ? "Saving…" : "Continue without a model"}
+                        variant="ghost"
+                        isDisabled={busy}
+                        onClick={continueWithoutModel}
+                      />
+                    </div>
+                  ) : null}
                   <div className="onboarding-actions" data-split="true">
                     <Button
                       className="onboarding-nav"
@@ -1330,11 +1424,16 @@ export function Onboarding({
                       onClick={() => setStep("integrations")}
                     />
                     <div className="onboarding-action-pair">
+                      {extracting ? (
+                        <Button className="onboarding-nav" label="Stop" variant="ghost" onClick={stopReading} />
+                      ) : null}
                       {(wantsModel === true || (wantsModel !== false && filesRead)) && files.length > 0 ? (
                         <Button
                           className="onboarding-nav"
                           label={
-                            !filesRead
+                            !filesRead && readFailed
+                              ? "Try again"
+                              : !filesRead
                               ? files.length > 1
                                 ? "Read the resumes"
                                 : "Extract job data"

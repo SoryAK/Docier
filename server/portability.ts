@@ -174,6 +174,9 @@ export function createPortableArchive(
     }
   }
   for (const row of tables.work_history_media ?? []) addStoredName(row, storedNames);
+  for (const row of tables.contacts ?? []) {
+    if (typeof row.photo_stored_name === "string") storedNames.add(row.photo_stored_name);
+  }
   for (const storedName of storedNames) {
     // A name that escapes the uploads folder is left out rather than read.
     if (!isSafeStoredName(storedName)) continue;

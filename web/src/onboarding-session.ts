@@ -41,7 +41,7 @@ export type OnboardingDraft = {
   declinedPairs?: string[];
   modelChoice?: OnboardingModelChoice | null;
   /** The Profile answers, so a reload partway through doesn't lose the name. */
-  about?: { firstName: string; lastName: string; place: OnboardingPlaceAnswer } | null;
+  about?: { firstName: string; lastName: string; headline?: string; place: OnboardingPlaceAnswer } | null;
 };
 
 export async function loadOnboardingDraft(): Promise<OnboardingDraft | null> {

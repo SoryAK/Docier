@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Badge } from "@astryxdesign/core/Badge";
 import { Banner } from "@astryxdesign/core/Banner";
 import { Button } from "@astryxdesign/core/Button";
@@ -13,6 +13,7 @@ import { Heading, Text } from "@astryxdesign/core/Text";
 import { TextArea } from "@astryxdesign/core/TextArea";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { VStack } from "@astryxdesign/core/VStack";
+import { Plus } from "lucide-react";
 import { formatCareerSpan } from "@core/career-file";
 import {
   addHeldRole,
@@ -148,7 +149,6 @@ export function ResumeCompare({
   if (incoming.length === 0) {
     return (
       <>
-        <Text type="label" display="block">Resume</Text>
         <Heading level={1}>
           Nothing new in <em>{fileName}</em>
         </Heading>
@@ -215,7 +215,6 @@ export function ResumeCompare({
 
   return (
     <>
-      <Text type="label" display="block">Resume</Text>
       <Heading level={1}>
         Here's what was <em>extracted.</em>
       </Heading>
@@ -621,6 +620,8 @@ export function AllResumesVerify({
   onDone,
   onReviewChange,
   hideHeading = false,
+  manual = false,
+  submitted,
 }: {
   bundles: ResumeBundle[];
   initialRows: OnboardingTimelineRow[] | null;
@@ -639,6 +640,10 @@ export function AllResumesVerify({
   onDone: (held: HeldRole[], skills: HeldSkill[]) => void;
   onReviewChange?: (open: boolean) => void;
   hideHeading?: boolean;
+  /** No model read anything: jobs and schools are added here by hand. */
+  manual?: boolean;
+  /** What else was entered (profile, resumes), shown above the jobs and schools. */
+  submitted?: ReactNode;
 }) {
   const [rows, setRows] = useState<OnboardingTimelineRow[]>(
     () => initialRows ?? overlayFileEdits(buildTimeline(bundles), editedItems, editedFileIndex),
@@ -834,33 +839,60 @@ export function AllResumesVerify({
 
   const editIndex = visible.findIndex((row) => row.id === editId);
   const unreviewedSimilar = [...cards("job"), ...cards("school")].filter((card) => card.onCompare && !card.opened).length;
-  const unopenedCount = visible.filter(
-    (row) => !isBlankOnboardingCheckItem(row.item) && !opened.includes(row.id),
-  ).length;
+  // Typed by hand, a job or school has already been seen.
+  const unopenedCount = manual
+    ? 0
+    : visible.filter((row) => !isBlankOnboardingCheckItem(row.item) && !opened.includes(row.id)).length;
 
   return (
     <>
-      {hideHeading ? null : (
+      {hideHeading ? null : manual ? (
+        <Heading level={1}>
+          Check what <em>you're adding.</em>
+        </Heading>
+      ) : (
+        <Heading level={1}>
+          Here's what was <em>extracted.</em>
+        </Heading>
+      )}
+      {manual ? (
+        <Text type="supporting" display="block">
+          Here's what you've entered. Edit anything that's wrong; it can all be changed again later.
+        </Text>
+      ) : (
         <>
-          <Text type="label" display="block">Verify</Text>
-          <Heading level={1}>
-            Here's what was <em>extracted.</em>
-          </Heading>
+          <Text type="supporting" display="block">{summary}</Text>
+          <Text type="supporting" display="block">
+            {bundles.length > 1 || prior.length > 0
+              ? "Open a job or a school to review it. Compare a role when it might be the same as another."
+              : "Open a job or a school to review it against the resume."}
+          </Text>
         </>
       )}
-      <Text type="supporting" display="block">{summary}</Text>
-      <Text type="supporting" display="block">
-        {bundles.length > 1 || prior.length > 0
-          ? "Open a job or a school to review it. Compare a role when it might be the same as another."
-          : "Open a job or a school to review it against the resume."}
-      </Text>
-      <VerifyBoard
-        jobs={cards("job")}
-        schools={cards("school")}
-        onAddJob={() => add("Job")}
-        onAddSchool={() => add("School")}
-      />
-      {editSkills ? (
+      {submitted}
+      {manual ? (
+        <>
+          {visible.length > 0 ? <VerifyBoard jobs={cards("job")} schools={cards("school")} hideEmpty /> : null}
+          <div className="onboarding-add-roles">
+            <div>
+              <strong>{visible.length > 0 ? "Add another role" : "Add your roles"}</strong>
+              <span>Jobs and schools you've held. You can also add them later from Career History.</span>
+            </div>
+            <HStack gap={2}>
+              <Button label="Add job" icon={<Icon icon={Plus} />} onClick={() => add("Job")} />
+              <Button label="Add school" icon={<Icon icon={Plus} />} variant="ghost" onClick={() => add("School")} />
+            </HStack>
+          </div>
+        </>
+      ) : (
+        <VerifyBoard
+          jobs={cards("job")}
+          schools={cards("school")}
+          onAddJob={() => add("Job")}
+          onAddSchool={() => add("School")}
+        />
+      )}
+      {editSkills && !manual ? (
         <TextArea
           label="Skills"
           value={skillText ?? skillLines(shownSkills())}

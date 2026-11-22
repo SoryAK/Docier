@@ -334,6 +334,8 @@ export function profileAfterOnboarding(input: {
   extracted: ExtractedProfile | null;
   firstName: string;
   lastName: string;
+  /** Typed on Profile. Blank keeps the saved headline, or the one read from a resume. */
+  headline?: string;
   place: OnboardingPlaceAnswer | null;
   links: OnboardingLinkAnswer | null;
 }): ProfileFields {
@@ -348,6 +350,9 @@ export function profileAfterOnboarding(input: {
     lastName,
     fullName: [firstName, lastName].filter(Boolean).join(" "),
   };
+  if (input.headline !== undefined) {
+    next.headline = input.headline.trim() || base.headline;
+  }
   if (input.place) {
     next.address = input.place.street.trim() || base.address;
     next.city = input.place.city.trim() || base.city;

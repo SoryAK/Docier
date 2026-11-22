@@ -77,15 +77,19 @@ button:disabled {
   opacity: 0.45;
 }
 
+/* The splash before onboarding or Home loads, in the same light look as both. */
 .boot {
   display: grid;
   place-items: center;
   min-height: 100vh;
   padding: 2rem;
+  background: #f3f3f4;
+  color: #6b6b70;
+  color-scheme: light;
   text-align: center;
 }
 
 .boot h1 {
   margin: 0;
-  color: var(--gold-light);
+  color: #8a6d4f;
 }

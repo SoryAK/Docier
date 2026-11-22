@@ -5,7 +5,6 @@ import { Button } from "@astryxdesign/core/Button";
 import { Icon } from "@astryxdesign/core/Icon";
 import { FileInput } from "@astryxdesign/core/FileInput";
 import { Selector } from "@astryxdesign/core/Selector";
-import { SelectableCard } from "@astryxdesign/core/SelectableCard";
 import { Stepper, Step } from "@astryxdesign/core/Stepper";
 import { Heading, Text } from "@astryxdesign/core/Text";
 import { RESUME_FILE_ACCEPT } from "@core/resume-preview";
@@ -37,14 +36,9 @@ import {
   type OnboardingFinishReceipt,
 } from "@core/onboarding-finish";
 import {
-  evidenceRoleChoices,
   onboardingCheckItems,
-  onboardingDone,
-  onboardingSavedLines,
   profileAfterOnboarding,
-  type EvidenceRoleChoice,
   type OnboardingCheckItem,
-  type OnboardingDone,
   type OnboardingLinkAnswer,
   type OnboardingPlaceAnswer,
 } from "@core/onboarding-review";
@@ -62,8 +56,8 @@ import {
   PROFILE_AVATAR_MAX_BYTES,
   type ProfileFields,
 } from "@core/profile";
-import { splitResidence, type ExtractedProfile, type ExtractedResume } from "@core/resume-extract";
-import { Plus } from "lucide-react";
+import type { ExtractedProfile, ExtractedResume } from "@core/resume-extract";
+import { ArrowRight, ChevronDown, Cloud, FileText, Laptop, PencilLine, Plus, TriangleAlert, X } from "lucide-react";
 import {
   dropSetAside,
   historyFromHeld,
@@ -74,8 +68,6 @@ import {
   type HeldSkill,
   type SetAsideRole,
 } from "@core/resume-compare";
-import type { PlaceHit } from "./place-search";
-import { usePlaceSuggestions } from "./use-place-suggestions";
 import { ResumePreview } from "./OnboardingCheck";
 import { AllResumesVerify, ResumeCompare, type ResumeBundle } from "./OnboardingCompare";
 import { ResumeReview } from "./ResumeReview";
@@ -92,7 +84,6 @@ import {
   writeFinishReceipt,
 } from "./onboarding-finish-store";
 import type { OnboardingProfileValue } from "./OnboardingProfile";
-import { IntegrationSettings } from "./IntegrationSettings";
 import "./onboarding.css";
 
 type Me = {
@@ -112,18 +103,9 @@ type QueuedResume = {
 const STEP_LABEL: Record<OnboardingStep, string> = {
   name: "Profile",
   model: "Model",
-  integrations: "Integrations",
   file: "Resume",
   check: "Verify",
 };
-
-/** Dev-only. Drop this with the Integrations "Preview connected layout" checkbox. */
-function readConnectedPreview(): boolean {
-  if (!import.meta.env.DEV) return false;
-  const hashQuery = window.location.hash.split("?")[1] ?? "";
-  const params = new URLSearchParams(hashQuery || window.location.search.slice(1));
-  return params.get("preview") === "connected";
-}
 
 export function Onboarding({
   initialProfile,
@@ -139,6 +121,7 @@ export function Onboarding({
   const [photoPreview, setPhotoPreview] = useState<string | null>(initialProfile.avatarUrl);
   // A photo saved before (when setup is run again) is removed on finish.
   const [photoRemoved, setPhotoRemoved] = useState(false);
+  const [headline, setHeadline] = useState(initialProfile.headline);
   const [place, setPlace] = useState<OnboardingPlaceAnswer>({
     street: initialProfile.address,
     city: initialProfile.city,
@@ -168,7 +151,6 @@ export function Onboarding({
   const [selected, setSelected] = useState("");
   const [foundPick, setFoundPick] = useState("");
   const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [done, setDone] = useState<{ me: Me; profile: ProfileFields; summary: OnboardingDone } | null>(null);
   const [files, setFiles] = useState<QueuedResume[]>([]);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
@@ -179,19 +161,17 @@ export function Onboarding({
   const [setAsides, setSetAsides] = useState<SetAsideRole[]>([]);
   const [draftReady, setDraftReady] = useState(false);
   const [profileExtract, setProfileExtract] = useState<ExtractedProfile | null>(null);
-  const [step, setStep] = useState<OnboardingStep>(readConnectedPreview() ? "integrations" : "name");
-  const [previewConnected, setPreviewConnected] = useState(readConnectedPreview);
+  const [step, setStep] = useState<OnboardingStep>("name");
   const [items, setItems] = useState<OnboardingCheckItem[]>([]);
   const [extracted, setExtracted] = useState<ExtractedResume | null>(null);
   const [extracting, setExtracting] = useState(false);
   // A model is sent a short test before a resume, so one that is listed but
   // can't answer is caught on the Model step. Keyed by address, model, and key.
-  const [modelCheck, setModelCheck] = useState<{ key: string; state: "checking" | "ok" } | null>(null);
+  // A local model is tested as soon as it is chosen; a cloud one on Continue.
+  const [modelCheck, setModelCheck] = useState<{ key: string; state: "checking" | "ok" | "failed" } | null>(null);
+  const modelCheckKeyRef = useRef("");
   // The last read stopped on a model failure, so the Resume step offers a way on.
   const [readFailed, setReadFailed] = useState(false);
-  // Whether any account can be signed into. Until the catalog answers, the
-  // Integrations step stays in; with nothing to connect, it is left out.
-  const [canConnect, setCanConnect] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
@@ -278,6 +258,7 @@ export function Onboarding({
         if (draft.about) {
           setFirstName(draft.about.firstName);
           setLastName(draft.about.lastName);
+          if (draft.about.headline !== undefined) setHeadline(draft.about.headline);
           setPlace(draft.about.place);
         }
         setStep(draft.step);
@@ -327,7 +308,8 @@ export function Onboarding({
   }, [draftReady, recoveryAttempt]);
 
   useEffect(() => {
-    if (!draftReady || (files.length === 0 && held.length === 0)) return;
+    // Jobs typed on Verify without a model are kept too, with or without a resume.
+    if (!draftReady || (files.length === 0 && held.length === 0 && !timeline?.length)) return;
     let cancel = false;
     void (async () => {
       const stored = await Promise.all(
@@ -355,7 +337,7 @@ export function Onboarding({
         declinedPairs,
         profileExtract,
         modelChoice: modelChoiceForDraft(),
-        about: { firstName, lastName, place },
+        about: { firstName, lastName, headline, place },
       });
       } catch {
         /* the questions still continue in this page */
@@ -364,7 +346,7 @@ export function Onboarding({
     return () => {
       cancel = true;
     };
-  }, [draftReady, files, readDigests, held, heldSkills, setAsides, cursor, pass, step, items, timeline, declinedPairs, profileExtract, wantsModel, hosting, selected, baseUrl, endpointMode, localUrl, firstName, lastName, place]);
+  }, [draftReady, files, readDigests, held, heldSkills, setAsides, cursor, pass, step, items, timeline, declinedPairs, profileExtract, wantsModel, hosting, selected, baseUrl, endpointMode, localUrl, firstName, lastName, headline, place]);
 
   useEffect(() => {
     let cancel = false;
@@ -473,34 +455,7 @@ export function Onboarding({
     }
   }, [step, localProbe]);
 
-  useEffect(() => {
-    let cancel = false;
-    void fetch("/api/integration-catalog")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((body: { integrations?: Array<{ available?: boolean; signIn?: boolean }> } | null) => {
-        if (cancel || !body) return;
-        setCanConnect((body.integrations ?? []).some((row) => row.available && row.signIn));
-      })
-      .catch(() => undefined);
-    return () => {
-      cancel = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    function openConnectedPreview() {
-      if (!readConnectedPreview()) return;
-      setPreviewConnected(true);
-      setStep("integrations");
-    }
-    window.addEventListener("hashchange", openConnectedPreview);
-    return () => window.removeEventListener("hashchange", openConnectedPreview);
-  }, []);
-
-  const steps = onboardingSteps({
-    canConnect: canConnect !== false || previewConnected,
-    reading: wantsModel !== false,
-  });
+  const steps = onboardingSteps();
   const afterModel = nextOnboardingStep(steps, "model");
 
   const foundModels = scanned.flatMap((hit) => hit.models.map((id) => ({ address: hit.baseUrl, id })));
@@ -532,6 +487,19 @@ export function Onboarding({
       setCloudProvider("openai");
       setBaseUrl(OPENAI_BASE_URL);
     }
+  }
+
+  // Clicking the chosen option again closes its details and clears the choice.
+  function toggleHosting(next: "local" | "cloud") {
+    if (hosting !== next) {
+      pickHosting(next);
+      return;
+    }
+    modelCheckKeyRef.current = "";
+    setModelCheck(null);
+    setAdvancedOpen(false);
+    setCloudModels(null);
+    clearModel();
   }
 
   function pickCloudProvider(next: CloudProviderId) {
@@ -575,6 +543,32 @@ export function Onboarding({
       isHttpUrl(baseUrl.trim()) &&
       Boolean(selected.trim()) &&
       Boolean(cloudKey.trim()));
+
+  // Test a chosen local model right away, so Continue doesn't wait on it.
+  const localModelKey =
+    step === "model" && hosting === "local" && endpointMode === "scanned" && modelReady ? modelCheckKey() : "";
+  const localCheck = localModelKey && modelCheck?.key === localModelKey ? modelCheck.state : null;
+
+  // Why Continue is off, said under the choices instead of leaving a grey button.
+  function modelContinueHint(): string | null {
+    if (modelCheck?.state === "checking") return null;
+    // Before a choice, the subtext under the heading says what to do.
+    if (wantsModel !== true || hosting === null) return null;
+    if (modelReady) return null;
+    if (hosting === "local") {
+      // The Local card already says it is looking.
+      if (localProbe !== "ready") return null;
+      return endpointMode === "custom" ? "Enter the address and model name to continue." : "Choose a model, or use Advanced.";
+    }
+    if (!isHttpUrl(baseUrl.trim())) return "Enter the provider's address to continue.";
+    if (!cloudKey.trim()) return "Add your key to continue.";
+    return "Choose a model to continue.";
+  }
+  useEffect(() => {
+    if (!localModelKey || modelCheck?.key === localModelKey) return;
+    setError(null);
+    void testModel(false);
+  }, [localModelKey]);
 
   function pickPhoto(next: File | null) {
     if (!next) {
@@ -673,13 +667,46 @@ export function Onboarding({
     setStep("file");
   }
 
+  // Without a model nothing is read; Verify is where jobs and schools are typed in.
   function continueWithoutRead() {
     setError(null);
-    void finishSession(held, heldSkills, false);
+    setPass("verify");
+    setStep("check");
   }
 
   function modelCheckKey() {
     return `${baseUrl} ${selected} ${hosting === "cloud" ? cloudKey : ""}`;
+  }
+
+  async function testModel(advance: boolean) {
+    const key = modelCheckKey();
+    modelCheckKeyRef.current = key;
+    setModelCheck({ key, state: "checking" });
+    const stale = () => modelCheckKeyRef.current !== key;
+    try {
+      const res = await fetch("/api/models/test", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          baseUrl: baseUrl.trim(),
+          model: selected,
+          apiKey: hosting === "cloud" ? cloudKey : "",
+        }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      if (stale()) return;
+      if (res.ok) {
+        setModelCheck({ key, state: "ok" });
+        if (advance) setStep(afterModel);
+        return;
+      }
+      setModelCheck({ key, state: "failed" });
+      setError(body.error ?? "The model didn't answer. Try again, choose another model, or skip.");
+    } catch {
+      if (stale()) return;
+      setModelCheck({ key, state: "failed" });
+      setError("Could not reach Docier to test the model. Try again.");
+    }
   }
 
   async function continueFromModel() {
@@ -693,29 +720,16 @@ export function Onboarding({
       setStep(afterModel);
       return;
     }
-    setModelCheck({ key, state: "checking" });
-    try {
-      const res = await fetch("/api/models/test", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          baseUrl: baseUrl.trim(),
-          model: selected,
-          apiKey: hosting === "cloud" ? cloudKey : "",
-        }),
-      });
-      const body = (await res.json().catch(() => ({}))) as { error?: string };
-      if (res.ok) {
-        setModelCheck({ key, state: "ok" });
-        setStep(afterModel);
-        return;
-      }
-      setModelCheck(null);
-      setError(body.error ?? "The model didn't answer. Try again, choose another model, or skip.");
-    } catch {
-      setModelCheck(null);
-      setError("Could not reach Docier to test the model. Try again.");
-    }
+    if (modelCheck?.key === key && modelCheck.state === "checking") return;
+    await testModel(true);
+  }
+
+  function skipModel() {
+    modelCheckKeyRef.current = "";
+    setModelCheck(null);
+    clearModel();
+    setWantsModel(false);
+    setStep(afterModel);
   }
 
   function stopReading() {
@@ -881,30 +895,18 @@ export function Onboarding({
     }
   }
 
-  async function concludeFinish(receipt: OnboardingFinishReceipt, me: Me) {
+  async function concludeFinish(_receipt: OnboardingFinishReceipt, me: Me) {
     if (concluded.current) return;
     concluded.current = true;
     clearFinishReceipt();
     await releaseFinishDraft(() => clearOnboardingDraft());
-    if (!receipt.historySaved) {
-      onFinished(me, { page: "home" });
-      return;
-    }
-    setDone({
-      me,
-      profile: profileRef.current,
-      summary: onboardingDone({
-        jobs: receipt.jobs,
-        schools: receipt.schools,
-        skills: receipt.skills,
-        resumes: receipt.resumes,
-        setAside: receipt.setAside,
-      }),
-    });
+    // Everything was checked on Verify; go straight into the app.
+    onFinished(me, { page: "home" });
   }
 
   async function finishSession(roles: HeldRole[], skills: HeldSkill[], includeHistory: boolean) {
     if (finishing.current) return;
+    const manual = wantsModel !== true;
     finishing.current = true;
     setBusy(true);
     setError(null);
@@ -914,6 +916,7 @@ export function Onboarding({
         extracted: profileExtract,
         firstName,
         lastName,
+        headline,
         place,
         links,
       });
@@ -1005,10 +1008,11 @@ export function Onboarding({
                 experience: history.experience,
                 education: history.education,
                 skills: history.skills,
-                resumeId: resumeIds[0],
+                // Typed by hand, a job or school was not read from a resume.
+                resumeId: manual ? undefined : resumeIds[0],
                 roleIds: history.experienceRoleIds,
                 educationRoleIds: history.educationRoleIds,
-                evidence: {
+                evidence: manual ? null : {
                   experience: history.experienceEvidence.map((source) => ({
                     resumeIds: source.files.map((index) => resumeIds[index]),
                     achievements: source.achievements.map((index) => resumeIds[index]),
@@ -1059,12 +1063,9 @@ export function Onboarding({
   const notes = notesForStep();
 
   function notesForStep(): string[] {
-    if (step === "integrations") {
-      return ["You can connect these later in Settings."];
-    }
     if (step === "file" && !extracting && wantsModel !== true && !filesRead) {
       return [
-        "Without a model, the resume is stored but not read. Jobs and schools can be added later from Career History.",
+        "Without a model, the resume is stored but not read. You add your jobs and schools on the next step.",
         "It can be done later if now is not the right time.",
       ];
     }
@@ -1073,6 +1074,9 @@ export function Onboarding({
         "One resume is enough. Add another if you have it. Every file is read before the questions start, and nothing is saved until the last continue.",
         "It can be done later if now is not the right time.",
       ];
+    }
+    if (step === "check" && wantsModel !== true) {
+      return ["Nothing is saved until you continue. Jobs and schools can also be added later from Career History."];
     }
     if (step === "check") {
       const lines = [
@@ -1085,26 +1089,6 @@ export function Onboarding({
       return lines;
     }
     return [];
-  }
-
-  if (done) {
-    return (
-      <div className="onboarding">
-        <div className="onboarding-stage">
-          <WashProgress step={step} steps={steps} />
-          <div className="onboarding-sheet">
-            <section className="onboarding-card">
-              <DoneStep
-                summary={done.summary}
-                profile={done.profile}
-                savedProfile={done.me.profile}
-                onGo={(next, profile) => onFinished({ ...done.me, profile }, next)}
-              />
-            </section>
-          </div>
-        </div>
-      </div>
-    );
   }
 
   return (
@@ -1132,11 +1116,13 @@ export function Onboarding({
             <ProfileStep
               firstName={firstName}
               lastName={lastName}
+              headline={headline}
               photoPreview={photoPreview}
               place={place}
               error={error}
               onFirstName={setFirstName}
               onLastName={setLastName}
+              onHeadline={setHeadline}
               onPhoto={pickPhoto}
               onPlace={setPlace}
               onContinue={() => {
@@ -1153,43 +1139,81 @@ export function Onboarding({
 
           {step === "model" ? (
             <>
-              <Text type="label" display="block">Model</Text>
               <Heading level={1}>
                 Should a model process <em>your resume?</em>
               </Heading>
               <Text type="body" display="block">
-                A model reads your resume and lists your jobs and schools for you to check. You can also skip this and
-                add them yourself.
+                A model reads your resume and lists your jobs and schools for you to check.
+              </Text>
+              <Text type="body" display="block">
+                Choose where it runs, or skip.
               </Text>
               <div className="onboarding-choices onboarding-host" role="group" aria-label="Where the model runs">
-                <SelectableCard
+                <button
+                  type="button"
+                  aria-pressed={hosting === "local"}
+                  data-host="local"
+                  data-selected={hosting === "local"}
                   className="onboarding-host-card"
-                  label="Local"
-                  isSelected={hosting === "local"}
-                  onChange={(next) => {
-                    if (next) pickHosting("local");
-                  }}
+                  onClick={() => toggleHosting("local")}
                 >
-                  <strong>Local</strong>
-                  <span>
-                    {localProbe !== "ready"
-                      ? "Looking on this computer…"
-                      : foundModels.length > 0
-                        ? "A model is on this computer. Your resume stays here."
-                        : "Scan this computer for a model."}
+                  <span className="onboarding-host-head">
+                    <span className="onboarding-host-radio" aria-hidden="true" />
+                    <span className="onboarding-host-icon" aria-hidden="true">
+                      <Laptop size={18} strokeWidth={1.75} />
+                    </span>
+                    <strong>Local</strong>
                   </span>
-                </SelectableCard>
-                <SelectableCard
+                  <span className="onboarding-host-desc">Runs on this computer. Your resume never leaves it.</span>
+                  <span
+                    className="onboarding-host-status"
+                    data-tone={
+                      localCheck === "checking" || localProbe !== "ready"
+                        ? "pending"
+                        : localCheck === "failed"
+                          ? "warn"
+                          : localCheck === "ok" || foundModels.length > 0
+                            ? "good"
+                            : "quiet"
+                    }
+                  >
+                    <span className="onboarding-host-status-dot" aria-hidden="true" />
+                    {localCheck === "checking"
+                      ? `Testing ${presentModelId(selected)}…`
+                      : localCheck === "ok"
+                        ? `Ready · ${presentModelId(selected)}`
+                        : localCheck === "failed"
+                          ? `${presentModelId(selected)} didn't answer`
+                          : localProbe !== "ready"
+                            ? "Looking on this computer…"
+                            : foundModels.length === 0
+                              ? "No model found yet"
+                              : foundModels.length === 1
+                                ? `Found ${presentModelId(foundModels[0].id)}`
+                                : `Found ${foundModels.length} models`}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={hosting === "cloud"}
+                  data-host="cloud"
+                  data-selected={hosting === "cloud"}
                   className="onboarding-host-card"
-                  label="Cloud"
-                  isSelected={hosting === "cloud"}
-                  onChange={(next) => {
-                    if (next) pickHosting("cloud");
-                  }}
+                  onClick={() => toggleHosting("cloud")}
                 >
-                  <strong>Cloud</strong>
-                  <span>A cloud provider may read, keep, report, and train on what you send.</span>
-                </SelectableCard>
+                  <span className="onboarding-host-head">
+                    <span className="onboarding-host-radio" aria-hidden="true" />
+                    <span className="onboarding-host-icon" aria-hidden="true">
+                      <Cloud size={18} strokeWidth={1.75} />
+                    </span>
+                    <strong>Cloud</strong>
+                  </span>
+                  <span className="onboarding-host-desc">Runs at a provider you choose, with your own key.</span>
+                  <span className="onboarding-host-status" data-tone="warn">
+                    <TriangleAlert size={13} strokeWidth={2} aria-hidden="true" />
+                    The provider may read, keep, report, and train on what you send.
+                  </span>
+                </button>
               </div>
               {hosting === "local" ? (
               <section
@@ -1328,12 +1352,24 @@ export function Onboarding({
                   ) : null}
                   {cloudDestination(baseUrl) ? (
                     <p className="onboarding-cloud-destination" role="note">
-                      Your resume will be sent to <strong>{cloudDestination(baseUrl)}</strong>. A cloud provider may
-                      read, keep, report, and train on what you send.
+                      Your resume will be sent to <strong>{cloudDestination(baseUrl)}</strong>.
                     </p>
                   ) : null}
                 </section>
               ) : null}
+              {modelContinueHint() ? (
+                <p className="onboarding-continue-hint" role="status">
+                  {modelContinueHint()}
+                </p>
+              ) : null}
+              <button type="button" className="onboarding-host-skip" onClick={skipModel}>
+                <PencilLine size={16} strokeWidth={1.75} aria-hidden="true" />
+                <span>
+                  <strong>Skip, I'll add jobs myself</strong>
+                  <span>No model. Your resume is kept, and you add your jobs and schools on the Verify step.</span>
+                </span>
+                <ArrowRight size={16} strokeWidth={1.75} aria-hidden="true" />
+              </button>
               {modelCheck?.state === "checking" ? (
                 <p className="onboarding-quiet" role="status">
                   Sending the model a short test. A large model can take a minute to load the first time.
@@ -1354,15 +1390,6 @@ export function Onboarding({
                 />
                 <div className="onboarding-action-pair">
                   <Button
-                    label="Skip, I'll add jobs myself"
-                    variant="ghost"
-                    onClick={() => {
-                      clearModel();
-                      setWantsModel(false);
-                      setStep(afterModel);
-                    }}
-                  />
-                  <Button
                     className="onboarding-nav"
                     label={modelCheck?.state === "checking" ? "Checking the model…" : "Continue"}
                     variant="primary"
@@ -1374,53 +1401,9 @@ export function Onboarding({
             </>
           ) : null}
 
-          {step === "integrations" ? (
-            <>
-              <Heading level={1}>
-                Connect an <em>account?</em>
-              </Heading>
-              <Text type="body" display="block">
-                Optional. Turn one on if you want Docier to use it when you ask. It does not file mail into
-                Opportunities on its own.
-              </Text>
-              {import.meta.env.DEV ? (
-                <p className="onboarding-quiet">
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={previewConnected}
-                      onChange={(event) => setPreviewConnected(event.target.checked)}
-                    />{" "}
-                    Preview connected layout
-                  </label>
-                  {previewConnected ? " Nothing is connected." : null}
-                </p>
-              ) : null}
-              <IntegrationSettings nested previewConnected={previewConnected} />
-              <div className="onboarding-actions" data-split="true">
-                <Button
-                  className="onboarding-nav"
-                  label="Back"
-                  variant="ghost"
-                  onClick={() => setStep("model")}
-                />
-                <Button
-                  className="onboarding-nav"
-                  label="Continue"
-                  variant="primary"
-                  onClick={() => {
-                    setError(null);
-                    setStep("file");
-                  }}
-                />
-              </div>
-            </>
-          ) : null}
-
           {step === "file" ? (
             <>
               <div className="onboarding-file-head">
-                <Text type="label" display="block">Resume</Text>
                 <div className="onboarding-file-title">
                   <Heading level={1}>
                     {extracting ? (
@@ -1433,6 +1416,15 @@ export function Onboarding({
                       </>
                     )}
                   </Heading>
+                  {files.length > 0 ? (
+                    <Button
+                      className="onboarding-file-add"
+                      label="Add resume"
+                      icon={<Icon icon={Plus} />}
+                      isDisabled={extracting}
+                      onClick={() => fileInputRef.current?.click()}
+                    />
+                  ) : null}
                 </div>
               </div>
               {extracting ? (
@@ -1516,15 +1508,6 @@ export function Onboarding({
                       );
                     })}
                   </ul>
-                  <Button
-                    className="onboarding-file-add"
-                    label="Add another resume"
-                    variant="ghost"
-                    size="sm"
-                    icon={<Icon icon={Plus} />}
-                    isDisabled={extracting}
-                    onClick={() => fileInputRef.current?.click()}
-                  />
                 </>
               )}
                   {previewIndex != null && files[previewIndex] ? (
@@ -1630,7 +1613,26 @@ export function Onboarding({
 
           {step === "check" && pass === "verify" ? (
             <AllResumesVerify
-              bundles={resumeBundles(files, extractsRef.current)}
+              manual={wantsModel !== true}
+              submitted={
+                wantsModel !== true ? (
+                  <SubmittedSummary
+                    firstName={firstName}
+                    lastName={lastName}
+                    headline={headline}
+                    place={place}
+                    photo={photoPreview}
+                    resumes={files.map((row) => row.file.name)}
+                    onFirstName={setFirstName}
+                    onLastName={setLastName}
+                    onHeadline={setHeadline}
+                    onPlace={setPlace}
+                    onRemoveResume={removeResume}
+                    onAddResumes={addResumes}
+                  />
+                ) : null
+              }
+              bundles={wantsModel !== true ? [] : resumeBundles(files, extractsRef.current)}
               initialRows={timeline}
               initialDeclined={declinedPairs}
               editedItems={timeline ? [] : items}
@@ -1839,280 +1841,267 @@ function ReadProgress({ model }: { model: string }) {
   );
 }
 
-function DoneStep({
-  summary,
-  profile,
-  savedProfile,
-  onGo,
+/**
+ * On Verify without a model: the profile and resumes entered so far, each in a
+ * section that opens to show everything, with Edit inside. Both start open.
+ */
+function SubmittedSummary({
+  firstName,
+  lastName,
+  headline,
+  place,
+  photo,
+  resumes,
+  onFirstName,
+  onLastName,
+  onHeadline,
+  onPlace,
+  onRemoveResume,
+  onAddResumes,
 }: {
-  summary: OnboardingDone;
-  profile: ProfileFields;
-  savedProfile: Me["profile"];
-  onGo: (next: OnboardingExit, profile: Me["profile"]) => void;
+  firstName: string;
+  lastName: string;
+  headline: string;
+  place: OnboardingPlaceAnswer;
+  photo: string | null;
+  resumes: string[];
+  onFirstName: (value: string) => void;
+  onLastName: (value: string) => void;
+  onHeadline: (value: string) => void;
+  onPlace: (place: OnboardingPlaceAnswer) => void;
+  onRemoveResume: (index: number) => void;
+  onAddResumes: (files: File[]) => void;
 }) {
-  const saved = onboardingSavedLines(profile);
-  const [fields, setFields] = useState(profile);
-  const [choices, setChoices] = useState<EvidenceRoleChoice[]>([]);
-  const [choiceId, setChoiceId] = useState("");
-  const [opening, setOpening] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    let cancel = false;
-    void fetch("/api/history")
-      .then(async (response) => {
-        if (!response.ok) return null;
-        return (await response.json()) as {
-          jobs?: Array<{ id: string; title: string; company: string }>;
-          schools?: Array<{ id: string; institution: string; degree: string }>;
-        };
-      })
-      .then((career) => {
-        if (cancel || !career) return;
-        const next = evidenceRoleChoices({ jobs: career.jobs ?? [], schools: career.schools ?? [] });
-        setChoices(next);
-        setChoiceId(next[0]?.id ?? "");
-      })
-      .catch(() => undefined);
-    return () => {
-      cancel = true;
-    };
-  }, []);
-
-  async function leave(next: OnboardingExit) {
-    const stop = (message: string) => {
-      setOpening(false);
-      setError(message);
-    };
-    const changed =
-      fields.headline !== profile.headline ||
-      fields.city !== profile.city ||
-      fields.state !== profile.state ||
-      fields.bio !== profile.bio ||
-      fields.linkedinUrl !== profile.linkedinUrl ||
-      fields.githubUrl !== profile.githubUrl ||
-      fields.portfolioUrl !== profile.portfolioUrl;
-    if (!changed) {
-      onGo(next, { ...savedProfile, ...fields });
-      return;
-    }
-    const prepared = prepareProfile(fields);
-    if (!prepared.ok) {
-      stop(prepared.error === "url-invalid" ? "Use an http(s) URL for a link." : "A name is required.");
-      return;
-    }
-    try {
-      const saved = await fetch("/api/profile", {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(prepared.value),
-      });
-      const body = (await saved.json()) as { profile?: Me["profile"]; error?: string };
-      if (!saved.ok || !body.profile) {
-        stop("Could not save those profile changes.");
-        return;
-      }
-      onGo(next, body.profile);
-    } catch {
-      stop("Could not save those profile changes.");
-    }
-  }
+  const [open, setOpen] = useState({ profile: true, resumes: true });
+  const [editing, setEditing] = useState<"profile" | "resumes" | null>(null);
+  const resumeInput = useRef<HTMLInputElement>(null);
+  const name = joinPersonName(firstName, lastName);
+  const where = [place.city.trim(), place.state.trim()].filter(Boolean).join(", ");
+  const detail = [headline.trim(), where].filter(Boolean).join(" · ");
+  const facts = [
+    { label: "First name", value: firstName.trim() },
+    { label: "Last name", value: lastName.trim() },
+    { label: "City", value: place.city.trim() },
+    { label: "State", value: place.state.trim() },
+    { label: "Professional headline", value: headline.trim() },
+  ].filter((fact) => fact.value);
+  const toggle = (key: "profile" | "resumes") => {
+    if (editing === key) return;
+    setOpen((current) => ({ ...current, [key]: !current[key] }));
+  };
 
   return (
-    <>
-      <Text type="label" display="block">Done</Text>
-      <Heading level={1}>
-        Your history <em>is in.</em>
-      </Heading>
-      <ul className="onboarding-counts">
-        {summary.tiles.map((tile) => (
-          <li key={tile.label}>
-            <strong>{tile.count}</strong>
-            <span>{tile.label}</span>
-          </li>
-        ))}
-      </ul>
-      {summary.setAside ? <Text type="body" display="block">{summary.setAside}</Text> : null}
-      {saved.length > 0 ? (
-        <div className="onboarding-saved">
-          <p>These were saved with your profile. A blank field took the value from a resume.</p>
-          {profile.headline.trim() ? (
-            <label className="onboarding-field">
-              <span>Headline</span>
-              <input value={fields.headline} onChange={(event) => setFields({ ...fields, headline: event.target.value })} />
-            </label>
+    <div className="onboarding-submitted">
+      <section className="onboarding-submitted-section" aria-label="Profile">
+        <div className="onboarding-submitted-head">
+          <button
+            type="button"
+            className="onboarding-submitted-row"
+            aria-expanded={open.profile}
+            aria-controls="onboarding-submitted-profile"
+            onClick={() => toggle("profile")}
+          >
+            <Avatar src={photo ?? undefined} name={name} alt="" size="md" />
+            <span className="onboarding-submitted-body">
+              <strong>{name || "No name"}</strong>
+              {detail && !open.profile ? <span>{detail}</span> : null}
+            </span>
+          </button>
+          {open.profile ? (
+            <Button
+              label={editing === "profile" ? "Done" : "Edit"}
+              variant="ghost"
+              size="sm"
+              isDisabled={editing === "profile" && !name}
+              onClick={() => setEditing(editing === "profile" ? null : "profile")}
+            />
           ) : null}
-          {profile.city.trim() && profile.state.trim() ? (
-            <div className="onboarding-field-row">
-              <label className="onboarding-field">
-                <span>City</span>
-                <input value={fields.city} onChange={(event) => setFields({ ...fields, city: event.target.value })} />
-              </label>
-              <label className="onboarding-field">
-                <span>State</span>
-                <input value={fields.state} onChange={(event) => setFields({ ...fields, state: event.target.value })} />
-              </label>
-            </div>
-          ) : profile.city.trim() ? (
-            <label className="onboarding-field">
-              <span>City</span>
-              <input value={fields.city} onChange={(event) => setFields({ ...fields, city: event.target.value })} />
-            </label>
-          ) : profile.state.trim() ? (
-            <label className="onboarding-field">
-              <span>State</span>
-              <input value={fields.state} onChange={(event) => setFields({ ...fields, state: event.target.value })} />
-            </label>
-          ) : null}
-          {profile.linkedinUrl.trim() ? (
-            <label className="onboarding-field">
-              <span>LinkedIn</span>
-              <input value={fields.linkedinUrl} onChange={(event) => setFields({ ...fields, linkedinUrl: event.target.value })} />
-            </label>
-          ) : null}
-          {profile.githubUrl.trim() ? (
-            <label className="onboarding-field">
-              <span>GitHub</span>
-              <input value={fields.githubUrl} onChange={(event) => setFields({ ...fields, githubUrl: event.target.value })} />
-            </label>
-          ) : null}
-          {profile.portfolioUrl.trim() ? (
-            <label className="onboarding-field">
-              <span>Website</span>
-              <input value={fields.portfolioUrl} onChange={(event) => setFields({ ...fields, portfolioUrl: event.target.value })} />
-            </label>
-          ) : null}
-          {profile.bio.trim() ? (
-            <label className="onboarding-field">
-              <span>Bio</span>
-              <textarea rows={3} value={fields.bio} onChange={(event) => setFields({ ...fields, bio: event.target.value })} />
-            </label>
-          ) : null}
-        </div>
-      ) : null}
-      {choices.length > 1 ? (
-        <label className="onboarding-field">
-          <span>Add evidence to</span>
-          <select className="onboarding-model-select" value={choiceId} onChange={(event) => setChoiceId(event.target.value)}>
-            {choices.map((choice) => (
-              <option key={choice.id} value={choice.id}>
-                {choice.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      ) : null}
-      {error ? (
-        <Banner status="error" title={error} container="section" collapsible={false} role="alert" />
-      ) : null}
-      <div className="onboarding-actions" data-split="true">
-        <button type="button" className="onboarding-link" onClick={() => void leave({ page: "home" })}>
-          Go to Home
-        </button>
-        <div className="onboarding-action-pair">
-          {choices.length > 0 ? (
-            <button
-              type="button"
-              className="onboarding-btn onboarding-btn-ghost"
-              disabled={opening || !choiceId}
-              onClick={() => {
-                setOpening(true);
-                void leave({ page: "history", focusJobId: choiceId });
-              }}
-            >
-              Add evidence to a role
-            </button>
-          ) : null}
-          <button type="button" className="onboarding-btn onboarding-btn-solid" onClick={() => void leave({ page: "history" })}>
-            See your map
+          <button
+            type="button"
+            className="onboarding-submitted-toggle"
+            aria-label={open.profile ? "Hide profile" : "Show profile"}
+            aria-expanded={open.profile}
+            aria-controls="onboarding-submitted-profile"
+            disabled={editing === "profile"}
+            onClick={() => toggle("profile")}
+          >
+            <ChevronDown size={18} strokeWidth={1.75} aria-hidden="true" />
           </button>
         </div>
-      </div>
-    </>
-  );
-}
-
-function ProfileStreet({
-  place,
-  onPlace,
-  note,
-}: {
-  place: OnboardingPlaceAnswer;
-  onPlace: (place: OnboardingPlaceAnswer) => void;
-  note: string;
-}) {
-  const applied = useRef(place.street);
-  const hits = usePlaceSuggestions(place.street === applied.current ? "" : place.street);
-
-  function choose(hit: PlaceHit) {
-    const parts = splitResidence(hit.address);
-    applied.current = parts.street;
-    onPlace({ street: parts.street, city: parts.city, state: parts.state });
-  }
-
-  return (
-    <>
-      <TextInput
-        label="Street"
-        value={place.street}
-        autoComplete="off"
-        width="100%"
-        onChange={(street) => {
-          applied.current = "";
-          onPlace({ ...place, street });
-        }}
-      />
-      <Text type="supporting">{note}</Text>
-      {hits.length > 0 ? (
-        <ul className="onboarding-suggest" role="listbox">
-          {hits.map((hit) => (
-            <li key={`${hit.address}-${hit.latitude}`}>
-              <Button label={hit.address} variant="ghost" onClick={() => choose(hit)} />
-            </li>
-          ))}
-        </ul>
+        {open.profile ? (
+          <div id="onboarding-submitted-profile" className="onboarding-submitted-detail">
+            {editing === "profile" ? (
+              <div className="onboarding-submitted-edit">
+                <div className="onboarding-field-row">
+                  <TextInput label="First name" value={firstName} autoComplete="given-name" width="100%" onChange={onFirstName} />
+                  <TextInput label="Last name" value={lastName} autoComplete="family-name" width="100%" onChange={onLastName} />
+                </div>
+                <div className="onboarding-field-row">
+                  <TextInput
+                    label="City"
+                    value={place.city}
+                    autoComplete="address-level2"
+                    width="100%"
+                    onChange={(city) => onPlace({ ...place, city })}
+                  />
+                  <TextInput
+                    label="State"
+                    value={place.state}
+                    autoComplete="address-level1"
+                    width="100%"
+                    onChange={(state) => onPlace({ ...place, state })}
+                  />
+                </div>
+                <TextInput
+                  label="Professional headline"
+                  value={headline}
+                  autoComplete="organization-title"
+                  placeholder="e.g. Senior Software Engineer"
+                  width="100%"
+                  onChange={onHeadline}
+                />
+                {name ? null : <p className="onboarding-why">Add your name to continue.</p>}
+              </div>
+            ) : (
+              <dl className="onboarding-submitted-facts">
+                {facts.map((fact) => (
+                  <div key={fact.label}>
+                    <dt>{fact.label}</dt>
+                    <dd>{fact.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+          </div>
+        ) : null}
+      </section>
+      {resumes.length > 0 ? (
+        <section className="onboarding-submitted-section" aria-label="Resumes">
+          <div className="onboarding-submitted-head">
+            <button
+              type="button"
+              className="onboarding-submitted-row"
+              aria-expanded={open.resumes}
+              aria-controls="onboarding-submitted-resumes"
+              onClick={() => toggle("resumes")}
+            >
+              <span className="onboarding-submitted-icon" aria-hidden="true">
+                <FileText size={18} strokeWidth={1.75} />
+              </span>
+              <span className="onboarding-submitted-body">
+                <strong>{resumes.length === 1 ? "1 resume" : `${resumes.length} resumes`}</strong>
+                {open.resumes ? null : <span>{resumes.join(", ")}</span>}
+              </span>
+            </button>
+            {open.resumes && editing === "resumes" ? (
+              <Button label="Add resume" icon={<Icon icon={Plus} />} size="sm" onClick={() => resumeInput.current?.click()} />
+            ) : null}
+            {open.resumes ? (
+              <Button
+                label={editing === "resumes" ? "Done" : "Edit"}
+                variant="ghost"
+                size="sm"
+                onClick={() => setEditing(editing === "resumes" ? null : "resumes")}
+              />
+            ) : null}
+            <button
+              type="button"
+              className="onboarding-submitted-toggle"
+              aria-label={open.resumes ? "Hide resumes" : "Show resumes"}
+              aria-expanded={open.resumes}
+              aria-controls="onboarding-submitted-resumes"
+              disabled={editing === "resumes"}
+              onClick={() => toggle("resumes")}
+            >
+              <ChevronDown size={18} strokeWidth={1.75} aria-hidden="true" />
+            </button>
+          </div>
+          {open.resumes ? (
+            <div id="onboarding-submitted-resumes" className="onboarding-submitted-detail">
+              <ul className="onboarding-submitted-files">
+                {resumes.map((fileName, index) => (
+                  <li key={`${fileName}-${index}`}>
+                    <span title={fileName}>{fileName}</span>
+                    {editing === "resumes" ? (
+                      <Button label="Remove" variant="ghost" size="sm" onClick={() => onRemoveResume(index)} />
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+              <input
+                ref={resumeInput}
+                type="file"
+                multiple
+                hidden
+                accept={RESUME_FILE_ACCEPT}
+                onChange={(event) => {
+                  const picked = event.target.files ? [...event.target.files] : [];
+                  event.target.value = "";
+                  onAddResumes(picked);
+                }}
+              />
+            </div>
+          ) : null}
+        </section>
       ) : null}
-    </>
+    </div>
   );
 }
 
 function ProfileStep({
   firstName,
   lastName,
+  headline,
   photoPreview,
   place,
   error,
   onFirstName,
   onLastName,
+  onHeadline,
   onPhoto,
   onPlace,
   onContinue,
 }: {
   firstName: string;
   lastName: string;
+  headline: string;
   photoPreview: string | null;
   place: OnboardingPlaceAnswer;
   error: string | null;
   onFirstName: (value: string) => void;
   onLastName: (value: string) => void;
+  onHeadline: (value: string) => void;
   onPhoto: (file: File | null) => void;
   onPlace: (place: OnboardingPlaceAnswer) => void;
   onContinue: () => void;
 }) {
   return (
     <>
-      <Text type="label" display="block">Profile</Text>
       <Heading level={1}>
         Let's start with <em>your profile.</em>
       </Heading>
       <Text type="body" display="block">Docier runs on this computer. Nothing here leaves it unless you publish.</Text>
       <div className="onboarding-badge">
         <div className="onboarding-badge-portrait">
-          <Avatar
-            src={photoPreview ?? undefined}
-            name={joinPersonName(firstName, lastName)}
-            alt="Profile photo"
-            size="xl"
-          />
+          <div className="onboarding-photo">
+            <Avatar
+              src={photoPreview ?? undefined}
+              name={joinPersonName(firstName, lastName)}
+              alt="Profile photo"
+              size="xl"
+            />
+            {photoPreview ? (
+              <button
+                type="button"
+                className="onboarding-photo-remove"
+                aria-label="Remove photo"
+                title="Remove photo"
+                onClick={() => onPhoto(null)}
+              >
+                <X size={14} strokeWidth={2.5} aria-hidden="true" />
+              </button>
+            ) : null}
+          </div>
           <FileInput
             label="Photo"
             mode="input"
@@ -2124,15 +2113,6 @@ function ProfileStep({
               if (file instanceof File) onPhoto(file);
             }}
           />
-          {photoPreview ? (
-            <Button
-              className="onboarding-photo-remove"
-              label="Remove photo"
-              variant="ghost"
-              size="sm"
-              onClick={() => onPhoto(null)}
-            />
-          ) : null}
         </div>
         <div className="onboarding-badge-identity">
           <fieldset className="onboarding-group">
@@ -2173,12 +2153,19 @@ function ProfileStep({
               A published page shows your state. It shows the city only when you publish exact locations.
             </Text>
           </fieldset>
-          <div className="onboarding-badge-address">
-            <fieldset className="onboarding-group" data-private="true">
-              <legend>Only for you · never published</legend>
-              <ProfileStreet place={place} onPlace={onPlace} note="Used to place your home on the map." />
-            </fieldset>
-          </div>
+        </div>
+        <div className="onboarding-badge-wide">
+          <fieldset className="onboarding-group">
+            <legend>Headline · can be published</legend>
+            <TextInput
+              label="Professional headline"
+              value={headline}
+              autoComplete="organization-title"
+              placeholder="e.g. Senior Software Engineer"
+              width="100%"
+              onChange={onHeadline}
+            />
+          </fieldset>
         </div>
       </div>
       {error ? (

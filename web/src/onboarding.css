@@ -735,6 +735,22 @@
   grid-template-columns: 1fr 1fr;
 }
 
+/* Local or Cloud: the label on its own line, the description below it, never cut off. */
+.onboarding-host-card strong {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.onboarding-host-card span {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.72);
+}
+
 .onboarding-choice {
   display: grid;
   gap: 0.25rem;

@@ -5,6 +5,7 @@ import { Button } from "@astryxdesign/core/Button";
 import { Icon } from "@astryxdesign/core/Icon";
 import { FileInput } from "@astryxdesign/core/FileInput";
 import { Selector } from "@astryxdesign/core/Selector";
+import { SelectableCard } from "@astryxdesign/core/SelectableCard";
 import { Stepper, Step } from "@astryxdesign/core/Stepper";
 import { Heading, Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
@@ -1043,30 +1044,34 @@ export function Onboarding({
                 add them yourself.
               </Text>
               <div className="onboarding-choices onboarding-host" role="group" aria-label="Where the model runs">
-                <Button
+                <SelectableCard
+                  className="onboarding-host-card"
                   label="Local"
-                  variant={hosting === "local" ? "primary" : "secondary"}
-                  aria-pressed={hosting === "local"}
-                  onClick={() => pickHosting("local")}
+                  isSelected={hosting === "local"}
+                  onChange={(next) => {
+                    if (next) pickHosting("local");
+                  }}
                 >
                   <strong>Local</strong>
                   <span>
                     {localProbe !== "ready"
                       ? "Looking on this computer…"
                       : foundModels.length > 0
-                        ? "A model is on this computer."
+                        ? "A model is on this computer. Your resume stays here."
                         : "Scan this computer for a model."}
                   </span>
-                </Button>
-                <Button
+                </SelectableCard>
+                <SelectableCard
+                  className="onboarding-host-card"
                   label="Cloud"
-                  variant={hosting === "cloud" ? "primary" : "secondary"}
-                  aria-pressed={hosting === "cloud"}
-                  onClick={() => pickHosting("cloud")}
+                  isSelected={hosting === "cloud"}
+                  onChange={(next) => {
+                    if (next) pickHosting("cloud");
+                  }}
                 >
                   <strong>Cloud</strong>
                   <span>A cloud provider may read, keep, report, and train on what you send.</span>
-                </Button>
+                </SelectableCard>
               </div>
               {hosting === "local" ? (
               <section

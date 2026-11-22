@@ -48,6 +48,12 @@ import {
   type OnboardingPlaceAnswer,
 } from "@core/onboarding-review";
 import {
+  nextOnboardingStep,
+  onboardingSteps,
+  previousOnboardingStep,
+  type OnboardingStepId,
+} from "@core/onboarding-steps";
+import {
   isAvatarType,
   joinPersonName,
   personNameParts,
@@ -93,7 +99,7 @@ type Me = {
   profile: OnboardingProfileValue & { onboardingCompletedAt: string | null };
 };
 
-type OnboardingStep = "name" | "model" | "integrations" | "file" | "check";
+type OnboardingStep = OnboardingStepId;
 
 export type OnboardingExit = { page: "home" } | { page: "history"; focusJobId?: string };
 
@@ -102,15 +108,13 @@ type QueuedResume = {
   digest: string;
 };
 
-const STEP_INDEX: Record<OnboardingStep, number> = {
-  name: 0,
-  model: 1,
-  integrations: 2,
-  file: 3,
-  check: 4,
+const STEP_LABEL: Record<OnboardingStep, string> = {
+  name: "Profile",
+  model: "Model",
+  integrations: "Integrations",
+  file: "Resume",
+  check: "Verify",
 };
-
-const STEPS = ["Profile", "Model", "Integrations", "Resume", "Verify"] as const;
 
 /** Dev-only. Drop this with the Integrations "Preview connected layout" checkbox. */
 function readConnectedPreview(): boolean {
@@ -182,6 +186,9 @@ export function Onboarding({
   const [modelCheck, setModelCheck] = useState<{ key: string; state: "checking" | "ok" } | null>(null);
   // The last read stopped on a model failure, so the Resume step offers a way on.
   const [readFailed, setReadFailed] = useState(false);
+  // Whether any account can be signed into. Until the catalog answers, the
+  // Integrations step stays in; with nothing to connect, it is left out.
+  const [canConnect, setCanConnect] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
@@ -458,6 +465,20 @@ export function Onboarding({
   }, [step, localProbe]);
 
   useEffect(() => {
+    let cancel = false;
+    void fetch("/api/integration-catalog")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((body: { integrations?: Array<{ available?: boolean; signIn?: boolean }> } | null) => {
+        if (cancel || !body) return;
+        setCanConnect((body.integrations ?? []).some((row) => row.available && row.signIn));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancel = true;
+    };
+  }, []);
+
+  useEffect(() => {
     function openConnectedPreview() {
       if (!readConnectedPreview()) return;
       setPreviewConnected(true);
@@ -466,6 +487,9 @@ export function Onboarding({
     window.addEventListener("hashchange", openConnectedPreview);
     return () => window.removeEventListener("hashchange", openConnectedPreview);
   }, []);
+
+  const steps = onboardingSteps({ canConnect: canConnect !== false || previewConnected });
+  const afterModel = nextOnboardingStep(steps, "model");
 
   const foundModels = scanned.flatMap((hit) => hit.models.map((id) => ({ address: hit.baseUrl, id })));
   const foundKey = foundPick || (foundModels[0] ? `${foundModels[0].address} ${foundModels[0].id}` : "");
@@ -638,12 +662,12 @@ export function Onboarding({
   async function continueFromModel() {
     setError(null);
     if (wantsModel !== true) {
-      setStep("integrations");
+      setStep(afterModel);
       return;
     }
     const key = modelCheckKey();
     if (modelCheck?.key === key && modelCheck.state === "ok") {
-      setStep("integrations");
+      setStep(afterModel);
       return;
     }
     setModelCheck({ key, state: "checking" });
@@ -660,7 +684,7 @@ export function Onboarding({
       const body = (await res.json().catch(() => ({}))) as { error?: string };
       if (res.ok) {
         setModelCheck({ key, state: "ok" });
-        setStep("integrations");
+        setStep(afterModel);
         return;
       }
       setModelCheck(null);
@@ -1037,7 +1061,7 @@ export function Onboarding({
     return (
       <div className="onboarding">
         <div className="onboarding-stage">
-          <WashProgress step={step} />
+          <WashProgress step={step} steps={steps} />
           <div className="onboarding-sheet">
             <section className="onboarding-card">
               <DoneStep
@@ -1056,7 +1080,7 @@ export function Onboarding({
   return (
     <div className="onboarding">
       <div className="onboarding-stage">
-        <WashProgress step={step} />
+        <WashProgress step={step} steps={steps} />
         <div
           className="onboarding-sheet"
           data-wide={step === "name" || step === "check" || step === "integrations" ? "true" : undefined}
@@ -1313,7 +1337,7 @@ export function Onboarding({
                     onClick={() => {
                       clearModel();
                       setWantsModel(false);
-                      setStep("integrations");
+                      setStep(afterModel);
                     }}
                   />
                   <Button
@@ -1535,7 +1559,7 @@ export function Onboarding({
                       label="Back"
                       variant="ghost"
                       isDisabled={held.length > 0 || extracting}
-                      onClick={() => setStep("integrations")}
+                      onClick={() => setStep(previousOnboardingStep(steps, "file"))}
                     />
                     <div className="onboarding-action-pair">
                       {extracting ? (
@@ -1662,19 +1686,19 @@ function resumeBundles(queued: QueuedResume[], extracts: Map<string, ExtractedRe
   });
 }
 
-function WashProgress({ step }: { step: OnboardingStep }) {
+function WashProgress({ step, steps }: { step: OnboardingStep; steps: OnboardingStep[] }) {
   return (
     <div className="onboarding-stepper">
       <Stepper
-        activeStep={STEP_INDEX[step]}
+        activeStep={Math.max(0, steps.indexOf(step))}
         orientation="horizontal"
         density="balanced"
         indicatorPosition="on-track"
         label="Onboarding progress"
         horizontalOptions={{ minimumStepWidth: 112, collapsedVariant: "withLabel" }}
       >
-        {STEPS.map((label, index) => (
-          <Step key={label} step={index} label={label} />
+        {steps.map((id, index) => (
+          <Step key={id} step={index} label={STEP_LABEL[id]} />
         ))}
       </Stepper>
     </div>

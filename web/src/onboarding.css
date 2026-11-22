@@ -103,11 +103,8 @@
   background: var(--gold);
 }
 
+/* One width for every step, so the card doesn't jump; Verify's board is wider. */
 .onboarding-sheet {
-  width: min(32rem, 100%);
-}
-
-.onboarding-sheet[data-wide="true"] {
   width: min(40rem, 100%);
 }
 
@@ -2561,4 +2558,12 @@ button.onboarding-verify-row {
 .onboarding-cloud-destination strong {
   color: #fff;
   font-weight: 600;
+}
+
+/* On a phone the page scrolls, not the card, so Continue is never hidden in a box. */
+@media (max-width: 560px) {
+  .onboarding-card {
+    max-height: none;
+    overflow: visible;
+  }
 }

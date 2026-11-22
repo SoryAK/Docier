@@ -45,6 +45,10 @@ import {
   revokeAccess,
   shareAccess,
 } from "./access";
+import { DistinctPairError, listDistinctPairs, markDistinctPair, unmarkDistinctPair } from "./distinct-roles";
+import { localGuard } from "./local-guard";
+import { UPLOAD_MAX_BYTES, requestBodyLimits } from "./body-limits";
+import { checkRequestBody, isMissingJsonBody } from "./request-body";
 import {
   applyComparedResume,
   loadCareerFile,
@@ -102,6 +106,9 @@ import {
   proposeCareerFact,
   readCareerMemory,
   saveEvidence,
+  removeEvidence,
+  updateEvidence,
+  withdrawCareerFactChange,
 } from "./career-memory";
 import {
   WorklogStoreError,
@@ -150,6 +157,11 @@ import {
   createOffer,
   createOpportunity,
   createPlan,
+  cancelExternalAction,
+  removeInterview,
+  removeOffer,
+  updateInterview,
+  updateOffer,
   updateOpportunity,
   removePlan,
   updatePlan,
@@ -393,7 +405,14 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
   }
   const app = new Hono();
 
+  app.use("*", localGuard());
+  app.use("/api/*", requestBodyLimits());
+  app.use("/api/*", checkRequestBody());
+
   app.onError((err, c) => {
+    if (isMissingJsonBody(err, c)) {
+      return c.json({ error: "invalid-body" }, 400);
+    }
     if (err instanceof VaultKeyError) {
       return c.json(
         {
@@ -631,8 +650,13 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
 
   app.delete("/api/profile/avatar", (c) => {
     const occupant = ensureOccupant(db);
-    const profile = removeAvatar(db, occupant.id, uploadsDir);
-    return c.json({ occupant, profile });
+    try {
+      const profile = removeAvatar(db, occupant.id, uploadsDir);
+      return c.json({ occupant, profile });
+    } catch (error) {
+      if (error instanceof ProfileError) return c.json({ error: error.code }, 500);
+      throw error;
+    }
   });
 
   app.get("/api/profile/avatar", (c) => {
@@ -809,6 +833,9 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
     if (!(file instanceof File) || file.size === 0) {
       return c.json({ error: "A resume file is required." }, 400);
     }
+    if (file.size > UPLOAD_MAX_BYTES) {
+      return c.json({ error: "That resume is too large (25 MB max)." }, 413);
+    }
     const bytes = new Uint8Array(await file.arrayBuffer());
     const resume = storeResume(db, occupant.id, uploadsDir, {
       name: file.name,
@@ -823,6 +850,9 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
     const file = form.get("file");
     if (!(file instanceof File) || file.size === 0) {
       return c.json({ error: "A resume file is required." }, 400);
+    }
+    if (file.size > UPLOAD_MAX_BYTES) {
+      return c.json({ error: "That resume is too large (25 MB max)." }, 413);
     }
     try {
       const result = await extractResumeFromFile(
@@ -1197,6 +1227,38 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
       if (error instanceof WorkMapStoreError) {
         return c.json({ error: error.code }, 400);
       }
+      throw error;
+    }
+  });
+
+  app.get("/api/work-map/distinct-pairs", (c) => {
+    const occupant = ensureOccupant(db);
+    return c.json({ pairs: listDistinctPairs(db, occupant.id) });
+  });
+
+  app.post("/api/work-map/distinct-pairs", async (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      const pair = markDistinctPair(db, occupant.id, await c.req.json());
+      return c.json({ pair }, 201);
+    } catch (error) {
+      if (error instanceof DistinctPairError) {
+        return c.json({ error: error.code }, error.code === "role-missing" ? 404 : 400);
+      }
+      throw error;
+    }
+  });
+
+  app.delete("/api/work-map/distinct-pairs/:firstId/:secondId", (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      unmarkDistinctPair(db, occupant.id, {
+        firstId: c.req.param("firstId"),
+        secondId: c.req.param("secondId"),
+      });
+      return c.json({ ok: true });
+    } catch (error) {
+      if (error instanceof DistinctPairError) return c.json({ error: error.code }, 400);
       throw error;
     }
   });
@@ -1694,7 +1756,7 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
       return c.json({ ok: true });
     } catch (error) {
       if (error instanceof ProjectionStoreError) {
-        return c.json({ error: error.code }, 404);
+        return c.json({ error: error.code }, error.code === "relay-not-configured" ? 409 : 404);
       }
       if (error instanceof RelayTransportError) {
         return c.json({ error: "relay-unavailable" }, 502);
@@ -1710,7 +1772,7 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
       return c.json({ ok: true });
     } catch (error) {
       if (error instanceof ProjectionStoreError) {
-        return c.json({ error: error.code }, 404);
+        return c.json({ error: error.code }, error.code === "relay-not-configured" ? 409 : 404);
       }
       if (error instanceof RelayTransportError) {
         return c.json({ error: "relay-unavailable" }, 502);
@@ -1745,7 +1807,7 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
     const projection = resolvePublishedProjection(
       db,
       c.req.param("slug"),
-      c.req.query("token") ?? null,
+      bearerToken(c.req.header("authorization")),
     );
     return projection
       ? c.json({ projection })
@@ -1778,7 +1840,7 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
     const projection = resolvePublishedProjection(
       db,
       c.req.param("slug"),
-      c.req.query("token") ?? null,
+      bearerToken(c.req.header("authorization")),
     );
     if (!projection) return c.json({ error: "Publication not found." }, 404);
     const body = (await c.req.json()) as {
@@ -2302,6 +2364,110 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
     }
   });
 
+  const notFound = new Set(["not-found", "evidence-missing", "change-set-missing", "action-missing"]);
+  const careerError = (c: Context, error: unknown) => {
+    if (error instanceof CareerManagementStoreError || error instanceof CareerMemoryStoreError) {
+      const status = notFound.has(error.code) ? 404 : error.code === "evidence-cited" ? 409 : 400;
+      return c.json({ error: error.code }, status);
+    }
+    throw error;
+  };
+
+  app.put("/api/interviews/:id", async (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      const interview = updateInterview(
+        db,
+        occupant.id,
+        c.req.param("id"),
+        (await c.req.json()) as Record<string, unknown>,
+      );
+      return c.json({ interview });
+    } catch (error) {
+      return careerError(c, error);
+    }
+  });
+
+  app.delete("/api/interviews/:id", (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      removeInterview(db, occupant.id, c.req.param("id"));
+      return c.json({ ok: true });
+    } catch (error) {
+      return careerError(c, error);
+    }
+  });
+
+  app.put("/api/offers/:id", async (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      const offer = updateOffer(
+        db,
+        occupant.id,
+        c.req.param("id"),
+        (await c.req.json()) as Record<string, unknown>,
+      );
+      return c.json({ offer });
+    } catch (error) {
+      return careerError(c, error);
+    }
+  });
+
+  app.delete("/api/offers/:id", (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      removeOffer(db, occupant.id, c.req.param("id"));
+      return c.json({ ok: true });
+    } catch (error) {
+      return careerError(c, error);
+    }
+  });
+
+  app.post("/api/external-actions/:id/cancel", (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      cancelExternalAction(db, occupant.id, c.req.param("id"));
+      return c.json({ ok: true });
+    } catch (error) {
+      return careerError(c, error);
+    }
+  });
+
+  app.put("/api/memory/evidence/:id", async (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      const evidence = updateEvidence(
+        db,
+        occupant.id,
+        c.req.param("id"),
+        (await c.req.json()) as Record<string, unknown>,
+      );
+      return c.json({ evidence });
+    } catch (error) {
+      return careerError(c, error);
+    }
+  });
+
+  app.delete("/api/memory/evidence/:id", (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      removeEvidence(db, occupant.id, c.req.param("id"));
+      return c.json({ ok: true });
+    } catch (error) {
+      return careerError(c, error);
+    }
+  });
+
+  app.post("/api/memory/proposals/:id/withdraw", (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      withdrawCareerFactChange(db, occupant.id, c.req.param("id"));
+      return c.json({ ok: true });
+    } catch (error) {
+      return careerError(c, error);
+    }
+  });
+
   app.put("/api/plans/:id", async (c) => {
     const occupant = ensureOccupant(db);
     try {
@@ -2397,7 +2563,8 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
       return c.json({ document }, 201);
     } catch (error) {
       if (error instanceof DocumentStoreError) {
-        return c.json({ error: error.code }, 400);
+        const status = error.code === "file-too-large" ? 413 : 400;
+        return c.json({ error: error.code }, status);
       }
       throw error;
     }
@@ -2464,7 +2631,13 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
 
   app.get("/api/portability/export", (c) => {
     const occupant = ensureOccupant(db);
-    const archive = createPortableArchive(db, occupant.id, uploadsDir);
+    let archive: Uint8Array;
+    try {
+      archive = createPortableArchive(db, occupant.id, uploadsDir);
+    } catch (error) {
+      if (error instanceof PortabilityError) return c.json({ error: error.code }, 413);
+      throw error;
+    }
     return c.body(Buffer.from(archive), 200, {
       "content-type": "application/zip",
       "content-disposition": 'attachment; filename="docier-backup.zip"',
@@ -2488,7 +2661,8 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
       return c.json({ restored });
     } catch (error) {
       if (error instanceof PortabilityError) {
-        return c.json({ error: error.code }, 400);
+        const status = error.code === "archive-too-large" ? 413 : 400;
+        return c.json({ error: error.code }, status);
       }
       throw error;
     }
@@ -3154,4 +3328,11 @@ function profilePlace(profile: {
   state: string;
 }): string {
   return [profile.address, profile.city, profile.state].filter(Boolean).join(", ");
+}
+
+/** Access tokens travel in the Authorization header, never in the address. */
+function bearerToken(header: string | undefined): string | null {
+  // The scheme name is case-insensitive (RFC 9110); the token keeps its case.
+  const match = /^bearer\s+(.+)$/i.exec(header?.trim() ?? "");
+  return match?.[1]?.trim() || null;
 }

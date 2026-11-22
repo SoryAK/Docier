@@ -63,6 +63,7 @@ import {
 import { loadCareerFile } from "./history";
 import { readProfile } from "./occupant";
 import type { FetchedPage, PageFetch } from "./page-capture";
+import { uploadPath } from "./upload-path";
 
 type JsonObject = Record<string, unknown>;
 
@@ -400,6 +401,10 @@ export function removeWorkMapRole(
       `UPDATE worklog_entries SET role_id = NULL
        WHERE occupant_id = ? AND role_id = ?`,
     ).run(occupantId, id);
+    db.prepare(
+      `DELETE FROM role_distinct_pairs
+       WHERE occupant_id = ? AND (first_role_id = ? OR second_role_id = ?)`,
+    ).run(occupantId, id, id);
     const removed = db
       .prepare(`DELETE FROM work_history WHERE id = ? AND occupant_id = ?`)
       .run(id, occupantId);
@@ -411,7 +416,7 @@ export function removeWorkMapRole(
   }
   for (const file of files) {
     try {
-      unlinkSync(join(uploadsDir, file.stored_name));
+      unlinkSync(uploadPath(uploadsDir, file.stored_name));
     } catch {
       /* leftover file is harmless */
     }
@@ -589,7 +594,7 @@ export function addWorkMapPhoto(
   const id = randomUUID();
   const storedName = `media-${id}.${ext}`;
   mkdirSync(uploadsDir, { recursive: true });
-  writeFileSync(join(uploadsDir, storedName), file.bytes);
+  writeFileSync(uploadPath(uploadsDir, storedName), file.bytes);
   const media: WorkMapMedia = {
     id,
     kind: "photo",
@@ -640,7 +645,7 @@ export function loadWorkMapMediaFile(
         : "image/jpeg";
   try {
     return {
-      bytes: new Uint8Array(readFileSync(join(uploadsDir, stored))),
+      bytes: new Uint8Array(readFileSync(uploadPath(uploadsDir, stored))),
       type,
     };
   } catch {
@@ -686,7 +691,7 @@ export function removeWorkMapMedia(
   ).run(mediaId, roleId, occupantId);
   if (row.stored_name) {
     try {
-      unlinkSync(join(uploadsDir, row.stored_name));
+      unlinkSync(uploadPath(uploadsDir, row.stored_name));
     } catch {
       /* leftover file is harmless */
     }

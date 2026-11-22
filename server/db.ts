@@ -348,6 +348,15 @@ export function openDatabase(path: string): DatabaseSync {
     )
   `);
   db.exec(`
+    CREATE TABLE IF NOT EXISTS role_distinct_pairs (
+      occupant_id TEXT NOT NULL REFERENCES occupants(id),
+      first_role_id TEXT NOT NULL,
+      second_role_id TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      PRIMARY KEY (occupant_id, first_role_id, second_role_id)
+    )
+  `);
+  db.exec(`
     CREATE TABLE IF NOT EXISTS interactive_projections (
       id TEXT PRIMARY KEY,
       occupant_id TEXT NOT NULL REFERENCES occupants(id),
@@ -667,6 +676,10 @@ export function openDatabase(path: string): DatabaseSync {
       occurred_at TEXT NOT NULL
     )
   `);
+  // Whether a publish or link reached the Relay. 1 means a copy lives there, so
+  // removing or revoking it must reach the Relay too. Older rows are NULL.
+  addColumnIfMissing(db, "publications", "relayed", "INTEGER");
+  addColumnIfMissing(db, "projection_access_grants", "relayed", "INTEGER");
   addColumnIfMissing(
     db,
     "contacts",

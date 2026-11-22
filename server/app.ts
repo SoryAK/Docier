@@ -20,6 +20,9 @@ import {
 import { pingDatabase } from "./db";
 import { RelayTransportError } from "./relay-client";
 import { DistinctPairError, listDistinctPairs, markDistinctPair, unmarkDistinctPair } from "./distinct-roles";
+import { localGuard } from "./local-guard";
+import { UPLOAD_MAX_BYTES, requestBodyLimits } from "./body-limits";
+import { checkRequestBody, isMissingJsonBody } from "./request-body";
 import {
   applyComparedResume,
   loadCareerFile,
@@ -374,7 +377,14 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
   }
   const app = new Hono();
 
+  app.use("*", localGuard());
+  app.use("/api/*", requestBodyLimits());
+  app.use("/api/*", checkRequestBody());
+
   app.onError((err, c) => {
+    if (isMissingJsonBody(err, c)) {
+      return c.json({ error: "invalid-body" }, 400);
+    }
     if (err instanceof VaultKeyError) {
       return c.json(
         {
@@ -795,6 +805,9 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
     if (!(file instanceof File) || file.size === 0) {
       return c.json({ error: "A resume file is required." }, 400);
     }
+    if (file.size > UPLOAD_MAX_BYTES) {
+      return c.json({ error: "That resume is too large (25 MB max)." }, 413);
+    }
     const bytes = new Uint8Array(await file.arrayBuffer());
     const resume = storeResume(db, occupant.id, uploadsDir, {
       name: file.name,
@@ -809,6 +822,9 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
     const file = form.get("file");
     if (!(file instanceof File) || file.size === 0) {
       return c.json({ error: "A resume file is required." }, 400);
+    }
+    if (file.size > UPLOAD_MAX_BYTES) {
+      return c.json({ error: "That resume is too large (25 MB max)." }, 413);
     }
     try {
       const result = await extractResumeFromFile(
@@ -1763,7 +1779,7 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
     const projection = resolvePublishedProjection(
       db,
       c.req.param("slug"),
-      c.req.query("token") ?? null,
+      bearerToken(c.req.header("authorization")),
     );
     return projection
       ? c.json({ projection })
@@ -1790,7 +1806,7 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
     const projection = resolvePublishedProjection(
       db,
       c.req.param("slug"),
-      c.req.query("token") ?? null,
+      bearerToken(c.req.header("authorization")),
     );
     if (!projection) return c.json({ error: "Publication not found." }, 404);
     const body = (await c.req.json()) as {
@@ -2513,7 +2529,8 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
       return c.json({ document }, 201);
     } catch (error) {
       if (error instanceof DocumentStoreError) {
-        return c.json({ error: error.code }, 400);
+        const status = error.code === "file-too-large" ? 413 : 400;
+        return c.json({ error: error.code }, status);
       }
       throw error;
     }
@@ -2580,7 +2597,13 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
 
   app.get("/api/portability/export", (c) => {
     const occupant = ensureOccupant(db);
-    const archive = createPortableArchive(db, occupant.id, uploadsDir);
+    let archive: Uint8Array;
+    try {
+      archive = createPortableArchive(db, occupant.id, uploadsDir);
+    } catch (error) {
+      if (error instanceof PortabilityError) return c.json({ error: error.code }, 413);
+      throw error;
+    }
     return c.body(Buffer.from(archive), 200, {
       "content-type": "application/zip",
       "content-disposition": 'attachment; filename="docier-backup.zip"',
@@ -2604,7 +2627,8 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
       return c.json({ restored });
     } catch (error) {
       if (error instanceof PortabilityError) {
-        return c.json({ error: error.code }, 400);
+        const status = error.code === "archive-too-large" ? 413 : 400;
+        return c.json({ error: error.code }, status);
       }
       throw error;
     }
@@ -3039,4 +3063,11 @@ function profilePlace(profile: {
   state: string;
 }): string {
   return [profile.address, profile.city, profile.state].filter(Boolean).join(", ");
+}
+
+/** Access tokens travel in the Authorization header, never in the address. */
+function bearerToken(header: string | undefined): string | null {
+  // The scheme name is case-insensitive (RFC 9110); the token keeps its case.
+  const match = /^bearer\s+(.+)$/i.exec(header?.trim() ?? "");
+  return match?.[1]?.trim() || null;
 }

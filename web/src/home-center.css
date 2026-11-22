@@ -314,6 +314,22 @@
     grid-template-rows: minmax(0, 1fr) minmax(12rem, 22rem);
   }
 
+  /* With the right panel open, Recent is hidden; don't keep its row, or every
+     page in the center (My Network, My Docs) gets only the top part. */
+  .home-sheet.is-right-open .home-story-layout {
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  /* A page in the center (My Docs, My Network) gets the whole height when
+     there's no room beside it; Recent stays on the story. */
+  .home-story-layout:has(> .home-story-page) {
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .home-story-layout:has(> .home-story-page) > .home-story-recent {
+    display: none;
+  }
+
   .home-story-recent {
     margin: 0;
     border-left: 0;

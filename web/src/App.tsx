@@ -87,10 +87,10 @@ export function App() {
   }
 
   if (needsOnboarding(me.profile) || reviewOnboarding) {
-    // Setup is always drawn on a dark stage, so its components use the dark
-    // scheme even when the system is set to light.
+    // Setup uses the product's light look, so its components use the light
+    // scheme even when the system is set to dark.
     return (
-      <Theme theme={neutralTheme} mode="dark">
+      <Theme theme={neutralTheme} mode="light">
         <Onboarding
           initialProfile={me.profile}
           onFinished={(next, exit) => {

@@ -608,3 +608,10 @@ export {
   type TourStep,
   type WelcomeTile,
 } from "./first-run";
+export {
+  roleHistory,
+  type RoleHistoryFilter,
+  type RoleHistoryItem,
+  type RoleHistoryKind,
+  type RoleHistoryYear,
+} from "./role-history";

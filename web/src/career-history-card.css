@@ -465,3 +465,13 @@
   margin-top: 0.1rem;
   color: #3f3f46;
 }
+
+/* The role open beside the list. */
+.pch-groups li button.is-open {
+  background: #f6ead3;
+}
+
+.pch-groups li button.is-open:hover,
+.pch-groups li button.is-open:focus-visible {
+  background: #f1e0c0;
+}

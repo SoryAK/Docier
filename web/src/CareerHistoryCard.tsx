@@ -30,6 +30,7 @@ import "./career-history-card.css";
 export function CareerHistoryCard({
   revision = 0,
   focusRoleId,
+  onOpenRole,
   onBack,
   onImport,
   onAsk,
@@ -44,6 +45,8 @@ export function CareerHistoryCard({
 }: {
   revision?: number;
   focusRoleId?: string | null;
+  /** The role opened from the list (null to close it). Home shows it beside the list. */
+  onOpenRole?: (id: string | null) => void;
   onBack: () => void;
   onImport: () => void;
   onAsk: () => void;
@@ -68,7 +71,8 @@ export function CareerHistoryCard({
   const [checked, setChecked] = useState<Set<string>>(() => new Set(selectedRoleIds ?? []));
   const [removeAsk, setRemoveAsk] = useState<{ ids: string[]; detail: string } | null>(null);
   const [removing, setRemoving] = useState(false);
-  const [focusId, setFocusId] = useState<string | null>(focusRoleId ?? null);
+  // The open role stays in the list, marked, while Home shows it beside the list.
+  const focusId = focusRoleId ?? null;
   const [note, setNote] = useState("");
   const [addOpen, setAddOpen] = useState(false);
   const [draftKind, setDraftKind] = useState<CareerHistorySectionKey | null>(null);
@@ -99,10 +103,6 @@ export function CareerHistoryCard({
   useEffect(() => {
     writeCollapsedSections(collapsed);
   }, [collapsed]);
-
-  useEffect(() => {
-    if (focusRoleId) setFocusId(focusRoleId);
-  }, [focusRoleId]);
 
   useEffect(() => {
     if (!release) return;
@@ -205,7 +205,6 @@ export function CareerHistoryCard({
         .map(([id]) => id),
     [roles],
   );
-  const focus = roles.find((role) => role.id === focusId) ?? null;
 
   function toggleSection(label: string) {
     setCollapsed((current) => {
@@ -262,7 +261,7 @@ export function CareerHistoryCard({
       return next;
     });
     const removed = ids.filter((id) => !failed.includes(id));
-    if (focusId && removed.includes(focusId)) setFocusId(null);
+    if (focusId && removed.includes(focusId)) onOpenRole?.(null);
     if (removed.length > 0) onRemoved?.(removed);
     setNote(
       failed.length === 0
@@ -278,39 +277,6 @@ export function CareerHistoryCard({
 
   return (
     <div className="pch">
-      {focus ? (
-        <div className="pch-view is-role">
-          <Toolbar
-            className="pch-toolbar"
-            label="History"
-            size="sm"
-            dividers={["bottom"]}
-            startContent={
-              <>
-                <button className="pch-back" type="button" aria-label="Back" onClick={() => setFocusId(null)}>
-                  <Icon icon={ArrowLeft} size="sm" />
-                </button>
-                <Heading level={4}>History</Heading>
-              </>
-            }
-          />
-          <ScrollableArea className="pch-role-scroll" label="Role">
-            <article className="pch-role">
-              <h2>{focus.organization || focus.title || "Untitled"}</h2>
-              {focus.organization && focus.title ? <p>{focus.title}</p> : null}
-              <p>
-                {[
-                  formatHistoryPlace(focus),
-                  formatHistoryPeriod(focus.startDate, focus.endDate, focus.isCurrent),
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </p>
-              {focus.details.summary.trim() ? <p>{focus.details.summary.trim()}</p> : null}
-            </article>
-          </ScrollableArea>
-        </div>
-      ) : (
         <div className="pch-view">
           <Toolbar
             className="pch-toolbar"
@@ -545,10 +511,10 @@ export function CareerHistoryCard({
                               onChange={() => toggleChecked(role.id)}
                             />
                           </label>
-                          <RoleButton role={role} onOpen={() => setFocusId(role.id)} />
+                          <RoleButton role={role} open={role.id === focusId} onOpen={() => onOpenRole?.(role.id)} />
                         </div>
                       ) : (
-                        <RoleButton role={role} onOpen={() => setFocusId(role.id)} />
+                        <RoleButton role={role} open={role.id === focusId} onOpen={() => onOpenRole?.(role.id)} />
                       )}
                     </li>
                   ))}
@@ -570,7 +536,6 @@ export function CareerHistoryCard({
             ) : null}
           </ScrollableArea>
         </div>
-      )}
       {draftKind
         ? (() => {
             const draftOpened = draftSession.current;
@@ -590,9 +555,9 @@ export function CareerHistoryCard({
   );
 }
 
-function RoleButton({ role, onOpen }: { role: WorkMapRole; onOpen: () => void }) {
+function RoleButton({ role, open, onOpen }: { role: WorkMapRole; open: boolean; onOpen: () => void }) {
   return (
-    <button type="button" onClick={onOpen}>
+    <button type="button" className={open ? "is-open" : undefined} aria-current={open ? "true" : undefined} onClick={onOpen}>
       <span>
         <strong>
           {role.organization || role.title || "Untitled"}

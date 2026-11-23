@@ -15,6 +15,8 @@ import { roleCoverPhoto, type WorkMapRole } from "@core/work-map";
 import { ArrowLeft } from "lucide-react";
 import { CareerMap } from "./CareerMap";
 import type { MapFitMode } from "./map-camera";
+import { RoleHistoryPanel } from "./RoleHistoryPanel";
+import { RoleView } from "./RoleView";
 import "./home-center.css";
 
 export function HomeCenter({
@@ -24,6 +26,8 @@ export function HomeCenter({
   viewRequest = null,
   pageContent = null,
   onStart,
+  roleView = false,
+  onRoleSaved,
 }: {
   revision?: number;
   focusRoleId: string | null;
@@ -32,6 +36,9 @@ export function HomeCenter({
   onStart?: (action: "job" | "school" | "import") => void;
   viewRequest?: { id: number; updates: boolean; updateId: string | null } | null;
   pageContent?: ReactNode;
+  /** On Career History, a focused role is shown here, with its History in place of Recent. */
+  roleView?: boolean;
+  onRoleSaved?: () => void;
 }) {
   const [roles, setRoles] = useState<WorkMapRole[]>([]);
   const [settings, setSettings] = useState<MapSettings | null>(null);
@@ -90,6 +97,7 @@ export function HomeCenter({
   }, [revision]);
 
   const focus = roles.find((role) => role.id === focusRoleId) ?? null;
+  const showRole = roleView && Boolean(focus) && !pageContent;
   const updates = useMemo(
     () => liveUpdates(focus ? [focus] : roles.filter((role) => role.isCurrent), now),
     [focus, roles, now],
@@ -147,6 +155,10 @@ export function HomeCenter({
           <div className="home-story-layout">
             {pageContent ? (
               <div className="home-story-page">{pageContent}</div>
+            ) : showRole && focus ? (
+              <div className="home-role">
+                <RoleView role={focus} onSaved={() => onRoleSaved?.()} />
+              </div>
             ) : view === "map" ? (
               <div className="home-center-map">
                 {error ? <p className="home-center-empty">{error}</p> : null}
@@ -263,6 +275,11 @@ export function HomeCenter({
                   </section>
                 )
               )}
+                {showRole && focus ? (
+                  <section className="home-story-recent home-role-history">
+                    <RoleHistoryPanel role={focus} onSaved={() => onRoleSaved?.()} />
+                  </section>
+                ) : (
                 <section className="home-story-recent" aria-label="Recent events">
                   <div className="home-story-recent-switch">
                     <SegmentedControl
@@ -356,6 +373,7 @@ export function HomeCenter({
                     </div>
                   </ScrollableArea>
                 </section>
+                )}
           </div>
         </div>
       </main>

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/banner.png" alt="Docier: a desk with a laptop, a briefcase, tools, folders, a certificate, an ID badge, and a coffee around the Docier name" width="100%">
+  <img src="docs/assets/banner.png" alt="Docier: work things from many trades around the Docier name: a laptop, a multimeter, a briefcase, tools, cables, folders, a certificate, an ID badge, a stethoscope, and a coffee" width="100%">
 </p>
 
 # Docier

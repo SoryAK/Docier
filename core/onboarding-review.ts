@@ -336,8 +336,6 @@ export function profileAfterOnboarding(input: {
   lastName: string;
   /** Typed on Profile. Blank keeps the saved headline, or the one read from a resume. */
   headline?: string;
-  /** Changed on Verify. Blank keeps the saved bio, or the one read from a resume. */
-  bio?: string;
   place: OnboardingPlaceAnswer | null;
   links: OnboardingLinkAnswer | null;
 }): ProfileFields {
@@ -354,9 +352,6 @@ export function profileAfterOnboarding(input: {
   };
   if (input.headline !== undefined) {
     next.headline = input.headline.trim() || base.headline;
-  }
-  if (input.bio !== undefined) {
-    next.bio = input.bio.trim() || base.bio;
   }
   if (input.place) {
     next.address = input.place.street.trim() || base.address;

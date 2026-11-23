@@ -283,13 +283,6 @@ describe("profileAfterOnboarding", () => {
     expect(blank.headline).toBe("Mathematician");
   });
 
-  it("saves a bio changed on Verify, and keeps the one read from a resume when it is blank", () => {
-    const extracted = { ...resume().profile, bio: "Wrote the first program." };
-    const base = { current, extracted, firstName: "Ada", lastName: "Lovelace", place: null, links: null };
-    expect(profileAfterOnboarding({ ...base, bio: " Poet of numbers " }).bio).toBe("Poet of numbers");
-    expect(profileAfterOnboarding({ ...base, bio: "" }).bio).toBe("Wrote the first program.");
-  });
-
   it("keeps a saved city when the confirmed field is blank", () => {
     const next = profileAfterOnboarding({
       current,

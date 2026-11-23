@@ -650,7 +650,7 @@ export function Home({
       <WelcomeTour
         firstName={profile.firstName}
         marks={profile}
-        counts={{ jobs: career.jobs.length, schools: career.schools.length }}
+        career={career}
         ready={careerReady}
         tourRequest={tourRequest}
         onBeforeTour={() => {
@@ -665,6 +665,21 @@ export function Home({
           showLeft();
           goPage("history");
           setAddRequest({ kind: "job", nonce: Date.now() });
+        }}
+        onGo={(destination) => {
+          // Each action on the welcome card opens the place where it is filled in.
+          if (destination.kind === "role") {
+            openSearchRole(destination.id);
+          } else if (destination.kind === "history") {
+            setFocusJobId(null);
+            showLeft();
+            goPage("history");
+          } else if (destination.kind === "network") {
+            goPage("network");
+          } else {
+            setSettingsSection("publication");
+            setSettingsOpen(true);
+          }
         }}
       />
     </div>

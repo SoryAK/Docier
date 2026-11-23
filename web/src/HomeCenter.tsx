@@ -263,7 +263,7 @@ export function HomeCenter({
                   </section>
                 )
               )}
-                <section className="home-story-recent" aria-label="Recent events" data-tour="recent">
+                <section className="home-story-recent" aria-label="Recent events">
                   <div className="home-story-recent-switch">
                     <SegmentedControl
                       label="Recent views"

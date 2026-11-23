@@ -9,6 +9,7 @@ in routes or React screens.
 
 Humans start at [README.md](README.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
 Decisions: [docs/adr/](docs/adr/). Merge gate: [docs/ci.md](docs/ci.md).
+Releases: [docs/release.md](docs/release.md). Every release reviews the tour and the welcome card first.
 Marks and icons: [docs/resources.md](docs/resources.md).
 Governed agency (one Docier, Agent Runs as purposes): [docs/agent-authority.md](docs/agent-authority.md) — epic #49 is done.
 

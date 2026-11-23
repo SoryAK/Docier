@@ -589,13 +589,21 @@ export { distinctPairKey, prepareDistinctPair, type DistinctPair } from "./disti
 export { describeModelFailure, type ModelFailure, type ModelFailureKind } from "./model-failure";
 export { nextOnboardingStep, onboardingSteps, previousOnboardingStep, type OnboardingStepId } from "./onboarding-steps";
 export {
+  countedGaps,
+  jobFields,
+  jobGaps,
   parseFirstRunUpdate,
   pickAnchors,
+  schoolFields,
+  schoolGaps,
   shouldWelcome,
   tourSteps,
   welcomeCard,
   welcomeHeading,
+  welcomeNudge,
   type FirstRunUpdate,
+  type RoleField,
+  type RoleGap,
   type TourAnchor,
   type TourStep,
   type WelcomeTile,

@@ -11,13 +11,21 @@ import { tourSteps, welcomeCard, type TourAnchor } from "./first-run";
 
 const WEB = join(__dirname, "..", "web", "src");
 
-/** Every `data-tour="x"` and `tour="x"` written in the web components. */
+/**
+ * The `data-tour="x"` and `tour="x"` attributes written in JSX. An attribute follows
+ * whitespace; a selector the tour looks up, such as `'[data-tour="menu"]'`, follows a
+ * bracket and is not a marker, so it is not counted.
+ */
+function markersIn(source: string): string[] {
+  return [...source.matchAll(/(?<=\s)(?:data-tour|tour)="([a-z-]+)"/g)].map((match) => match[1]!);
+}
+
+/** Every marker written in the web components. */
 function anchorsOnHome(): Set<string> {
   const found = new Set<string>();
   for (const file of readdirSync(WEB)) {
     if (!file.endsWith(".tsx")) continue;
-    const source = readFileSync(join(WEB, file), "utf8");
-    for (const match of source.matchAll(/\b(?:data-tour|tour)="([a-z-]+)"/g)) found.add(match[1]!);
+    for (const name of markersIn(readFileSync(join(WEB, file), "utf8"))) found.add(name);
   }
   return found;
 }
@@ -36,6 +44,15 @@ function anchorsInTour(): Set<TourAnchor> {
 }
 
 describe("the tour and Home", () => {
+  it("counts JSX markers, not selectors that look for them", () => {
+    const source = `
+      <button data-tour="menu" />
+      <HomeNavRow tour="network" />
+      const start = document.querySelector('[data-tour="start"]');
+    `;
+    expect(markersIn(source)).toEqual(["menu", "network"]);
+  });
+
   it("points every stop at something that is on Home", () => {
     const onHome = anchorsOnHome();
     const missing = [...anchorsInTour()].filter((anchor) => !onHome.has(anchor));

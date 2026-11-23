@@ -93,7 +93,19 @@ describe("first run", () => {
     expect(countedGaps(jobGaps(bare))).toBe(5);
     // A pinned site is saved by its id, so a place of "67" is a place, not a gap.
     expect(jobGaps({ ...full, location: "67" }).map((gap) => gap.kind)).toEqual(["company-details"]);
-    expect(schoolGaps({ startDate: "" }).map((gap) => gap.kind)).toEqual(["dates", "school-details"]);
+    const school = { degree: "BS Biology", location: "Gainesville, FL", startDate: "2010-08-01" };
+    expect(schoolGaps(school).map((gap) => gap.kind)).toEqual(["school-details"]);
+    expect(countedGaps(schoolGaps(school))).toBe(0);
+    // Dates saved but no degree or place: the count matches the two fields the card shows as missing.
+    const partial = { ...school, degree: "", location: "" };
+    expect(schoolGaps(partial).map((gap) => gap.kind)).toEqual(["degree", "place", "school-details"]);
+    expect(countedGaps(schoolGaps(partial))).toBe(schoolFields(partial).filter((field) => !field.done).length);
+    expect(schoolGaps({ degree: "", location: "", startDate: "" }).map((gap) => gap.kind)).toEqual([
+      "degree",
+      "dates",
+      "place",
+      "school-details",
+    ]);
   });
 
   it("lists a role's fields in order, each done or not", () => {

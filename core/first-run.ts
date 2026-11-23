@@ -124,7 +124,7 @@ export type WelcomeTile = {
 
 /** Something a saved job or school still lacks, filled in where the role is edited. */
 export type RoleGap = {
-  kind: "company" | "dates" | "place" | "description" | "achievements" | "company-details" | "school-details";
+  kind: "company" | "degree" | "dates" | "place" | "description" | "achievements" | "company-details" | "school-details";
   label: string;
 };
 
@@ -183,10 +183,15 @@ export function schoolFields(school: { degree: string; location: string; startDa
   ];
 }
 
-/** What a school still lacks. "School details" is always offered, like a job's company details. */
-export function schoolGaps(school: { startDate: string }): RoleGap[] {
+/**
+ * What a school still lacks, in the same order as `schoolFields`, so the card's count
+ * matches the fields it shows. "School details" is always offered, like a job's company details.
+ */
+export function schoolGaps(school: { degree: string; location: string; startDate: string }): RoleGap[] {
   const gaps: RoleGap[] = [];
+  if (!school.degree.trim()) gaps.push({ kind: "degree", label: "Add the degree" });
   if (!school.startDate.trim()) gaps.push({ kind: "dates", label: "Add dates" });
+  if (!school.location.trim()) gaps.push({ kind: "place", label: "Add the place" });
   gaps.push({ kind: "school-details", label: "School details" });
   return gaps;
 }

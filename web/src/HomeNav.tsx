@@ -80,6 +80,7 @@ export function HomeNav({
     onCloseMobile();
   }
 
+  // Only Canvas is ready today; the other branch serves Customizations as they come back.
   function chooseCustom(id: string) {
     if (id === "canvas") {
       const next = customId !== "canvas";
@@ -201,7 +202,13 @@ export const HOME_NAV_ID = NAV_ID;
 
 /** A section heading that never folds; a thin line when the panel is icons only. */
 function NavHeading({ label, slim }: { label: string; slim: boolean }) {
-  return slim ? <div className="home-nav-divider" aria-hidden="true" /> : <p className="home-nav-heading">{label}</p>;
+  return slim ? (
+    <h2 className="home-nav-divider">
+      <span className="sr-only">{label}</span>
+    </h2>
+  ) : (
+    <h2 className="home-nav-heading">{label}</h2>
+  );
 }
 
 function NavRow({

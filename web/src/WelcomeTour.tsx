@@ -691,7 +691,7 @@ function Tour({
   const last = steps ? index === steps.length - 1 : false;
 
   // Home may still be drawing or loading its story, so look for the anchors for a moment before starting.
-  // Only steps with something to point at are kept: their anchors, a closed group holding them, or a fallback.
+  // Only steps with something to point at are kept: their anchors or a fallback.
   useEffect(() => {
     let tries = 0;
     let timer = 0;

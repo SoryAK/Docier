@@ -26,7 +26,7 @@ export type FirstRunMarks = {
 type Rect = { top: number; left: number; width: number; height: number };
 
 const HOLE_PAD = 6;
-const ANCHORS: TourAnchor[] = ["overview", "history-nav", "map", "search", "recent", "share", "start", "network", "resources", "menu"];
+const ANCHORS: TourAnchor[] = ["overview", "history-nav", "map", "share", "start", "network", "resources", "menu"];
 
 const CARD_WIDTH = 320;
 const GUTTER = 16;

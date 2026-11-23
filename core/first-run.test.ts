@@ -27,17 +27,17 @@ describe("first run", () => {
     expect(welcomeCard({ empty: false })).toEqual({
       lede: "Everything you've done, in one place you control.",
       tiles: [
-        { icon: "history", title: "Add your history", body: "Jobs, schools, and proof of your work" },
-        { icon: "network", title: "Build your network", body: "People you've worked with and trust" },
-        { icon: "share", title: "Share it", body: "Publish a page when you're ready" },
+        { icon: "history", title: "Add your history", body: "Jobs, schools, and proof of your work", stop: "history" },
+        { icon: "network", title: "Build your network", body: "People you've worked with and trust", stop: "network" },
+        { icon: "share", title: "Share it", body: "Publish a page when you're ready", stop: "share" },
       ],
     });
     expect(welcomeCard({ empty: true })).toEqual({
       lede: "Let's build your career here, one job at a time.",
       tiles: [
-        { icon: "add", title: "Add your first job", body: "Start with the role you have now" },
-        { icon: "history", title: "Build your history", body: "Every job and school in one place" },
-        { icon: "network", title: "Build your network", body: "Add the people you've worked with" },
+        { icon: "add", title: "Add your first job", body: "Start with the role you have now", stop: "start" },
+        { icon: "history", title: "Build your history", body: "Every job and school in one place", stop: "history" },
+        { icon: "network", title: "Build your network", body: "Add the people you've worked with", stop: "network" },
       ],
     });
   });

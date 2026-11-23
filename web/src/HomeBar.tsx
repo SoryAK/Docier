@@ -449,7 +449,6 @@ export function HomeBar({
         <button
           type="button"
           className="home-search-pill"
-          data-tour="search"
           aria-label="Search"
           onClick={onSearch}
         >
@@ -460,7 +459,6 @@ export function HomeBar({
         <button
           type="button"
           className="home-search-icon"
-          data-tour="search"
           aria-label="Search"
           title="Search"
           onClick={onSearch}

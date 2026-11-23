@@ -25,6 +25,8 @@ For each stop, check:
 
 For the card, check that its three tiles still match the tour's stops, in the same order.
 
+`core/tour-anchors.test.ts` runs in the merge gate and fails when a stop points at something no longer on Home, when Home carries a `data-tour` name no stop uses, or when the card's tiles stop matching the stops. It catches broken wiring, not stale words, so the walk above is still required.
+
 Where things live:
 
 - the stops, their text, and the card's tiles: `core/first-run.ts`;

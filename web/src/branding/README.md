@@ -5,7 +5,7 @@ The Docier D mark, and the illustrations drawn to go with it.
 | File | What it is | Used by |
 |---|---|---|
 | `docier-mark.svg` | The D with a manila gradient, on a clear background. | The top bar, beside the name (`HomeBar.tsx`). |
-| `docier-mark-icon.svg` | The D in solid gold on a navy rounded square. | The browser tab icon (`web/index.html`). |
+| `docier-mark-icon.svg` | The D in solid gold on a navy rounded square. | The browser tab icon (`web/index.html`), and the desktop app's icons in `web/src-tauri/icons/`, rendered from it at 512, 128, and 32px. |
 | `docier-mark-small.svg` | The D in a single solid gold, on a clear background, for small sizes where a gradient blurs. | Not used yet. |
 | `docier-banner.webp` | The painted desk scene with a clear middle and no mark or name, 1152×352, scaled down from `docs/assets/banner-source.jpg`. The card puts the real mark and name on top. | The welcome card's banner (`WelcomeTour.tsx`). |
 | `docier-desk.svg` | A desk scene: laptop, briefcase, tools, folders, certificate, ID badge, a to-go coffee, and cables hanging from the top, around a clear middle. It animates on its own. | Not used since the painted banner replaced it; kept for its separate items. |

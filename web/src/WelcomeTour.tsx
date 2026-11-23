@@ -184,7 +184,9 @@ function WelcomeCard({
     const dialog = ref.current;
     if (dialog && !dialog.open) dialog.showModal();
     // The dialog would focus its first button; the tour is the one to land on.
-    startRef.current?.focus();
+    // Without scrolling: on a short screen the card scrolls, and should open at its top.
+    startRef.current?.focus({ preventScroll: true });
+    if (dialog) dialog.scrollTop = 0;
   }, []);
   const heading = welcomeHeading(firstName);
   const content = welcomeCard({ empty });

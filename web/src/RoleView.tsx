@@ -7,6 +7,7 @@ import {
 } from "@core/career-history";
 import { roleCoverPhoto, type WorkMapRole } from "@core/work-map";
 import { Globe, ImagePlus, Images, Pencil, Plus, Trash2, UserRound, X } from "lucide-react";
+import { RolePeople } from "./RolePeople";
 import "./role-view.css";
 
 type RoleTab = "overview" | "achievements";
@@ -15,12 +16,10 @@ type RoleTab = "overview" | "achievements";
  * One role, opened from Career History: its photo as a banner (or a cream band),
  * buttons for what it has, and two tabs. The role's History sits beside it.
  */
-export function RoleView({ role, onSaved }: { role: WorkMapRole; onSaved: () => void }) {
+export function RoleView({ role, roles, onSaved }: { role: WorkMapRole; roles: WorkMapRole[]; onSaved: () => void }) {
   const [tab, setTab] = useState<RoleTab>("overview");
   const [editing, setEditing] = useState(false);
-  const [peopleOpen, setPeopleOpen] = useState(false);
   const galleryRef = useRef<HTMLDialogElement>(null);
-  const peopleRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoMessage, setPhotoMessage] = useState("");
@@ -68,24 +67,7 @@ export function RoleView({ role, onSaved }: { role: WorkMapRole; onSaved: () => 
   useEffect(() => {
     setTab("overview");
     setEditing(false);
-    setPeopleOpen(false);
   }, [role.id]);
-
-  useEffect(() => {
-    if (!peopleOpen) return;
-    function onDown(event: PointerEvent) {
-      if (!peopleRef.current?.contains(event.target as Node)) setPeopleOpen(false);
-    }
-    function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") setPeopleOpen(false);
-    }
-    document.addEventListener("pointerdown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("pointerdown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [peopleOpen]);
 
   const name = role.organization.trim() || role.title.trim() || "Untitled";
   const subtitle = role.organization.trim() ? role.title.trim() : "";
@@ -95,7 +77,6 @@ export function RoleView({ role, onSaved }: { role: WorkMapRole; onSaved: () => 
   const period = formatHistoryPeriod(role.startDate, role.endDate, role.isCurrent);
   const tenure = formatTenureMonths(tenureMonths(role.startDate, role.endDate, role.isCurrent));
   const details = role.details;
-  const people = details.colleagues ?? [];
   const summary = details.summary.trim();
   const description = role.description.trim();
   const events = [...(details.events ?? [])].sort((a, b) => b.date.localeCompare(a.date));
@@ -150,38 +131,7 @@ export function RoleView({ role, onSaved }: { role: WorkMapRole; onSaved: () => 
           {role.isCurrent ? <mark>Current</mark> : null}
           {tenure ? <span className="role-view-tenure">({tenure})</span> : null}
         </p>
-        {people.length > 0 ? (
-          <div className="role-view-people" ref={peopleRef}>
-            <button
-              type="button"
-              className="role-view-faces"
-              aria-expanded={peopleOpen}
-              onClick={() => setPeopleOpen((open) => !open)}
-            >
-              <span className="role-view-stack" aria-hidden="true">
-                {people.slice(0, 3).map((person) => (
-                  <span key={person.id}>{initials(person.name)}</span>
-                ))}
-              </span>
-              Worked with {people.length}
-            </button>
-            {peopleOpen ? (
-              <div className="role-view-pop" role="dialog" aria-label="Worked with">
-                <ul>
-                  {people.map((person) => (
-                    <li key={person.id}>
-                      <span className="role-view-avatar" aria-hidden="true">{initials(person.name)}</span>
-                      <span>
-                        <b>{person.name}</b>
-                        {person.title ? <small>{person.title}</small> : null}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
+        <RolePeople role={role} roles={roles} onSaved={onSaved} />
       </div>
 
       {editing ? (
@@ -433,11 +383,6 @@ function RoleEditor({ role, onClose, onSaved }: { role: WorkMapRole; onClose: ()
       </div>
     </form>
   );
-}
-
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  return (parts.length > 1 ? `${parts[0]![0]}${parts.at(-1)![0]}` : (parts[0] ?? "?").slice(0, 2)).toUpperCase();
 }
 
 function siteKind(kind: WorkMapRole["locations"][number]["kind"]): string {

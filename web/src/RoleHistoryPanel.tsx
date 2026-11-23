@@ -12,6 +12,7 @@ const KIND_LABEL: Record<RoleHistoryKind, string> = {
   event: "Event",
   note: "Note",
   achievement: "Achievement",
+  person: "People",
 };
 
 /** A role's story over time, year by year, beside the role in Career History. */
@@ -134,6 +135,7 @@ export function RoleHistoryPanel({ role, onSaved }: { role: WorkMapRole; onSaved
           <option value="milestone">Milestones</option>
           <option value="event">Events</option>
           <option value="achievement">Achievements</option>
+          <option value="person">People</option>
         </select>
         <select aria-label="Order" value={order} onChange={(event) => setOrder(event.target.value as "newest" | "oldest")}>
           <option value="newest">Newest</option>

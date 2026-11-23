@@ -1,3 +1,4 @@
+import type { RolePerson } from "./role-people";
 import type { CanvasBoard } from "./canvas-board";
 import { formatHistoryPlace } from "./career-history";
 import type { ProjectionVisibility } from "./projection";
@@ -329,6 +330,8 @@ export type WorkMapRole = {
   details: WorkMapRoleDetails;
   canvasBoards?: CanvasBoard[];
   canvasRevision?: number;
+  /** My Network contacts linked to this role. */
+  people?: RolePerson[];
 };
 
 export type WorkMapPublishSection =

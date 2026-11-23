@@ -1,3 +1,4 @@
+import { linkRolePerson, RolePeopleError, unlinkRolePerson, updateRolePersonLink } from "./role-people";
 import { Hono, type Context } from "hono";
 import type { DatabaseSync } from "node:sqlite";
 import { isFrameTarget, pageAllowsFrame, PRODUCT, type ApplicationStage } from "../core/index";
@@ -1438,6 +1439,52 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
       if (error instanceof WorkMapStoreError) {
         return c.json({ error: error.code }, 400);
       }
+      throw error;
+    }
+  });
+
+  // People worked with on a role: link someone in My Network or add someone new.
+  const rolePeopleStatus = (code: RolePeopleError["code"]) =>
+    code === "role-missing" || code === "contact-missing" || code === "link-missing"
+      ? 404
+      : code === "already-linked"
+        ? 409
+        : 400;
+  app.post("/api/work-map/roles/:id/people", async (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      const person = linkRolePerson(db, occupant.id, c.req.param("id"), (await c.req.json()) as Record<string, unknown>);
+      return c.json({ person }, 201);
+    } catch (error) {
+      if (error instanceof RolePeopleError) return c.json({ error: error.code }, rolePeopleStatus(error.code));
+      throw error;
+    }
+  });
+
+  app.put("/api/work-map/roles/:id/people/:linkId", async (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      const person = updateRolePersonLink(
+        db,
+        occupant.id,
+        c.req.param("id"),
+        c.req.param("linkId"),
+        (await c.req.json()) as Record<string, unknown>,
+      );
+      return c.json({ person });
+    } catch (error) {
+      if (error instanceof RolePeopleError) return c.json({ error: error.code }, rolePeopleStatus(error.code));
+      throw error;
+    }
+  });
+
+  app.delete("/api/work-map/roles/:id/people/:linkId", (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      unlinkRolePerson(db, occupant.id, c.req.param("id"), c.req.param("linkId"));
+      return c.json({ ok: true });
+    } catch (error) {
+      if (error instanceof RolePeopleError) return c.json({ error: error.code }, rolePeopleStatus(error.code));
       throw error;
     }
   });

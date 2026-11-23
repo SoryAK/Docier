@@ -842,3 +842,234 @@
     opacity: 1;
   }
 }
+
+/* People worked with on a role. */
+img.role-view-avatar {
+  object-fit: cover;
+}
+
+.role-people {
+  width: min(340px, 86vw);
+  padding: 12px;
+}
+
+.role-people h3 {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.role-people-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.role-people-head small,
+.role-people-optional {
+  color: #6b6b70;
+  font-size: 0.75rem;
+}
+
+.role-people-list {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.role-people-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.role-people-list li:hover {
+  background: #f6f5f3;
+}
+
+.role-people-who {
+  flex: 1;
+  min-width: 0;
+}
+
+.role-people-who b {
+  display: block;
+  font-size: 0.8125rem;
+}
+
+.role-people-who small {
+  display: block;
+  overflow: hidden;
+  color: #6b6b70;
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.role-people-actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+}
+
+.role-people-list li:hover .role-people-actions,
+.role-people-actions:focus-within {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .role-people-actions {
+    opacity: 1;
+  }
+}
+
+.role-people-actions button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: #6b6b70;
+  cursor: pointer;
+}
+
+.role-people-actions button:hover {
+  background: #fff;
+  color: #171717;
+}
+
+.role-people-suggest {
+  margin: 4px 0 8px;
+}
+
+.role-people-suggest small {
+  display: block;
+  margin-bottom: 4px;
+  color: #6b6b70;
+  font-size: 0.75rem;
+}
+
+.role-people-suggest div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.role-people-suggest button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border: 1px dashed #d6d0c6;
+  border-radius: 999px;
+  background: #fff;
+  color: #3f3f46;
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.role-people-suggest button:hover {
+  border-style: solid;
+  background: #fffaf0;
+}
+
+.role-people-find {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 9px;
+  border: 1px solid #d9d9de;
+  border-radius: 10px;
+  color: #6b6b70;
+}
+
+.role-people-find:focus-within {
+  border-color: #a1a1aa;
+}
+
+.role-people-find input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  color: #171717;
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.role-people-matches {
+  display: grid;
+  gap: 2px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.role-people-matches button {
+  display: block;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: #171717;
+  font: inherit;
+  font-size: 0.8125rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.role-people-matches button:hover {
+  background: #f6f5f3;
+}
+
+.role-people-matches small {
+  display: block;
+  color: #6b6b70;
+  font-size: 0.75rem;
+}
+
+.role-people-matches .is-new {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #8a6d4f;
+}
+
+.role-people-form h3 {
+  margin-bottom: 10px;
+}
+
+.role-people-form fieldset {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.role-people-form label {
+  display: grid;
+  gap: 3px;
+  color: #3f3f46;
+  font-size: 0.75rem;
+}
+
+.role-people-form input {
+  padding: 6px 8px;
+  border: 1px solid #d4d4d8;
+  border-radius: 8px;
+  color: #171717;
+  font: inherit;
+  font-size: 0.8125rem;
+}

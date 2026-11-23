@@ -157,7 +157,7 @@ export function HomeCenter({
               <div className="home-story-page">{pageContent}</div>
             ) : showRole && focus ? (
               <div className="home-role">
-                <RoleView role={focus} onSaved={() => onRoleSaved?.()} />
+                <RoleView role={focus} roles={roles} onSaved={() => onRoleSaved?.()} />
               </div>
             ) : view === "map" ? (
               <div className="home-center-map">

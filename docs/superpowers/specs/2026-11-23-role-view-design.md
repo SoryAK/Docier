@@ -48,6 +48,12 @@ Three columns, as on Home.
 
 1. **First live slice:** the three columns with the data a role already has: banner, links, gallery, face stack (from the role's saved colleagues), two tabs, Photos & events and Places sections, History by year from the role's start, end, milestones, events, notes, and achievements, and adding a note or milestone. Edit for the main fields. The role's address.
 2. **People shared with My Network:** "Worked with" lists My Network people linked to the role; adding someone adds or links them there.
+   - A person is one My Network contact. The link to a role (`role_contacts`) carries what belongs to that job: a short note ("trained me") and the month you started working together (blank means the role's start).
+   - In the role view: the face stack opens the list; type a name to link someone from My Network or add someone new (name, their role, company filled from the role, email, the note, since). Change uses the same fields. "Take off this role" only unlinks; deleting a person stays on My Network.
+   - People linked to other roles at the same company are offered as one-click suggestions; nothing is linked automatically.
+   - History shows "Started working with …" in the year you started working together.
+   - My Network shows the roles each person is linked to; each opens that role.
+   - The role's old "worked with" list is retired: any entries move into My Network once, linked to their role.
 3. **Dates on achievements:** each achievement gets a date (default: the role's start), so it lands in the right year.
 4. **Evidence on an achievement:** linked evidence names the achievement it backs; the proof tag counts it.
 5. **Edits:** a record of changes to the role, shown under History's Edits filter, with undo for recent ones.

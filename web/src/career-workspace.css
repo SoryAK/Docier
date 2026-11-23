@@ -1219,3 +1219,29 @@
     padding-top: 1rem;
   }
 }
+
+/* The roles a person is linked to; each opens that role in Career History. */
+.network-roles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0 0;
+  font-size: 0.8125rem;
+}
+
+.network-roles span {
+  color: #6b6b70;
+}
+
+.network-roles a {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: #f6ead3;
+  color: #6f5536;
+  text-decoration: none;
+}
+
+.network-roles a:hover {
+  background: #f1e0c0;
+}

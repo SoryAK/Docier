@@ -6,7 +6,7 @@ import type { WorkMapMoment, WorkMapRole } from "./work-map";
  * role in Career History.
  */
 
-export type RoleHistoryKind = "start" | "end" | "milestone" | "event" | "note" | "achievement";
+export type RoleHistoryKind = "start" | "end" | "milestone" | "event" | "note" | "achievement" | "person";
 
 export type RoleHistoryItem = {
   id: string;
@@ -20,7 +20,7 @@ export type RoleHistoryItem = {
 
 export type RoleHistoryYear = { year: string; label: string; items: RoleHistoryItem[] };
 
-export type RoleHistoryFilter = "all" | "note" | "milestone" | "event" | "achievement";
+export type RoleHistoryFilter = "all" | "note" | "milestone" | "event" | "achievement" | "person";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const MONTH_NAMES = [
@@ -42,6 +42,7 @@ function readDate(value: string): { year: string; month: number | null; key: str
 const SAME_DAY_RANK: Record<RoleHistoryKind, number> = {
   start: 0,
   achievement: 1,
+  person: 1,
   milestone: 2,
   event: 2,
   note: 2,
@@ -76,6 +77,12 @@ export function roleHistory(
   moments("milestone", details?.milestones);
   moments("event", details?.events);
   moments("note", details?.notes);
+  // People join the year you started working together, or the role's start.
+  for (const item of role.people ?? []) {
+    const date = item.since || role.startDate;
+    const text = `Started working with ${item.name}${item.note ? ` · ${item.note}` : ""}`;
+    push(item.linkId, "person", text, date);
+  }
   // Achievements have no dates of their own yet, so they sit in the year the role started.
   role.achievements.forEach((text, index) => {
     if (start) push(role.achievementIds?.[index] ?? `${role.id}:achievement:${index}`, "achievement", text, role.startDate);

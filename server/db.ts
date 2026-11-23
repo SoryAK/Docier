@@ -702,6 +702,20 @@ export function openDatabase(path: string): DatabaseSync {
     "INTEGER NOT NULL DEFAULT 0",
   );
   addColumnIfMissing(db, "opportunities", "contact_id", "TEXT");
+  // People worked with on a role: a My Network contact linked to a role, with a
+  // note and the month you started working together that belong to that job.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS role_contacts (
+      id TEXT PRIMARY KEY,
+      occupant_id TEXT NOT NULL REFERENCES occupants(id),
+      role_id TEXT NOT NULL,
+      contact_id TEXT NOT NULL,
+      note TEXT NOT NULL DEFAULT '',
+      since TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL,
+      UNIQUE (occupant_id, role_id, contact_id)
+    )
+  `);
   addColumnIfMissing(db, "map_settings", "pin_theme", "TEXT NOT NULL DEFAULT 'kind'");
   addColumnIfMissing(
     db,

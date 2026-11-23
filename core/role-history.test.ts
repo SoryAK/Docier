@@ -103,6 +103,19 @@ describe("roleHistory", () => {
     expect(roleHistory(role({ startDate: "", achievements: [] }), { now: NOW })).toEqual([]);
   });
 
+  it("shows each person from when you started working together, or from the role's start", () => {
+    const people = [
+      { linkId: "p1", contactId: "c1", name: "Maria Reyes", role: "", organization: "", email: "", photoUrl: null, note: "trained me", since: "" },
+      { linkId: "p2", contactId: "c2", name: "Dan Kim", role: "", organization: "", email: "", photoUrl: null, note: "", since: "2025-05" },
+    ];
+    const years = roleHistory({ ...role({ achievements: [] }), people }, { now: NOW });
+    expect(years.flatMap((year) => year.items.filter((item) => item.kind === "person").map((item) => [year.year, item.text, item.month]))).toEqual([
+      ["2025", "Started working with Dan Kim", "May"],
+      ["2024", "Started working with Maria Reyes · trained me", "Jun"],
+    ]);
+    expect(roleHistory({ ...role(), people }, { filter: "person", now: NOW }).flatMap((y) => y.items.map((i) => i.id))).toEqual(["p2", "p1"]);
+  });
+
   it("accepts a year alone as a date", () => {
     const years = roleHistory(role({ startDate: "2019", achievements: [], isCurrent: false, endDate: "" }), { now: NOW });
     expect(years).toEqual([{ year: "2019", label: "Started", items: [expect.objectContaining({ kind: "start", month: "" })] }]);

@@ -1,3 +1,4 @@
+import { moveColleaguesToNetwork, readRolePeople } from "./role-people";
 import { createHash, randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -69,6 +70,7 @@ type JsonObject = Record<string, unknown>;
 
 export function readWorkMap(db: DatabaseSync, occupantId: string) {
   backfillCareerMemory(db, occupantId);
+  moveColleaguesToNetwork(db, occupantId);
   const career = loadCareerFile(db, occupantId);
   const facts = readCareerMemory(db, occupantId).facts;
   const records = db
@@ -392,6 +394,9 @@ export function removeWorkMapRole(
     db.prepare(
       `DELETE FROM work_history_details
        WHERE work_history_id = ? AND occupant_id = ?`,
+    ).run(id, occupantId);
+    db.prepare(
+      `DELETE FROM role_contacts WHERE role_id = ? AND occupant_id = ?`,
     ).run(id, occupantId);
     db.prepare(
       `DELETE FROM career_facts
@@ -1185,6 +1190,7 @@ function mapRole(
     media: readMedia(db, occupantId, String(row.id)),
     linkedEvidence: readLinkedEvidence(db, occupantId, String(row.id)),
     details: readDetails(db, occupantId, String(row.id)),
+    people: readRolePeople(db, occupantId, String(row.id)),
     ...canvasBoardsField(db, occupantId, String(row.id)),
   };
 }

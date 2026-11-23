@@ -615,3 +615,10 @@ export {
   type RoleHistoryKind,
   type RoleHistoryYear,
 } from "./role-history";
+export {
+  colleagueToContact,
+  matchContacts,
+  prepareRolePersonLink,
+  suggestRolePeople,
+  type RolePerson,
+} from "./role-people";

@@ -27,7 +27,8 @@
 }
 
 .welcome-card[open] {
-  animation: welcome-in 0.45s var(--reveal, ease) both;
+  /* Backwards, not both: a transform kept after the animation would shift the icons' tooltips. */
+  animation: welcome-in 0.45s var(--reveal, ease) backwards;
 }
 
 /* The banner: the desk scene from branding, with the name in its clearing. */
@@ -125,18 +126,398 @@
   line-height: 1.5;
 }
 
+/* A suggestion for the open section, under the tagline. */
+.welcome-card-nudge {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.45em;
+  max-width: 30em;
+  margin: 0.55em auto 0;
+  color: #6b4f33;
+  font-size: max(0.88em, 12px);
+  font-weight: 500;
+  line-height: 1.45;
+  text-align: left;
+  animation: welcome-in 0.3s var(--reveal, ease) both;
+}
+
+.welcome-card-nudge svg {
+  flex: none;
+  width: 1.05em;
+  height: 1.05em;
+  margin-top: 0.2em;
+  color: #cd9f5b;
+}
+
 .welcome-card-tiles {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 0.75em;
-  margin: 1.2em 0 0;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.welcome-card-tile {
+/* The boxes, and the summary a box opens in their place. The card grows while it is open. */
+.welcome-card-area {
   position: relative;
-  padding: 1em 0.8em;
+  margin-top: 1.2em;
+}
+
+.welcome-card-area.is-open .welcome-card-tiles {
+  display: none;
+}
+
+.welcome-card-tile:has(> .welcome-card-tile-button) {
+  padding: 0;
+}
+
+.welcome-card-tile-button {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: var(--tile-pad);
+  border: 0;
+  border-radius: inherit;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.welcome-card-tile:has(> .welcome-card-tile-button:hover) {
+  border-color: #c9a77d;
+}
+
+.welcome-card-tile-button:hover {
+  background: #fffaf2;
+}
+
+.welcome-card-tile-button:focus-visible {
+  outline: 2px solid #8a6d4f;
+  outline-offset: 2px;
+}
+
+.welcome-card-tile-todo {
+  position: absolute;
+  top: 0.6em;
+  right: 0.65em;
+  display: grid;
+  place-items: center;
+  min-width: 1.15em;
+  height: 1.15em;
+  padding: 0 0.3em;
+  border-radius: 999px;
+  background: #f6ead3;
+  color: #8a6d4f;
+  font-size: max(0.66em, 10px);
+  font-weight: 600;
+}
+
+.welcome-card-tile-more {
+  display: block;
+  margin-top: 0.45em;
+  color: #8a6d4f;
+  font-size: max(0.72em, 11px);
+  font-weight: 600;
+}
+
+.welcome-summary {
+  /* Room for about six rows; more scroll inside. */
+  height: clamp(14em, 46vh, 22em);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #e3d8c8;
+  border-radius: 1em;
+  background: #fffdf9;
+  text-align: left;
+  animation: welcome-in 0.25s var(--reveal, ease) both;
+}
+
+.welcome-summary-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.5em 0.8em 0.5em 0.45em;
+  border-bottom: 1px solid rgba(23, 23, 23, 0.08);
+}
+
+.welcome-summary-head strong {
+  font-size: max(0.88em, 12px);
+}
+
+.welcome-summary-head small {
+  color: rgba(23, 23, 23, 0.6);
+  font-size: max(0.74em, 11px);
+}
+
+.welcome-summary-back {
+  display: grid;
+  place-items: center;
+  width: 1.7em;
+  height: 1.7em;
+  padding: 0;
+  border: 0;
+  border-radius: 0.5em;
+  background: none;
+  color: rgba(23, 23, 23, 0.62);
+  cursor: pointer;
+}
+
+.welcome-summary-back:hover {
+  background: #f4ecdf;
+  color: #171717;
+}
+
+.welcome-summary-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #8a6d4f;
+  font: 600 max(0.76em, 11px) var(--sans);
+  cursor: pointer;
+}
+
+.welcome-summary-back:focus-visible,
+.welcome-summary-open:focus-visible,
+.welcome-summary-chip:focus-visible {
+  outline: 2px solid #8a6d4f;
+  outline-offset: 1px;
+}
+
+.welcome-summary-rows {
+  flex: 1;
+  margin: 0;
+  padding: 0 0.9em 0.4em;
+  overflow: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+}
+
+.welcome-summary-rows > li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.2em 0.8em;
+  padding: 0.65em 0;
+  border-bottom: 1px solid rgba(23, 23, 23, 0.08);
+}
+
+.welcome-summary-rows > li:last-child {
+  border-bottom: 0;
+}
+
+.welcome-summary-rows b {
+  display: block;
+  font-size: max(0.82em, 12px);
+  font-weight: 600;
+}
+
+.welcome-summary-rows small {
+  display: block;
+  color: rgba(23, 23, 23, 0.6);
+  font-size: max(0.72em, 11px);
+}
+
+.welcome-summary-rows > li.welcome-summary-note {
+  display: block;
+  color: rgba(23, 23, 23, 0.66);
+  font-size: max(0.8em, 12px);
+  line-height: 1.45;
+}
+
+/* A role: a ring for how much is filled in, its name, and a strip of its fields. */
+.welcome-summary-rows > li.welcome-role {
+  grid-template-columns: auto 1fr auto;
+  gap: 0.7em;
+}
+
+.welcome-role-ring {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 2.1em;
+  height: 2.1em;
+}
+
+.welcome-role-ring svg {
+  position: absolute;
+  inset: 0;
+  transform: rotate(-90deg);
+}
+
+.welcome-role-ring circle {
+  fill: none;
+  stroke-width: 3.2;
+}
+
+.welcome-role-ring-track {
+  stroke: #efe5d6;
+}
+
+.welcome-role-ring-fill {
+  stroke: #cd9f5b;
+  stroke-linecap: round;
+}
+
+.welcome-role-ring.is-full .welcome-role-ring-fill {
+  stroke: #0d345e;
+}
+
+.welcome-role-ring > span {
+  color: #6b4f33;
+  font-size: max(0.7em, 11px);
+  font-weight: 600;
+}
+
+.welcome-role-name {
+  min-width: 0;
+}
+
+.welcome-role-fields {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.welcome-role-field {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 1.85em;
+  height: 1.85em;
+  padding: 0;
+  border: 1px solid #d9bf97;
+  border-radius: 0.55em;
+  background: #fff;
+  color: #a7855f;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+/* A missing field: outlined, with a gold dot. */
+.welcome-role-field:not(.is-done):not(.is-extra)::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 7px;
+  height: 7px;
+  border: 1.5px solid #fffdf9;
+  border-radius: 50%;
+  background: #cd9f5b;
+}
+
+/* A filled-in field stays quiet, so the missing ones stand out. */
+.welcome-role-field.is-done {
+  border-color: transparent;
+  background: #eaf0f6;
+  color: #244f7e;
+}
+
+.welcome-role-field.is-extra {
+  border-style: dashed;
+  color: #c0b2a0;
+}
+
+.welcome-role-field:hover {
+  border-color: #c9a77d;
+  background: #f6ead3;
+  color: #8a6d4f;
+}
+
+.welcome-role-field.is-done:hover {
+  background: #d9e3ee;
+  color: #0d345e;
+}
+
+.welcome-role-field:focus-visible {
+  outline: 2px solid #8a6d4f;
+  outline-offset: 1px;
+}
+
+.welcome-role-sep {
+  width: 1px;
+  height: 1.2em;
+  margin: 0 3px;
+  background: #e6d9c5;
+}
+
+/* What an icon means, over it while hovered or focused. */
+.welcome-role-tip {
+  position: fixed;
+  z-index: 10;
+  padding: 0.35em 0.6em;
+  border-radius: 0.5em;
+  background: #171717;
+  color: #fff;
+  font: 500 12px/1.2 var(--sans);
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate(-50%, -100%);
+  animation: welcome-tip-in 0.12s ease-out both;
+}
+
+.welcome-role-tip::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  width: 8px;
+  height: 8px;
+  background: #171717;
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.welcome-role-tip.is-below {
+  transform: translate(-50%, 0);
+}
+
+.welcome-role-tip.is-below::after {
+  top: -4px;
+  bottom: auto;
+}
+
+@keyframes welcome-tip-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.welcome-summary-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.welcome-summary-chip {
+  padding: 3px 10px;
+  border: 1px solid #e3d3bb;
+  border-radius: 999px;
+  background: #fff;
+  color: #8a6d4f;
+  font: 500 max(0.68em, 11px) var(--sans);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.welcome-summary-chip:hover {
+  background: #f6ead3;
+}
+
+.welcome-card-tile {
+  --tile-pad: 1em 0.8em;
+  position: relative;
+  padding: var(--tile-pad);
   border: 1px solid rgba(23, 23, 23, 0.1);
   border-radius: 1em;
   animation: welcome-tile-lit 0.9s ease both;
@@ -184,7 +565,7 @@
   font-weight: 600;
 }
 
-.welcome-card-tile > span:last-child {
+.welcome-card-tile-body {
   display: block;
   margin-top: 2px;
   font-size: max(0.76em, 11px);
@@ -235,12 +616,12 @@
     padding-top: 0.8em;
   }
 
-  .welcome-card-tiles {
+  .welcome-card-area {
     margin-top: 0.9em;
   }
 
   .welcome-card-tile {
-    padding: 0.7em 0.7em;
+    --tile-pad: 0.7em 0.7em;
   }
 
   .welcome-card-tile-icon {
@@ -330,7 +711,8 @@
 .tour {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  /* Above everything on Home, the top bar's 1200 included, so only the stop shows through. */
+  z-index: 1500;
 }
 
 .tour-shade {

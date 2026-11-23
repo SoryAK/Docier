@@ -1,12 +1,37 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FocusEvent, type PointerEvent, type RefObject } from "react";
 import { createPortal } from "react-dom";
-import { History, Plus, Share, Users, ArrowRight, type LucideIcon } from "lucide-react";
 import {
+  AlignLeft,
+  ArrowRight,
+  Building2,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Globe,
+  GraduationCap,
+  History,
+  Lightbulb,
+  MapPin,
+  Plus,
+  Share,
+  Trophy,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
+import type { CareerFile } from "@core/career-file";
+import {
+  countedGaps,
+  jobFields,
+  jobGaps,
   pickAnchors,
+  schoolFields,
+  schoolGaps,
   shouldWelcome,
   tourSteps,
   welcomeCard,
   welcomeHeading,
+  welcomeNudge,
+  type RoleField,
   type TourAnchor,
   type TourStep,
   type WelcomeTile,
@@ -16,6 +41,13 @@ import mark from "./branding/docier-mark.svg";
 import { readTourPreview } from "./dev-routes";
 import { TOUR_REVEAL, type TourReveal } from "./tour-reveal";
 import "./welcome-tour.css";
+
+/** Where an action on the card takes the occupant: the place it is filled in. */
+export type WelcomeDestination =
+  | { kind: "role"; id: string }
+  | { kind: "history" }
+  | { kind: "network" }
+  | { kind: "page" };
 
 export type FirstRunMarks = {
   onboardingCompletedAt?: string | null;
@@ -38,16 +70,18 @@ const GUTTER = 16;
 export function WelcomeTour({
   firstName,
   marks,
-  counts,
+  career,
   ready,
   tourRequest,
   onBeforeTour,
   onSaved,
   onAddJob,
+  onGo,
 }: {
   firstName: string;
   marks: FirstRunMarks;
-  counts: { jobs: number; schools: number };
+  /** The saved career: picks the card's version, and fills the boxes' summaries. */
+  career: CareerFile;
   /** False while the career is still loading; the card waits so it shows the right version. */
   ready: boolean;
   /** Changes when the occupant asks for the tour again (from the user menu). */
@@ -56,6 +90,8 @@ export function WelcomeTour({
   onBeforeTour: () => void;
   onSaved: (profile: FirstRunMarks & Record<string, unknown>) => void;
   onAddJob: () => void;
+  /** Leaves the card for where something is filled in. */
+  onGo: (destination: WelcomeDestination) => void;
 }) {
   const [preview, setPreview] = useState(readTourPreview);
   // Each start of the tour begins at its first step, even over one already open.
@@ -128,7 +164,14 @@ export function WelcomeTour({
     return (
       <WelcomeCard
         firstName={firstName}
-        empty={preview ? preview.empty : counts.jobs + counts.schools === 0}
+        empty={preview ? preview.empty : career.jobs.length + career.schools.length === 0}
+        career={career}
+        onGo={(destination) => {
+          setPhase(null);
+          void save({ welcomeSeen: true });
+          leavePreview();
+          onGo(destination);
+        }}
         onNotNow={() => {
           setPhase(null);
           void save({ welcomeSeen: true });
@@ -166,18 +209,67 @@ export function WelcomeTour({
 
 const TILE_ICONS: Record<WelcomeTile["icon"], LucideIcon> = { history: History, network: Users, share: Share, add: Plus };
 
+type Summary = "history" | "network" | "share";
+const SUMMARY_FOR: Record<string, Summary> = { history: "history", network: "network", share: "share" };
+type PageSettings = { slug: string; visibility: string; sections: string[]; targetRole: string };
+
 function WelcomeCard({
   firstName,
   empty,
+  career,
   onNotNow,
   onStart,
+  onGo,
 }: {
   firstName: string;
   /** Nothing saved yet: the card talks about starting, not about what is there. */
   empty: boolean;
+  career: CareerFile;
   onNotNow: () => void;
   onStart: () => void;
+  onGo: (destination: WelcomeDestination) => void;
 }) {
+  // With a career, each box opens a short summary in the boxes' own space; the card never grows.
+  const [open, setOpen] = useState<Summary | null>(null);
+  const [people, setPeople] = useState<number | null>(null);
+  const [page, setPage] = useState<PageSettings | null>(null);
+  const backRef = useRef<HTMLButtonElement>(null);
+  const tileRefs = useRef<Partial<Record<Summary, HTMLButtonElement | null>>>({});
+  useEffect(() => {
+    if (empty) return;
+    let cancel = false;
+    void (async () => {
+      try {
+        const [network, settings] = await Promise.all([fetch("/api/career-management"), fetch("/api/work-map/settings")]);
+        const contacts = network.ok ? (((await network.json()) as { contacts?: unknown[] }).contacts ?? []) : [];
+        const saved = settings.ok ? ((await settings.json()) as { settings?: PageSettings }).settings ?? null : null;
+        if (cancel) return;
+        setPeople(contacts.length);
+        setPage(saved);
+      } catch {
+        /* The summaries show what they have; the boxes still work. */
+      }
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [empty]);
+  useEffect(() => {
+    // The grown card may scroll on a short screen; bring the summary into view.
+    if (open) backRef.current?.focus();
+  }, [open]);
+  function closeSummary() {
+    const was = open;
+    setOpen(null);
+    if (was) requestAnimationFrame(() => tileRefs.current[was]?.focus({ preventScroll: true }));
+  }
+  const todo: Record<Summary, number> = {
+    history:
+      career.jobs.reduce((sum, job) => sum + countedGaps(jobGaps(job)), 0) +
+      career.schools.reduce((sum, school) => sum + countedGaps(schoolGaps(school)), 0),
+    network: people === 0 ? 1 : 0,
+    share: page ? 1 : 0,
+  };
   const ref = useRef<HTMLDialogElement>(null);
   const startRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -197,7 +289,9 @@ function WelcomeCard({
       aria-labelledby="welcome-card-title"
       onCancel={(event) => {
         event.preventDefault();
-        onNotNow();
+        // Escape steps back out of a summary first.
+        if (open) closeSummary();
+        else onNotNow();
       }}
     >
       <div className="welcome-card-banner">
@@ -220,23 +314,68 @@ function WelcomeCard({
           )}
         </h2>
         <p className="welcome-card-lede">{content.lede}</p>
-        <ol className="welcome-card-tiles">
-          {content.tiles.map((tile, at) => {
-            const TileIcon = TILE_ICONS[tile.icon];
-            return (
-              <li key={tile.title} className="welcome-card-tile">
-                <span className="welcome-card-tile-n" aria-hidden="true">
-                  {at + 1}
-                </span>
-                <span className="welcome-card-tile-icon" aria-hidden="true">
-                  <TileIcon size={18} strokeWidth={1.75} />
-                </span>
-                <strong>{tile.title}</strong>
-                <span>{tile.body}</span>
-              </li>
-            );
-          })}
-        </ol>
+        {open ? (
+          <p key={open} className="welcome-card-nudge" aria-live="polite">
+            <Lightbulb size={15} strokeWidth={1.9} aria-hidden="true" />
+            <span>{welcomeNudge(open, { jobs: career.jobs, people, page })}</span>
+          </p>
+        ) : null}
+        <div className={open ? "welcome-card-area is-open" : "welcome-card-area"}>
+          <ol className="welcome-card-tiles" aria-hidden={open ? true : undefined}>
+            {content.tiles.map((tile, at) => {
+              const TileIcon = TILE_ICONS[tile.icon];
+              const summary = empty ? undefined : SUMMARY_FOR[tile.stop];
+              const inner = (
+                <>
+                  <span className="welcome-card-tile-n" aria-hidden="true">
+                    {at + 1}
+                  </span>
+                  {summary && todo[summary] > 0 ? (
+                    <span className="welcome-card-tile-todo" title="Things to do">
+                      {todo[summary]}
+                    </span>
+                  ) : null}
+                  <span className="welcome-card-tile-icon" aria-hidden="true">
+                    <TileIcon size={18} strokeWidth={1.75} />
+                  </span>
+                  <strong>{tile.title}</strong>
+                  <span className="welcome-card-tile-body">{tile.body}</span>
+                  {summary ? <span className="welcome-card-tile-more">See details ›</span> : null}
+                </>
+              );
+              return (
+                <li key={tile.title} className="welcome-card-tile">
+                  {summary ? (
+                    <button
+                      type="button"
+                      className="welcome-card-tile-button"
+                      ref={(node) => {
+                        tileRefs.current[summary] = node;
+                      }}
+                      tabIndex={open ? -1 : undefined}
+                      onClick={() => setOpen(summary)}
+                    >
+                      {inner}
+                    </button>
+                  ) : (
+                    inner
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+          {open ? (
+            <WelcomeSummary
+              which={open}
+              career={career}
+              people={people}
+              page={page}
+              backRef={backRef}
+              onBack={closeSummary}
+              onGo={onGo}
+            />
+          ) : null}
+        </div>
         <div className="welcome-card-actions">
           <button type="button" className="welcome-link" onClick={onNotNow}>
             I'll explore on my own
@@ -249,6 +388,250 @@ function WelcomeCard({
         <p className="welcome-card-later">You can take the tour anytime from your menu.</p>
       </div>
     </dialog>
+  );
+}
+
+type Tip = { text: string; rect: DOMRect };
+
+/** A label over the hovered icon, drawn outside the scrolling list so it can't be clipped. */
+function RoleTip({ tip }: { tip: Tip | null }) {
+  if (!tip) return null;
+  const above = tip.rect.top > 40;
+  return createPortal(
+    <span
+      className={above ? "welcome-role-tip" : "welcome-role-tip is-below"}
+      role="tooltip"
+      style={{
+        left: tip.rect.left + tip.rect.width / 2,
+        top: above ? tip.rect.top - 8 : tip.rect.bottom + 8,
+      }}
+    >
+      {tip.text}
+    </span>,
+    // Inside the open card: a modal dialog sits above the rest of the page.
+    document.querySelector("dialog.welcome-card[open]") ?? document.body,
+  );
+}
+
+const FIELD_ICONS: Record<RoleField["kind"], LucideIcon> = {
+  company: Building2,
+  dates: CalendarDays,
+  place: MapPin,
+  description: AlignLeft,
+  achievements: Trophy,
+  degree: GraduationCap,
+};
+
+/**
+ * One saved role: a ring for how much is filled in, its name, and a strip of its fields.
+ * Every icon opens the role, where the field is filled in.
+ */
+function RoleRow({
+  title,
+  meta,
+  fields,
+  extra,
+  onOpen,
+  onTip,
+}: {
+  title: string;
+  meta: string;
+  fields: RoleField[];
+  /** Offered on every role, not yet kept, so not counted. */
+  extra: { label: string; icon: LucideIcon };
+  onOpen: () => void;
+  /** Shows what an icon means while it is hovered or focused; null hides it. */
+  onTip: (tip: Tip | null) => void;
+}) {
+  const tipProps = (text: string) => ({
+    onPointerEnter: (event: PointerEvent<HTMLElement>) => onTip({ text, rect: event.currentTarget.getBoundingClientRect() }),
+    onPointerLeave: () => onTip(null),
+    onFocus: (event: FocusEvent<HTMLElement>) => onTip({ text, rect: event.currentTarget.getBoundingClientRect() }),
+    onBlur: () => onTip(null),
+  });
+  const done = fields.filter((field) => field.done).length;
+  const share = fields.length ? done / fields.length : 0;
+  const Extra = extra.icon;
+  return (
+    <li className="welcome-role">
+      <span
+        className={done === fields.length ? "welcome-role-ring is-full" : "welcome-role-ring"}
+        role="img"
+        aria-label={`${done} of ${fields.length} filled in`}
+        {...tipProps(`${done} of ${fields.length} filled in`)}
+      >
+        <svg viewBox="0 0 36 36" aria-hidden="true">
+          <circle cx="18" cy="18" r="15" className="welcome-role-ring-track" />
+          <circle cx="18" cy="18" r="15" className="welcome-role-ring-fill" pathLength={100} strokeDasharray={`${share * 100} 100`} />
+        </svg>
+        <span aria-hidden="true">{done}</span>
+      </span>
+      <div className="welcome-role-name">
+        <b>{title}</b>
+        <small>{meta}</small>
+      </div>
+      <span className="welcome-role-fields">
+        {fields.map((field) => {
+          const FieldIcon = FIELD_ICONS[field.kind];
+          const label = field.done ? `${field.label}: filled in` : `${field.label}: add it`;
+          return (
+            <button
+              key={field.kind}
+              type="button"
+              className={field.done ? "welcome-role-field is-done" : "welcome-role-field"}
+              aria-label={`${title}, ${label}`}
+              {...tipProps(field.done ? `${field.label} · filled in` : `${field.label} · add it`)}
+              onClick={onOpen}
+            >
+              <FieldIcon size={15} strokeWidth={1.8} aria-hidden="true" />
+            </button>
+          );
+        })}
+        <span className="welcome-role-sep" aria-hidden="true" />
+        <button
+          type="button"
+          className="welcome-role-field is-extra"
+          aria-label={`${title}, ${extra.label}`}
+          {...tipProps(`${extra.label} · coming soon`)}
+          onClick={onOpen}
+        >
+          <Extra size={15} strokeWidth={1.8} aria-hidden="true" />
+        </button>
+      </span>
+    </li>
+  );
+}
+
+function WelcomeSummary({
+  which,
+  career,
+  people,
+  page,
+  backRef,
+  onBack,
+  onGo,
+}: {
+  which: Summary;
+  career: CareerFile;
+  people: number | null;
+  page: PageSettings | null;
+  backRef: RefObject<HTMLButtonElement | null>;
+  onBack: () => void;
+  onGo: (destination: WelcomeDestination) => void;
+}) {
+  const year = (date: string) => date.slice(0, 4);
+  const [tip, setTip] = useState<Tip | null>(null);
+  const head = (title: string, meta: string, open: string, destination: WelcomeDestination) => (
+    <div className="welcome-summary-head">
+      <button ref={backRef} type="button" className="welcome-summary-back" aria-label="Back" onClick={onBack}>
+        <ChevronLeft size={16} strokeWidth={2} aria-hidden="true" />
+      </button>
+      <strong>{title}</strong>
+      <small>{meta}</small>
+      <button type="button" className="welcome-summary-open" onClick={() => onGo(destination)}>
+        {open}
+        <ChevronRight size={14} strokeWidth={2} aria-hidden="true" />
+      </button>
+    </div>
+  );
+  const chip = (label: string, destination: WelcomeDestination, key: string) => (
+    <button key={key} type="button" className="welcome-summary-chip" onClick={() => onGo(destination)}>
+      {label}
+    </button>
+  );
+
+  if (which === "history") {
+    const schools = career.schools.length;
+    return (
+      <section className="welcome-summary" aria-label="Your roles" onScrollCapture={() => setTip(null)}>
+        <RoleTip tip={tip} />
+        {head(
+          "Your roles",
+          `${career.jobs.length} ${career.jobs.length === 1 ? "job" : "jobs"} · ${schools} ${schools === 1 ? "school" : "schools"}`,
+          "Open Career History",
+          { kind: "history" },
+        )}
+        <ul className="welcome-summary-rows">
+          {career.jobs.map((job) => (
+            <RoleRow
+              key={job.id}
+              title={job.title || "Untitled role"}
+              meta={`${job.company} · ${job.startDate ? year(job.startDate) : "no dates"}${job.isCurrent ? "–now" : job.endDate ? `–${year(job.endDate)}` : ""}`}
+              fields={jobFields(job)}
+              extra={{ label: "Company details", icon: Globe }}
+              onOpen={() => onGo({ kind: "role", id: job.id })}
+              onTip={setTip}
+            />
+          ))}
+          {career.schools.map((school) => (
+            <RoleRow
+              key={school.id}
+              title={school.institution}
+              meta={[school.degree, school.field].filter(Boolean).join(" · ") || "School"}
+              fields={schoolFields(school)}
+              extra={{ label: "School details", icon: Globe }}
+              onOpen={() => onGo({ kind: "role", id: school.id })}
+              onTip={setTip}
+            />
+          ))}
+        </ul>
+      </section>
+    );
+  }
+
+  if (which === "network") {
+    const companies = [...new Set(career.jobs.map((job) => job.company.trim()).filter((name) => name && !/^untitled/i.test(name)))];
+    return (
+      <section className="welcome-summary" aria-label="Your network">
+        {head("Your network", people === null ? "" : `${people} ${people === 1 ? "person" : "people"}`, "Open My Network", { kind: "network" })}
+        <ul className="welcome-summary-rows">
+          <li className="welcome-summary-note">
+            {people
+              ? "Add more people from the jobs you've had."
+              : "No one in My Network yet. Start with someone from a job you've had: a manager, a teammate, or someone who can vouch for your work."}
+          </li>
+          {companies.map((company) => (
+            <li key={company}>
+              <div>
+                <b>{company}</b>
+                <small>
+                  {career.jobs
+                    .filter((job) => job.company.trim() === company)
+                    .map((job) => job.title)
+                    .join(", ")}
+                </small>
+              </div>
+              <span className="welcome-summary-chips">{chip("Add someone", { kind: "network" }, "add")}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+    );
+  }
+
+  const rows: Array<{ label: string; value: string; action: string }> = page
+    ? [
+        { label: "Who can see it", value: page.visibility === "access-controlled" ? "Only people you let in" : "Anyone with the link", action: "Change" },
+        { label: "Sections", value: page.sections.join(", "), action: "Choose" },
+        { label: "Target role", value: page.targetRole || "Not set", action: page.targetRole ? "Change" : "Set it" },
+      ]
+    : [];
+  return (
+    <section className="welcome-summary" aria-label="Your page">
+      {head("Your page", page ? `/${page.slug}` : "", "Page settings", { kind: "page" })}
+      <ul className="welcome-summary-rows">
+        {rows.length === 0 ? <li className="welcome-summary-note">Your page isn't set up yet.</li> : null}
+        {rows.map((row) => (
+          <li key={row.label}>
+            <div>
+              <b>{row.label}</b>
+              <small>{row.value}</small>
+            </div>
+            <span className="welcome-summary-chips">{chip(row.action, { kind: "page" }, row.label)}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

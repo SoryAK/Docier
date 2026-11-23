@@ -1653,6 +1653,7 @@ export function Onboarding({
                   })}
                   photo={photoPreview}
                   resumes={files.map((row) => row.file.name)}
+                  busy={busy}
                   onFirstName={setFirstName}
                   onLastName={setLastName}
                   onHeadline={setHeadline}
@@ -1883,6 +1884,7 @@ function SubmittedSummary({
   saved,
   photo,
   resumes,
+  busy = false,
   onFirstName,
   onLastName,
   onHeadline,
@@ -1898,6 +1900,8 @@ function SubmittedSummary({
   saved: ProfileFields;
   photo: string | null;
   resumes: string[];
+  /** Finish is saving: nothing here can change until it is done. */
+  busy?: boolean;
   onFirstName: (value: string) => void;
   onLastName: (value: string) => void;
   onHeadline: (value: string) => void;
@@ -1934,7 +1938,7 @@ function SubmittedSummary({
   };
 
   return (
-    <div className="onboarding-submitted">
+    <fieldset className="onboarding-submitted" disabled={busy}>
       <section className="onboarding-submitted-section" aria-label="Profile">
         <div className="onboarding-submitted-head">
           <button
@@ -2087,7 +2091,7 @@ function SubmittedSummary({
           ) : null}
         </section>
       ) : null}
-    </div>
+    </fieldset>
   );
 }
 

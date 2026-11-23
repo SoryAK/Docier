@@ -1,7 +1,7 @@
 /**
  * The first run after onboarding: a welcome card, then an offered tour of Home.
  * The tour's steps live here, in one place, so a change to a screen the tour
- * points at has one list to update.
+ * points at has one list to update. Every release reviews them: docs/release.md.
  */
 
 /** Where a step points. Each anchor is a `data-tour` value on Home. */

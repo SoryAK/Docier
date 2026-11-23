@@ -31,6 +31,10 @@ the pull request is ready to merge:
 Write both on the pull request. `test` still has to pass. It does not stand in
 for that review.
 
+## Releases
+
+Releases have their own checklist, [release.md](release.md). It includes a required review of the tour and the welcome card.
+
 ## Local parity
 
 ```sh

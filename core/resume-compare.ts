@@ -6,6 +6,9 @@ import {
 } from "./onboarding-review";
 import type { ExtractedJob, ExtractedResume, ExtractedSchool } from "./resume-extract";
 
+/** The file index of a job or school typed by hand. No resume file has it, so none backs the role. */
+export const NO_RESUME_FILE = -1;
+
 /** A role confirmed in this session, still unsaved. */
 export type HeldRole = {
   id: string;
@@ -395,7 +398,7 @@ export function historyFromHeld(roles: readonly HeldRole[], skills: readonly Hel
         site,
       });
       educationRoleIds.push(role.id);
-      educationEvidence.push({ files: role.evidenceFiles.length > 0 ? [...role.evidenceFiles] : [0] });
+      educationEvidence.push({ files: resumeFilesFor(role) });
       continue;
     }
     experience.push({
@@ -411,7 +414,7 @@ export function historyFromHeld(roles: readonly HeldRole[], skills: readonly Hel
     });
     experienceRoleIds.push(role.id);
     experienceEvidence.push({
-      files: role.evidenceFiles.length > 0 ? [...role.evidenceFiles] : [0],
+      files: resumeFilesFor(role),
       achievements: achievements.map((row) => row.file),
     });
   }
@@ -480,6 +483,13 @@ export function evidenceLinksFit(extracted: ExtractedResume, links: HistoryEvide
   return links.experience.every(
     (link, index) => link.achievementResumeIds.length === extracted.experience[index].achievements.length,
   );
+}
+
+/** The resume files behind a role. Typed by hand, none; with no file named, the first resume. */
+function resumeFilesFor(role: HeldRole): number[] {
+  const files = role.evidenceFiles.filter((file) => file !== NO_RESUME_FILE);
+  if (files.length > 0) return files;
+  return role.evidenceFiles.includes(NO_RESUME_FILE) ? [] : [0];
 }
 
 function holdRole(item: OnboardingCheckItem, fileIndex: number): HeldRole {
@@ -666,9 +676,10 @@ function readExperienceLinks(
   for (const entry of raw) {
     if (!entry || typeof entry !== "object") return null;
     const record = entry as Record<string, unknown>;
+    // No resume ids: typed by hand, so nothing backs the job or its achievements.
     const resumeIds = readIdList(record.resumeIds);
-    const achievementResumeIds = readIdList(record.achievements);
-    if (!resumeIds || !achievementResumeIds || resumeIds.length === 0) return null;
+    const achievementResumeIds = readIdList(record.achievements, { blank: true });
+    if (!resumeIds || !achievementResumeIds) return null;
     links.push({ resumeIds, achievementResumeIds });
   }
   return links;
@@ -680,7 +691,7 @@ function readEducationLinks(raw: unknown): HistoryEvidenceLinks["education"] | n
   for (const entry of raw) {
     if (!entry || typeof entry !== "object") return null;
     const resumeIds = readIdList((entry as Record<string, unknown>).resumeIds);
-    if (!resumeIds || resumeIds.length === 0) return null;
+    if (!resumeIds) return null;
     links.push({ resumeIds });
   }
   return links;
@@ -696,11 +707,11 @@ function readSkillLinks(raw: unknown): string[] | null {
   return ids;
 }
 
-function readIdList(raw: unknown): string[] | null {
+function readIdList(raw: unknown, options: { blank?: boolean } = {}): string[] | null {
   if (!Array.isArray(raw)) return null;
   const ids: string[] = [];
   for (const entry of raw) {
-    if (typeof entry !== "string" || !entry.trim()) return null;
+    if (typeof entry !== "string" || (!options.blank && !entry.trim())) return null;
     ids.push(entry.trim());
   }
   return ids;

@@ -2,17 +2,12 @@ import { describe, expect, it } from "vitest";
 import { nextOnboardingStep, onboardingSteps, previousOnboardingStep } from "./onboarding-steps";
 
 describe("onboarding steps", () => {
-  it("leaves Integrations out when no account can be connected", () => {
-    expect(onboardingSteps({ canConnect: false })).toEqual(["name", "model", "file", "check"]);
-    expect(onboardingSteps({ canConnect: true })).toEqual(["name", "model", "integrations", "file", "check"]);
-  });
-
-  it("leaves Verify out when no model will read the resume", () => {
-    expect(onboardingSteps({ canConnect: false, reading: false })).toEqual(["name", "model", "file"]);
+  it("shows Profile, Model, Resume, and Verify, with or without a model", () => {
+    expect(onboardingSteps()).toEqual(["name", "model", "file", "check"]);
   });
 
   it("moves between the steps that are shown", () => {
-    const steps = onboardingSteps({ canConnect: false });
+    const steps = onboardingSteps();
     expect(nextOnboardingStep(steps, "model")).toBe("file");
     expect(previousOnboardingStep(steps, "file")).toBe("model");
     expect(previousOnboardingStep(steps, "name")).toBe("name");

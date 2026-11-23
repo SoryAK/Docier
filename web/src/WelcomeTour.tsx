@@ -145,6 +145,8 @@ export function WelcomeTour({
   }
 
   if (phase === "tour") {
+    // Before the career loads, Home shows "Start your story" and would pick the short tour.
+    if (!ready) return null;
     return (
       <Tour
         key={tourRun}
@@ -253,12 +255,17 @@ function anchorsOnScreen(): Set<TourAnchor> {
   return new Set(ANCHORS.filter((anchor) => anchorRects([anchor]).length > 0));
 }
 
-/** Each anchor's elements merged into one box; anchors not on screen are left out. */
-function anchorRects(anchors: TourAnchor[]): Rect[] {
+/**
+ * Each anchor's elements merged into one box; anchors with nothing drawn are left out.
+ * With `inView`, only boxes inside the window count, so one outline never spans a
+ * part at the top and another far below the fold.
+ */
+function anchorRects(anchors: TourAnchor[], inView = false): Rect[] {
   return anchors.flatMap((anchor) => {
     const boxes = [...document.querySelectorAll<HTMLElement>(`[data-tour="${anchor}"]`)]
       .map((el) => el.getBoundingClientRect())
-      .filter((box) => box.width > 0 && box.height > 0);
+      .filter((box) => box.width > 0 && box.height > 0)
+      .filter((box) => !inView || (box.bottom > 0 && box.right > 0 && box.top < window.innerHeight && box.left < window.innerWidth));
     if (boxes.length === 0) return [];
     const top = Math.min(...boxes.map((box) => box.top));
     const left = Math.min(...boxes.map((box) => box.left));
@@ -282,6 +289,21 @@ function Tour({
   const [cardHeight, setCardHeight] = useState(180);
   const cardRef = useRef<HTMLDivElement>(null);
   const step = steps?.[index];
+
+  // Closing the tour puts focus back where it was, or on the menu button if that is gone.
+  useEffect(() => {
+    const returnTo = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    return () => {
+      const target =
+        returnTo && returnTo.isConnected && returnTo !== document.body
+          ? returnTo
+          : document.querySelector<HTMLElement>('[data-tour="menu"]');
+      // Only if nothing else took focus, such as the new job the short tour opens.
+      requestAnimationFrame(() => {
+        if (!document.activeElement || document.activeElement === document.body) target?.focus();
+      });
+    };
+  }, []);
   const last = steps ? index === steps.length - 1 : false;
 
   // Home may still be drawing or loading its story, so look for the anchors for a moment before starting.
@@ -325,7 +347,10 @@ function Tour({
       cancelAnimationFrame(frame);
       // Two frames: an opened group draws on the first.
       frame = requestAnimationFrame(() => {
-        frame = requestAnimationFrame(() => setRects(anchorRects(chosen)));
+        frame = requestAnimationFrame(() => {
+          const shown = anchorRects(chosen, true);
+          setRects(shown.length > 0 ? shown : anchorRects(chosen));
+        });
       });
     };
     requestAnimationFrame(() => {
@@ -353,6 +378,16 @@ function Tour({
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
+      if (event.key === "Tab") {
+        // The tour is modal: Tab cycles through the card's buttons, never into Home behind it.
+        const buttons = [...(cardRef.current?.querySelectorAll<HTMLElement>("button") ?? [])];
+        if (buttons.length === 0) return;
+        event.preventDefault();
+        const at = buttons.indexOf(document.activeElement as HTMLElement);
+        const next = event.shiftKey ? (at <= 0 ? buttons.length - 1 : at - 1) : (at + 1) % buttons.length;
+        buttons[next]?.focus();
+        return;
+      }
       if (event.key === "Escape") onEnd();
       else if (event.key === "ArrowRight" && !last) setIndex((current) => current + 1);
       else if (event.key === "ArrowLeft" && index > 0) setIndex((current) => current - 1);
@@ -446,10 +481,10 @@ function cardPlace(rect: Rect | undefined, cardHeight: number, width: number, he
   if (!rect) return { top: clampTop((height - cardHeight) / 2), left: clampLeft((width - cardWidth) / 2) };
   const gap = HOLE_PAD + 12;
   if (rect.top + rect.height + gap + cardHeight <= height - GUTTER) {
-    return { top: rect.top + rect.height + gap, left: clampLeft(rect.left) };
+    return { top: clampTop(rect.top + rect.height + gap), left: clampLeft(rect.left) };
   }
   if (rect.top - gap - cardHeight >= GUTTER) {
-    return { top: rect.top - gap - cardHeight, left: clampLeft(rect.left) };
+    return { top: clampTop(rect.top - gap - cardHeight), left: clampLeft(rect.left) };
   }
   if (rect.left + rect.width + gap + cardWidth <= width - GUTTER) {
     return { top: clampTop(rect.top), left: rect.left + rect.width + gap };

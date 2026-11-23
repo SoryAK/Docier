@@ -49,6 +49,8 @@ describe("first run", () => {
     const short = tourSteps({ empty: true });
     expect(short.map((step) => step.id)).toEqual(["start", "history", "network"]);
     expect(short.at(-1)?.finish).toBe("add-job");
+    // A cloud model may already read resumes, so only the page's privacy is promised.
+    expect(full.at(-1)?.body).toBe("Preview your page, then publish it. Your page stays private until you publish.");
     for (const steps of [full, short]) {
       const network = steps.find((step) => step.id === "network");
       expect(network).toMatchObject({ anchors: ["network"], reveal: "resources", fallback: ["menu"] });

@@ -61,7 +61,8 @@ const FULL_TOUR: TourStep[] = [
     id: "share",
     anchors: ["share"],
     title: "Share when you're ready",
-    body: "Preview your page, then publish it. Nothing leaves this computer until you publish.",
+    // Only the page's privacy is promised: a cloud model, if chosen, already reads resumes.
+    body: "Preview your page, then publish it. Your page stays private until you publish.",
   },
 ];
 

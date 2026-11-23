@@ -661,6 +661,8 @@ export function Home({
         onSaved={(saved) => onProfileSaved({ ...profile, ...saved })}
         onAddJob={() => {
           setFocusJobId(null);
+          // Career History is drawn only with the sidebar open; the new job needs it.
+          showLeft();
           goPage("history");
           setAddRequest({ kind: "job", nonce: Date.now() });
         }}

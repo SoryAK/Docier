@@ -50,6 +50,7 @@ export function Home({
   initialFocusTab,
   profile,
   career,
+  careerReady = true,
   careerError,
   onProfileSaved,
 }: {
@@ -57,6 +58,8 @@ export function Home({
   initialFocusTab?: DetailTab;
   profile: OnboardingProfileValue & FirstRunMarks;
   career: CareerFile;
+  /** False until the career has loaded; the welcome card waits for it. */
+  careerReady?: boolean;
   careerError: string | null;
   onProfileSaved: (profile: OnboardingProfileValue & FirstRunMarks) => void;
 }) {
@@ -648,6 +651,7 @@ export function Home({
         firstName={profile.firstName}
         marks={profile}
         counts={{ jobs: career.jobs.length, schools: career.schools.length }}
+        ready={careerReady}
         tourRequest={tourRequest}
         onBeforeTour={() => {
           setSearchOpen(false);

@@ -590,10 +590,13 @@ export { describeModelFailure, type ModelFailure, type ModelFailureKind } from "
 export { nextOnboardingStep, onboardingSteps, previousOnboardingStep, type OnboardingStepId } from "./onboarding-steps";
 export {
   parseFirstRunUpdate,
+  pickAnchors,
   shouldWelcome,
   tourSteps,
-  welcomeSavedLine,
+  welcomeCard,
+  welcomeHeading,
   type FirstRunUpdate,
   type TourAnchor,
   type TourStep,
+  type WelcomeTile,
 } from "./first-run";

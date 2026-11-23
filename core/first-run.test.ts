@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { parseFirstRunUpdate, shouldWelcome, tourSteps, welcomeSavedLine } from "./first-run";
+import {
+  parseFirstRunUpdate,
+  pickAnchors,
+  shouldWelcome,
+  tourSteps,
+  welcomeCard,
+  welcomeHeading,
+  type TourAnchor,
+} from "./first-run";
 
 describe("first run", () => {
   it("welcomes once, after onboarding", () => {
@@ -10,19 +18,55 @@ describe("first run", () => {
     );
   });
 
-  it("names only what was saved", () => {
-    expect(welcomeSavedLine({ jobs: 9, schools: 2 })).toBe("Saved: 9 jobs · 2 schools");
-    expect(welcomeSavedLine({ jobs: 1, schools: 0 })).toBe("Saved: 1 job");
-    expect(welcomeSavedLine({ jobs: 0, schools: 0 })).toBeNull();
+  it("greets by first name, or just welcomes", () => {
+    expect(welcomeHeading("  Sory ")).toEqual({ lead: "Welcome", name: "Sory" });
+    expect(welcomeHeading("")).toEqual({ lead: "Welcome", name: null });
+  });
+
+  it("previews the tour on the card, with a version for an empty career", () => {
+    expect(welcomeCard({ empty: false })).toEqual({
+      lede: "Everything you've done, in one place you control.",
+      tiles: [
+        { icon: "history", title: "Add your history", body: "Jobs, schools, and proof of your work" },
+        { icon: "network", title: "Build your network", body: "People you've worked with and trust" },
+        { icon: "share", title: "Share it", body: "Publish a page when you're ready" },
+      ],
+    });
+    expect(welcomeCard({ empty: true })).toEqual({
+      lede: "Let's build your career here, one job at a time.",
+      tiles: [
+        { icon: "add", title: "Add your first job", body: "Start with the role you have now" },
+        { icon: "history", title: "Build your history", body: "Every job and school in one place" },
+        { icon: "network", title: "Build your network", body: "Add the people you've worked with" },
+      ],
+    });
   });
 
   it("tours the whole of Home with a career, and ends on adding a job without one", () => {
     const full = tourSteps({ empty: false });
-    expect(full.map((step) => step.id)).toEqual(["overview", "history", "find", "share"]);
+    expect(full.map((step) => step.id)).toEqual(["overview", "history", "network", "share"]);
     expect(full.some((step) => step.finish)).toBe(false);
     const short = tourSteps({ empty: true });
-    expect(short.map((step) => step.id)).toEqual(["start", "history", "find"]);
+    expect(short.map((step) => step.id)).toEqual(["start", "history", "network"]);
     expect(short.at(-1)?.finish).toBe("add-job");
+    for (const steps of [full, short]) {
+      const network = steps.find((step) => step.id === "network");
+      expect(network).toMatchObject({ anchors: ["network"], reveal: "resources", fallback: ["menu"] });
+      expect(steps.find((step) => step.id === "history")?.fallback).toEqual(["menu"]);
+    }
+  });
+
+  it("points a step at what is on screen, opening Resources or falling back to the menu", () => {
+    const network = tourSteps({ empty: false }).find((step) => step.id === "network")!;
+    const history = tourSteps({ empty: false }).find((step) => step.id === "history")!;
+    const on = (...anchors: TourAnchor[]) => new Set<TourAnchor>(anchors);
+    expect(pickAnchors(network, on("network", "resources", "menu"))).toEqual(["network"]);
+    expect(pickAnchors(network, on("resources", "menu"))).toEqual(["network"]);
+    expect(pickAnchors(network, on("menu"))).toEqual(["menu"]);
+    expect(pickAnchors(network, on())).toBeNull();
+    expect(pickAnchors(history, on("map", "menu"))).toEqual(["map"]);
+    expect(pickAnchors(history, on("history-nav", "map"))).toEqual(["history-nav", "map"]);
+    expect(pickAnchors(history, on("menu"))).toEqual(["menu"]);
   });
 
   it("reads a first-run update and refuses anything else", () => {

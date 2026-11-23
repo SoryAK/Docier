@@ -12,7 +12,12 @@ export type TourAnchor =
   | "search"
   | "recent"
   | "share"
-  | "start";
+  | "start"
+  | "network"
+  /** The sidebar's Resources toggle; My Network sits inside it. */
+  | "resources"
+  /** The menu button, for stops whose part of Home is in a hidden sidebar (phones). */
+  | "menu";
 
 export type TourStep = {
   id: string;
@@ -22,6 +27,19 @@ export type TourStep = {
   body: string;
   /** The last step's main button does this instead of just closing the tour. */
   finish?: "add-job";
+  /** A closed group to open for this step, so its anchors come on screen. */
+  reveal?: "resources";
+  /** Pointed at when neither the anchors nor the group to open are on screen. */
+  fallback?: TourAnchor[];
+};
+
+const NETWORK_STEP: TourStep = {
+  id: "network",
+  anchors: ["network"],
+  reveal: "resources",
+  fallback: ["menu"],
+  title: "Build your network",
+  body: "My Network keeps the people you've worked with and your conversations with them. Add someone to start.",
 };
 
 const FULL_TOUR: TourStep[] = [
@@ -34,15 +52,11 @@ const FULL_TOUR: TourStep[] = [
   {
     id: "history",
     anchors: ["history-nav", "map"],
+    fallback: ["menu"],
     title: "Everything you've done",
     body: "Every job, school, and achievement lives in Career History. Open one to edit it or add evidence. The map shows where you've worked; pin a job's place to add it.",
   },
-  {
-    id: "find",
-    anchors: ["search", "recent"],
-    title: "Find anything",
-    body: "Search jobs, skills, and notes. Recent, Notes, and Milestones show what changed and what you keep.",
-  },
+  NETWORK_STEP,
   {
     id: "share",
     anchors: ["share"],
@@ -62,16 +76,11 @@ const SHORT_TOUR: TourStep[] = [
   {
     id: "history",
     anchors: ["history-nav"],
+    fallback: ["menu"],
     title: "Everything you've done",
     body: "Career History holds every job and school. Open one to change it or add evidence.",
   },
-  {
-    id: "find",
-    anchors: ["search"],
-    title: "Find anything",
-    body: "Search jobs, skills, and notes once they're here.",
-    finish: "add-job",
-  },
+  { ...NETWORK_STEP, finish: "add-job" },
 ];
 
 /** The full tour when there is a career to show; a short one that ends on adding a job when there isn't. */
@@ -87,13 +96,51 @@ export function shouldWelcome(profile: {
   return Boolean(profile.onboardingCompletedAt) && !profile.welcomeSeenAt;
 }
 
-/** "Saved: 9 jobs · 2 schools", naming only what was saved; null when nothing was. */
-export function welcomeSavedLine(counts: { jobs: number; schools: number }): string | null {
-  const parts = [
-    counts.jobs > 0 ? `${counts.jobs} ${counts.jobs === 1 ? "job" : "jobs"}` : "",
-    counts.schools > 0 ? `${counts.schools} ${counts.schools === 1 ? "school" : "schools"}` : "",
-  ].filter(Boolean);
-  return parts.length > 0 ? `Saved: ${parts.join(" · ")}` : null;
+/**
+ * What a step points at, given the anchors on screen: its own anchors; or, when
+ * they sit in a closed group that is on screen, its own anchors once the group
+ * opens; or its fallback; or nothing, and the step is left out.
+ */
+export function pickAnchors(step: TourStep, onScreen: ReadonlySet<TourAnchor>): TourAnchor[] | null {
+  const own = step.anchors.filter((anchor) => onScreen.has(anchor));
+  if (own.length > 0) return own;
+  if (step.reveal && onScreen.has(step.reveal)) return step.anchors;
+  const fallback = (step.fallback ?? []).filter((anchor) => onScreen.has(anchor));
+  return fallback.length > 0 ? fallback : null;
+}
+
+/** "Welcome, Sory." with the name set apart, or just "Welcome." */
+export function welcomeHeading(firstName: string): { lead: string; name: string | null } {
+  const name = firstName.trim();
+  return { lead: "Welcome", name: name || null };
+}
+
+export type WelcomeTile = {
+  icon: "history" | "network" | "share" | "add";
+  title: string;
+  body: string;
+};
+
+/** The welcome card's line and its three tiles, in the tour's order. */
+export function welcomeCard(input: { empty: boolean }): { lede: string; tiles: WelcomeTile[] } {
+  if (input.empty) {
+    return {
+      lede: "Let's build your career here, one job at a time.",
+      tiles: [
+        { icon: "add", title: "Add your first job", body: "Start with the role you have now" },
+        { icon: "history", title: "Build your history", body: "Every job and school in one place" },
+        { icon: "network", title: "Build your network", body: "Add the people you've worked with" },
+      ],
+    };
+  }
+  return {
+    lede: "Everything you've done, in one place you control.",
+    tiles: [
+      { icon: "history", title: "Add your history", body: "Jobs, schools, and proof of your work" },
+      { icon: "network", title: "Build your network", body: "People you've worked with and trust" },
+      { icon: "share", title: "Share it", body: "Publish a page when you're ready" },
+    ],
+  };
 }
 
 /** Set or clear the first-run marks. true stamps now; false clears it, so the card or tour can show again. */

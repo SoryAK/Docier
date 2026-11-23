@@ -431,6 +431,7 @@ export function HomeBar({
         <button
           type="button"
           className="home-menu-btn"
+          data-tour="menu"
           aria-label={
             menuLabel ?? (menuExpanded ? "Collapse menu" : "Expand menu")
           }

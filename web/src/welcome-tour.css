@@ -2,53 +2,233 @@
 
 .welcome-card {
   box-sizing: border-box;
-  width: min(26rem, calc(100vw - 2rem));
-  padding: 1.5rem 1.5rem 1.25rem;
-  border: 1px solid rgba(23, 23, 23, 0.1);
-  border-radius: 24px;
+  width: min(36rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  padding: 0;
+  border: 0;
+  border-radius: 28px;
+  overflow: auto;
   background: #fff;
   color: #171717;
   color-scheme: light;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 24px 48px rgba(0, 0, 0, 0.14);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.22);
   font-family: var(--sans);
+  text-align: center;
 }
 
 .welcome-card::backdrop {
-  background: rgba(23, 23, 23, 0.4);
+  background: rgba(23, 23, 23, 0.42);
 }
 
 .welcome-card[open] {
-  animation: welcome-in 0.4s var(--reveal, ease) both;
+  animation: welcome-in 0.45s var(--reveal, ease) both;
 }
 
-.welcome-card-mark {
-  display: block;
-  margin-bottom: 0.9rem;
+/* The banner: the desk scene from branding, with the name in its clearing. */
+.welcome-card-banner {
+  position: relative;
+  height: 176px;
+  overflow: hidden;
+  background: linear-gradient(180deg, #fbf6ee, #f4ecdf);
+}
+
+.welcome-card-banner::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 22px;
+  background: linear-gradient(rgba(255, 255, 255, 0), #fff);
+  pointer-events: none;
+}
+
+.welcome-card-desk,
+.welcome-card-desk svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.welcome-card-brand {
+  position: absolute;
+  left: 50%;
+  top: 86px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transform: translate(-50%, -50%);
+}
+
+.welcome-card-brand img {
+  width: 42px;
+  height: 42px;
+}
+
+.welcome-card-brand span {
+  position: relative;
+  padding-bottom: 5px;
+  margin-bottom: -6px;
+  color: #0d345e;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.welcome-card-brand span {
+  margin-top: 1px;
+  font-size: 2.15rem;
+}
+
+.welcome-card-brand span::after {
+  content: "";
+  position: absolute;
+  left: 1px;
+  right: 2px;
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #f3d59c, #cd9f5b);
+}
+
+.welcome-card-body {
+  padding: 1.1rem 2rem 1.3rem;
 }
 
 .welcome-card h2 {
   margin: 0;
-  font-size: 1.35rem;
+  font-size: 1.9rem;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
-.welcome-card p {
-  margin: 0.45rem 0 0;
+.welcome-card h2 em {
+  font-style: normal;
+  color: var(--gold, #a78b71);
+}
+
+.welcome-card-lede,
+.welcome-card-later {
+  color: rgba(23, 23, 23, 0.66);
+}
+
+.welcome-card-lede {
+  margin: 0.6rem 0 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.welcome-card-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 1.2rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.welcome-card-tile {
+  position: relative;
+  padding: 1rem 0.8rem;
+  border: 1px solid rgba(23, 23, 23, 0.1);
+  border-radius: 16px;
+  animation: welcome-tile-lit 0.9s ease both;
+}
+
+/* Each tile lights up in turn once the scene has settled. */
+.welcome-card-tile:nth-child(1) { animation-delay: 1.4s; }
+.welcome-card-tile:nth-child(2) { animation-delay: 2.3s; }
+.welcome-card-tile:nth-child(3) { animation-delay: 3.2s; }
+
+@keyframes welcome-tile-lit {
+  0%, 100% { border-color: rgba(23, 23, 23, 0.1); background: #fff; }
+  30%, 70% { border-color: #c9a77d; background: #fffaf2; }
+}
+
+.welcome-card-tile-n {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #171717;
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.welcome-card-tile-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin: 0 auto 0.5rem;
+  border-radius: 12px;
+  background: #f6ead3;
+  color: #8a6d4f;
+}
+
+.welcome-card-tile strong {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.welcome-card-tile > span:last-child {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.76rem;
+  line-height: 1.35;
+  color: rgba(23, 23, 23, 0.66);
+}
+
+.welcome-card .welcome-card-actions {
+  margin-top: 1.3rem;
+}
+
+.welcome-card-start {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0.65rem 1.2rem;
   font-size: 0.9rem;
-  line-height: 1.45;
-  color: rgba(23, 23, 23, 0.72);
 }
 
-.welcome-card .welcome-card-saved {
-  color: #6b4f33;
-  font-weight: 500;
+.welcome-card-start span {
+  opacity: 0.55;
 }
 
-.welcome-card .welcome-card-ask {
-  margin-top: 1.1rem;
-  color: #171717;
-  font-weight: 500;
+.welcome-card-later {
+  margin: 1rem 0 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.welcome-card .welcome-link {
+  font-size: 0.88rem;
+}
+
+@media (max-width: 600px) {
+  .welcome-card-body {
+    padding: 1rem 1.2rem 1.2rem;
+  }
+
+  .welcome-card h2 {
+    font-size: 1.6rem;
+  }
+
+  .welcome-card-tiles {
+    grid-template-columns: 1fr;
+  }
+
+  .welcome-card .welcome-card-actions {
+    flex-wrap: wrap-reverse;
+    justify-content: center;
+  }
 }
 
 .welcome-card-actions,
@@ -171,6 +351,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .welcome-card[open],
+  .welcome-card-tile,
   .tour-card {
     animation: none;
   }

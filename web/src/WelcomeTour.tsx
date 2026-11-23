@@ -1,8 +1,20 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { shouldWelcome, tourSteps, welcomeSavedLine, type TourAnchor, type TourStep } from "@core/first-run";
+import { History, Plus, Share, Users, ArrowRight, type LucideIcon } from "lucide-react";
+import {
+  pickAnchors,
+  shouldWelcome,
+  tourSteps,
+  welcomeCard,
+  welcomeHeading,
+  type TourAnchor,
+  type TourStep,
+  type WelcomeTile,
+} from "@core/first-run";
+import desk from "./branding/docier-desk.svg?raw";
 import mark from "./branding/docier-mark.svg";
 import { readTourPreview } from "./dev-routes";
+import { TOUR_REVEAL, type TourReveal } from "./tour-reveal";
 import "./welcome-tour.css";
 
 export type FirstRunMarks = {
@@ -14,6 +26,8 @@ export type FirstRunMarks = {
 type Rect = { top: number; left: number; width: number; height: number };
 
 const HOLE_PAD = 6;
+const ANCHORS: TourAnchor[] = ["overview", "history-nav", "map", "search", "recent", "share", "start", "network", "resources", "menu"];
+
 const CARD_WIDTH = 320;
 const GUTTER = 16;
 
@@ -25,6 +39,7 @@ export function WelcomeTour({
   firstName,
   marks,
   counts,
+  ready,
   tourRequest,
   onBeforeTour,
   onSaved,
@@ -33,6 +48,8 @@ export function WelcomeTour({
   firstName: string;
   marks: FirstRunMarks;
   counts: { jobs: number; schools: number };
+  /** False while the career is still loading; the card waits so it shows the right version. */
+  ready: boolean;
   /** Changes when the occupant asks for the tour again (from the user menu). */
   tourRequest: number;
   /** Gets Home on screen before the tour looks for its anchors. */
@@ -107,10 +124,11 @@ export function WelcomeTour({
   }
 
   if (phase === "welcome") {
+    if (!ready) return null;
     return (
       <WelcomeCard
         firstName={firstName}
-        saved={welcomeSavedLine(counts)}
+        empty={preview ? preview.empty : counts.jobs + counts.schools === 0}
         onNotNow={() => {
           setPhase(null);
           void save({ welcomeSeen: true });
@@ -144,22 +162,30 @@ export function WelcomeTour({
   return null;
 }
 
+const TILE_ICONS: Record<WelcomeTile["icon"], LucideIcon> = { history: History, network: Users, share: Share, add: Plus };
+
 function WelcomeCard({
   firstName,
-  saved,
+  empty,
   onNotNow,
   onStart,
 }: {
   firstName: string;
-  saved: string | null;
+  /** Nothing saved yet: the card talks about starting, not about what is there. */
+  empty: boolean;
   onNotNow: () => void;
   onStart: () => void;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const startRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     const dialog = ref.current;
     if (dialog && !dialog.open) dialog.showModal();
+    // The dialog would focus its first button; the tour is the one to land on.
+    startRef.current?.focus();
   }, []);
+  const heading = welcomeHeading(firstName);
+  const content = welcomeCard({ empty });
   return (
     <dialog
       ref={ref}
@@ -170,23 +196,61 @@ function WelcomeCard({
         onNotNow();
       }}
     >
-      <img className="welcome-card-mark" src={mark} alt="" width={36} height={36} />
-      <h2 id="welcome-card-title">
-        Welcome to Docier{firstName.trim() ? `, ${firstName.trim()}` : ""}.
-      </h2>
-      <p>Your career lives here: jobs, schools, places, and a page you can publish when you're ready.</p>
-      {saved ? <p className="welcome-card-saved">{saved}</p> : null}
-      <p className="welcome-card-ask">Take a 1-minute tour?</p>
-      <div className="welcome-card-actions">
-        <button type="button" className="welcome-btn welcome-btn-ghost" onClick={onNotNow}>
-          Not now
-        </button>
-        <button type="button" className="welcome-btn welcome-btn-solid" autoFocus onClick={onStart}>
-          Start the tour
-        </button>
+      <div className="welcome-card-banner">
+        {/* The scene is our own file from branding; it carries its own motion. */}
+        <div className="welcome-card-desk" aria-hidden="true" dangerouslySetInnerHTML={{ __html: desk }} />
+        <div className="welcome-card-brand">
+          <img src={mark} alt="" width={42} height={42} />
+          <span>Docier</span>
+        </div>
+      </div>
+      <div className="welcome-card-body">
+        <h2 id="welcome-card-title">
+          {heading.lead}
+          {heading.name ? (
+            <>
+              , <em>{heading.name}.</em>
+            </>
+          ) : (
+            "."
+          )}
+        </h2>
+        <p className="welcome-card-lede">{content.lede}</p>
+        <ol className="welcome-card-tiles">
+          {content.tiles.map((tile, at) => {
+            const TileIcon = TILE_ICONS[tile.icon];
+            return (
+              <li key={tile.title} className="welcome-card-tile">
+                <span className="welcome-card-tile-n" aria-hidden="true">
+                  {at + 1}
+                </span>
+                <span className="welcome-card-tile-icon" aria-hidden="true">
+                  <TileIcon size={18} strokeWidth={1.75} />
+                </span>
+                <strong>{tile.title}</strong>
+                <span>{tile.body}</span>
+              </li>
+            );
+          })}
+        </ol>
+        <div className="welcome-card-actions">
+          <button type="button" className="welcome-link" onClick={onNotNow}>
+            I'll explore on my own
+          </button>
+          <button ref={startRef} type="button" className="welcome-btn welcome-btn-solid welcome-card-start" onClick={onStart}>
+            Show me around <span aria-hidden="true">·</span> 1 min
+            <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
+          </button>
+        </div>
+        <p className="welcome-card-later">You can take the tour anytime from your menu.</p>
       </div>
     </dialog>
   );
+}
+
+/** The anchors with something on screen. */
+function anchorsOnScreen(): Set<TourAnchor> {
+  return new Set(ANCHORS.filter((anchor) => anchorRects([anchor]).length > 0));
 }
 
 /** Each anchor's elements merged into one box; anchors not on screen are left out. */
@@ -221,7 +285,7 @@ function Tour({
   const last = steps ? index === steps.length - 1 : false;
 
   // Home may still be drawing or loading its story, so look for the anchors for a moment before starting.
-  // Only steps with an anchor on screen are kept; on a narrow screen the sidebar's stop drops out.
+  // Only steps with something to point at are kept: their anchors, a closed group holding them, or a fallback.
   useEffect(() => {
     let tries = 0;
     let timer = 0;
@@ -229,7 +293,8 @@ function Tour({
       // The sidebar and top bar draw first; wait for Home's own content, the tiles or "Start your story".
       const loaded = anchorRects(["overview", "start"]).length > 0;
       const isEmpty = empty ?? document.querySelector('[data-tour="start"]') !== null;
-      const shown = tourSteps({ empty: isEmpty }).filter((candidate) => anchorRects(candidate.anchors).length > 0);
+      const onScreen = anchorsOnScreen();
+      const shown = tourSteps({ empty: isEmpty }).filter((candidate) => pickAnchors(candidate, onScreen) !== null);
       if ((loaded && shown.length > 0) || tries >= 20) {
         setSteps(shown);
         return;
@@ -247,15 +312,27 @@ function Tour({
 
   useLayoutEffect(() => {
     if (!step) return;
-    const first = document.querySelector<HTMLElement>(
-      step.anchors.map((anchor) => `[data-tour="${anchor}"]`).join(", "),
-    );
-    first?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    const onScreen = anchorsOnScreen();
+    const chosen = pickAnchors(step, onScreen) ?? [];
+    // A stop inside a closed group opens it for this step, and puts it back after.
+    const reveal =
+      step.reveal && !step.anchors.some((anchor) => onScreen.has(anchor)) && onScreen.has(step.reveal)
+        ? step.reveal
+        : null;
+    if (reveal) window.dispatchEvent(new CustomEvent<TourReveal>(TOUR_REVEAL, { detail: { target: reveal, open: true } }));
     let frame = 0;
     const measure = () => {
       cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => setRects(anchorRects(step.anchors)));
+      // Two frames: an opened group draws on the first.
+      frame = requestAnimationFrame(() => {
+        frame = requestAnimationFrame(() => setRects(anchorRects(chosen)));
+      });
     };
+    requestAnimationFrame(() => {
+      document
+        .querySelector<HTMLElement>(chosen.map((anchor) => `[data-tour="${anchor}"]`).join(", ") || "#none")
+        ?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    });
     measure();
     window.addEventListener("resize", measure);
     window.addEventListener("scroll", measure, true);
@@ -263,6 +340,9 @@ function Tour({
       cancelAnimationFrame(frame);
       window.removeEventListener("resize", measure);
       window.removeEventListener("scroll", measure, true);
+      if (reveal) {
+        window.dispatchEvent(new CustomEvent<TourReveal>(TOUR_REVEAL, { detail: { target: reveal, open: false } }));
+      }
     };
   }, [step]);
 

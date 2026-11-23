@@ -9,6 +9,8 @@ The Docier D mark, and the illustrations drawn to go with it.
 | `docier-mark-small.svg` | The D in a single solid gold, on a clear background, for small sizes where a gradient blurs. | Not used yet. |
 | `docier-desk.svg` | A desk scene: laptop, briefcase, tools, folders, certificate, ID badge, a to-go coffee, and cables hanging from the top, around a clear middle. It animates on its own. | The welcome card's banner (`WelcomeTour.tsx`). |
 
+The desk scene is also rendered as still images for GitHub, in `docs/assets/`: `banner.png` (1280×392, the top of the README) and `social-preview.png` (1280×640, uploaded by hand in the repository's Settings → General → Social preview). When the scene changes, render them again.
+
 Keep new marks and illustrations here, and add a row to this table when one is added or put to use. The desktop app's icons live in `web/src-tauri/icons/`.
 
 ## The name

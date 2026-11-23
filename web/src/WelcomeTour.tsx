@@ -36,7 +36,7 @@ import {
   type TourStep,
   type WelcomeTile,
 } from "@core/first-run";
-import desk from "./branding/docier-desk.svg?raw";
+import banner from "./branding/docier-banner.webp";
 import mark from "./branding/docier-mark.svg";
 import { readTourPreview } from "./dev-routes";
 import { TOUR_REVEAL, type TourReveal } from "./tour-reveal";
@@ -295,8 +295,8 @@ function WelcomeCard({
       }}
     >
       <div className="welcome-card-banner">
-        {/* The scene is our own file from branding; it carries its own motion. */}
-        <div className="welcome-card-desk" aria-hidden="true" dangerouslySetInnerHTML={{ __html: desk }} />
+        {/* The painted desk scene from branding, with a clear middle for the real mark and name. */}
+        <img className="welcome-card-desk" src={banner} alt="" width={576} height={176} />
         <div className="welcome-card-brand">
           <img src={mark} alt="" width={42} height={42} />
           <span>Docier</span>

@@ -31,7 +31,7 @@
   animation: welcome-in 0.45s var(--reveal, ease) backwards;
 }
 
-/* The banner: the desk scene from branding, with the name in its clearing. */
+/* The banner: the painted desk scene from branding, with the name in its clear middle. */
 .welcome-card-banner {
   position: relative;
   height: clamp(6.5em, 20vh, 11em);
@@ -48,12 +48,12 @@
   pointer-events: none;
 }
 
-.welcome-card-desk,
-.welcome-card-desk svg {
+.welcome-card-desk {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
+  object-fit: cover;
 }
 
 .welcome-card-brand {

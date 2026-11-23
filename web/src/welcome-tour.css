@@ -16,9 +16,10 @@
   text-align: center;
   /*
    * Every size in the card is in em, off this one base, so the whole card scales
-   * evenly with the window: about 86% of its height at most, 16px at full size.
+   * evenly with the window, 16px at full size. Below 12px text stops shrinking;
+   * shorter screens get a shorter banner and tighter spacing instead.
    */
-  font-size: clamp(10px, min(2.5vw, 2.3vh), 16px);
+  font-size: clamp(12px, min(2vw, 2vh), 16px);
 }
 
 .welcome-card::backdrop {
@@ -32,7 +33,7 @@
 /* The banner: the desk scene from branding, with the name in its clearing. */
 .welcome-card-banner {
   position: relative;
-  height: 11em;
+  height: clamp(6.5em, 20vh, 11em);
   overflow: hidden;
   background: linear-gradient(180deg, #fbf6ee, #f4ecdf);
 }
@@ -57,7 +58,7 @@
 .welcome-card-brand {
   position: absolute;
   left: 50%;
-  top: 5.375em;
+  top: 49%;
   z-index: 1;
   display: inline-flex;
   align-items: center;
@@ -179,14 +180,14 @@
 
 .welcome-card-tile strong {
   display: block;
-  font-size: 0.85em;
+  font-size: max(0.85em, 12px);
   font-weight: 600;
 }
 
 .welcome-card-tile > span:last-child {
   display: block;
   margin-top: 2px;
-  font-size: 0.76em;
+  font-size: max(0.76em, 11px);
   line-height: 1.35;
   color: rgba(23, 23, 23, 0.66);
 }
@@ -228,6 +229,33 @@
 }
 
 /* Phones keep a readable fixed size; their own layout is still to come. */
+/* Laptops and tablets held sideways: give back height without shrinking the text. */
+@media (max-height: 760px) and (min-width: 601px) {
+  .welcome-card-body {
+    padding-top: 0.8em;
+  }
+
+  .welcome-card-tiles {
+    margin-top: 0.9em;
+  }
+
+  .welcome-card-tile {
+    padding: 0.7em 0.7em;
+  }
+
+  .welcome-card-tile-icon {
+    margin-bottom: 0.35em;
+  }
+
+  .welcome-card .welcome-card-actions {
+    margin-top: 0.9em;
+  }
+
+  .welcome-card-later {
+    margin-top: 0.7em;
+  }
+}
+
 @media (max-width: 600px) {
   .welcome-card {
     font-size: 16px;

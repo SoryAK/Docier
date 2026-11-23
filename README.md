@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/banner.png" alt="Docier: a desk with a laptop, a briefcase, tools, folders, a certificate, an ID badge, and a coffee around the Docier name" width="100%">
+</p>
+
 # Docier
 
 [![CI](https://img.shields.io/github/actions/workflow/status/SoryAK/Docier/ci.yml?branch=main&label=CI)](https://github.com/SoryAK/Docier/actions/workflows/ci.yml)

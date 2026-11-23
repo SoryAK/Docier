@@ -12,6 +12,7 @@ import {
   heldFromCareer,
   hintSetAside,
   holdVerifiedRoles,
+  NO_RESUME_FILE,
   parseHistoryEvidence,
   parseHistoryRoleIds,
   queuedResumeDuplicate,
@@ -262,6 +263,24 @@ describe("historyFromHeld", () => {
       achievements: [0, 1],
     });
     expect(history.skillFiles).toEqual([0]);
+  });
+
+  it("lists no resume for a job typed by hand", () => {
+    const [typed] = addHeldRole([], item({ source: "job", org: "Typed Co", title: "Owner", achievements: ["Typed duty"] }), NO_RESUME_FILE);
+    const [read] = holdVerifiedRoles([item({ source: "job", org: "Acme", title: "Engineer", sourceIndex: 1 })], 1);
+    const history = historyFromHeld([read, typed], []);
+    expect(history.experienceEvidence).toEqual([
+      { files: [1], achievements: [] },
+      { files: [], achievements: [NO_RESUME_FILE] },
+    ]);
+    expect(
+      parseHistoryEvidence({
+        evidence: { experience: [{ resumeIds: [], achievements: [""] }], education: [{ resumeIds: [] }], skills: [] },
+      }),
+    ).toEqual({
+      ok: true,
+      links: { experience: [{ resumeIds: [], achievementResumeIds: [""] }], education: [{ resumeIds: [] }], skills: [] },
+    });
   });
 
   it("drops skills when the file was not accepted", () => {

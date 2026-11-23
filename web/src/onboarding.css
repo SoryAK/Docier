@@ -123,6 +123,11 @@
   width: min(72rem, 100%);
 }
 
+/* Without a model there is nothing to compare side by side: keep the usual width. */
+.onboarding-sheet:has(.onboarding-add-roles) {
+  width: min(40rem, 100%);
+}
+
 .onboarding-stage:has(.onboarding-verify) {
   justify-content: flex-start;
 }
@@ -265,6 +270,7 @@
   flex-wrap: wrap;
   gap: 0.55rem;
   justify-content: flex-end;
+  align-items: center;
 }
 
 .onboarding-btn {
@@ -614,10 +620,12 @@
   font-size: 12px;
 }
 
+/* The heading with Add resume at the end of the line, as Verify's sections have Add job. */
 .onboarding-file-title {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  justify-content: space-between;
+  gap: 0.75rem;
 }
 
 .onboarding-file-title .onboarding-file-add {
@@ -743,20 +751,453 @@
   grid-template-columns: 1fr 1fr;
 }
 
-/* Local or Cloud: the label on its own line, the description below it, never cut off. */
-.onboarding-host-card strong {
-  display: block;
+/* Remove is a small x on the photo's edge, not a second button. */
+.onboarding-photo {
+  position: relative;
+  justify-self: start;
+}
+
+.onboarding-photo-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid #d4d4d4;
+  border-radius: 50%;
+  background: #fff;
+  color: #474747;
+  box-shadow: 0 1px 3px rgba(23, 23, 23, 0.15);
+  cursor: pointer;
+  transition:
+    color 0.2s var(--ease),
+    border-color 0.2s var(--ease);
+}
+
+.onboarding-photo-remove:hover {
+  border-color: #b4b4b4;
+  color: #a33b2b;
+}
+
+.onboarding-photo-remove:focus-visible {
+  outline: 2px solid #8a6d4f;
+  outline-offset: 2px;
+}
+
+/* Verify without a model: profile and resumes, each a section that opens with Edit inside. */
+.onboarding-submitted {
+  display: grid;
+  min-width: 0;
+  margin: 1rem 0 0;
+  padding: 0;
+  border: 1px solid rgba(23, 23, 23, 0.1);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.onboarding-submitted-section + .onboarding-submitted-section {
+  border-top: 1px solid rgba(23, 23, 23, 0.08);
+}
+
+/* Header: the name opens and closes the section; Edit and the chevron sit at the end of the same line. */
+.onboarding-submitted-head {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding-right: 0.5rem;
+}
+
+.onboarding-submitted-row {
+  display: grid;
+  flex: 1;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 0.7rem 0.4rem 0.7rem 0.9rem;
+  border: 0;
+  border-radius: 14px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.onboarding-submitted-row:focus-visible {
+  outline: 2px solid #8a6d4f;
+  outline-offset: -2px;
+}
+
+.onboarding-submitted-toggle {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: rgba(23, 23, 23, 0.55);
+  cursor: pointer;
+}
+
+.onboarding-submitted-toggle:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.onboarding-submitted-toggle:focus-visible {
+  outline: 2px solid #8a6d4f;
+  outline-offset: 1px;
+}
+
+.onboarding-submitted-toggle svg {
+  transition: transform 0.2s var(--ease);
+}
+
+.onboarding-submitted-toggle[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+.onboarding-submitted-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(23, 23, 23, 0.05);
+  color: rgba(23, 23, 23, 0.7);
+}
+
+.onboarding-submitted-body {
+  display: grid;
+  min-width: 0;
+}
+
+.onboarding-submitted-body strong {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #171717;
+}
+
+.onboarding-submitted-body span {
+  overflow: hidden;
+  font-size: 0.8rem;
+  color: rgba(23, 23, 23, 0.62);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.onboarding-submitted-detail {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0 0.9rem 0.8rem;
+}
+
+.onboarding-submitted-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem 1rem;
+  margin: 0;
+}
+
+.onboarding-submitted-facts dt {
+  font-size: 0.75rem;
+  color: rgba(23, 23, 23, 0.55);
+}
+
+.onboarding-submitted-facts dd {
+  margin: 0.1rem 0 0;
+  font-size: 0.88rem;
+  color: #171717;
+  overflow-wrap: anywhere;
+}
+
+.onboarding-submitted-edit {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.onboarding-submitted-edit .onboarding-field-row {
+  margin-top: 0;
+}
+
+.onboarding-submitted-files {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.onboarding-submitted-files li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 28px;
+  font-size: 0.88rem;
+  color: #171717;
+}
+
+.onboarding-submitted-files li span {
+  overflow: hidden;
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  .onboarding-submitted-facts {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Verify without a model: the invitation to add jobs and schools. */
+.onboarding-add-roles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  margin-top: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px dashed rgba(138, 109, 79, 0.45);
+  border-radius: 14px;
+  background: rgba(167, 139, 113, 0.06);
+}
+
+.onboarding-add-roles > div:first-child {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 14rem;
+  flex: 1 1 14rem;
+}
+
+.onboarding-add-roles strong {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #171717;
+}
+
+.onboarding-add-roles span {
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: rgba(23, 23, 23, 0.62);
+}
+
+/* Local or Cloud: radio, icon and name on one line; what it is; then its status. */
+/* Each card spans three shared rows (head, description, status) so the dividers line up. */
+.onboarding-host-card {
+  width: 100%;
+  margin: 0;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  display: grid;
+  grid-row: span 3;
+  grid-template-rows: subgrid;
+  row-gap: 0.35rem;
+  align-content: start;
+  padding: 0.85rem 0.95rem 0.9rem;
+  transition:
+    border-color 0.3s var(--ease),
+    background 0.3s var(--ease),
+    box-shadow 0.3s var(--ease);
+}
+
+.onboarding-host-card:focus-visible {
+  outline: 2px solid #8a6d4f;
+  outline-offset: 2px;
+}
+
+.onboarding-host-card:hover {
+  border-color: rgba(167, 139, 113, 0.45);
+}
+
+.onboarding-host-card[data-selected="true"] {
+  border-color: #8a6d4f;
+  background: rgba(167, 139, 113, 0.13);
+  box-shadow: 0 0 0 1px #8a6d4f;
+}
+
+.onboarding-host-head {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.onboarding-host-head strong {
   font-size: 0.95rem;
   font-weight: 600;
   color: #171717;
 }
 
-.onboarding-host-card span {
-  display: block;
-  margin-top: 0.2rem;
-  font-size: 0.82rem;
+.onboarding-host-radio {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid rgba(23, 23, 23, 0.3);
+  border-radius: 50%;
+  transition:
+    border-color 0.2s var(--ease),
+    box-shadow 0.2s var(--ease);
+}
+
+.onboarding-host-card[data-selected="true"] .onboarding-host-radio {
+  border-color: #8a6d4f;
+  box-shadow: inset 0 0 0 3px #fff, inset 0 0 0 8px #8a6d4f;
+}
+
+.onboarding-host-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(23, 23, 23, 0.05);
+  color: rgba(23, 23, 23, 0.75);
+}
+
+.onboarding-host-card[data-selected="true"] .onboarding-host-icon {
+  background: rgba(167, 139, 113, 0.18);
+  color: #6b4f33;
+}
+
+.onboarding-host-desc {
+  font-size: 0.84rem;
   line-height: 1.4;
+  color: rgba(23, 23, 23, 0.75);
+}
+
+.onboarding-host-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  padding-top: 0.45rem;
+  border-top: 1px dashed rgba(23, 23, 23, 0.1);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: rgba(23, 23, 23, 0.6);
+}
+
+.onboarding-host-status svg {
+  flex: none;
+  margin-top: 0.1rem;
+}
+
+.onboarding-host-status-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin-top: 0.35rem;
+  border-radius: 50%;
+  background: rgba(23, 23, 23, 0.3);
+}
+
+.onboarding-host-status[data-tone="good"] {
+  color: #2f6b45;
+}
+
+.onboarding-host-status[data-tone="good"] .onboarding-host-status-dot {
+  background: #3d8a5a;
+}
+
+.onboarding-host-status[data-tone="pending"] .onboarding-host-status-dot {
+  background: #b08a5e;
+  animation: onboarding-host-pulse 1.2s ease-in-out infinite;
+}
+
+.onboarding-host-status[data-tone="warn"] {
+  color: #7a5a2e;
+}
+
+.onboarding-host-status[data-tone="warn"] .onboarding-host-status-dot {
+  background: #c08a3e;
+}
+
+/* The no-model path, under the two cards: a full row, not a ghost button. */
+.onboarding-host-skip {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  margin-block: 0.55rem 0.75rem;
+  padding: 0.7rem 0.95rem;
+  border: 1px dashed rgba(23, 23, 23, 0.18);
+  border-radius: 12px;
+  background: transparent;
   color: rgba(23, 23, 23, 0.72);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.3s var(--ease),
+    background 0.3s var(--ease),
+    color 0.3s var(--ease);
+}
+
+.onboarding-host-skip strong {
+  display: block;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #171717;
+}
+
+.onboarding-host-skip span span {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.onboarding-host-skip > svg:last-child {
+  transition: transform 0.3s var(--ease);
+}
+
+.onboarding-host-skip:hover {
+  border-color: rgba(138, 109, 79, 0.5);
+  background: rgba(167, 139, 113, 0.06);
+  color: #6b4f33;
+}
+
+.onboarding-host-skip:hover > svg:last-child {
+  transform: translateX(2px);
+}
+
+.onboarding-host-skip:focus-visible {
+  outline: 2px solid #8a6d4f;
+  outline-offset: 2px;
+}
+
+/* What's still needed before Continue, under the fields it is about. */
+.onboarding-continue-hint {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: rgba(23, 23, 23, 0.62);
+}
+
+@keyframes onboarding-host-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onboarding-host-status[data-tone="pending"] .onboarding-host-status-dot {
+    animation: none;
+  }
 }
 
 .onboarding-choice {
@@ -850,14 +1291,17 @@
   border-top: 0.6rem solid #f3efe6;
 }
 
+/* A .docx or text resume reads like a page: dark text on white, as PDF pages do. */
 .onboarding-preview-text {
   margin: 0;
   max-height: 22rem;
   overflow: auto;
   padding: 1.1rem 1.2rem;
-  color: var(--gold-light);
-  font: 300 0.85rem/1.55 var(--sans);
+  background: #fff;
+  color: #171717;
+  font: 400 0.85rem/1.55 var(--sans);
   white-space: pre-wrap;
+  tab-size: 4;
 }
 
 .onboarding-preview-fallback {
@@ -1306,12 +1750,12 @@
 }
 
 .onboarding-found[data-state="found"] {
-  border-color: rgba(52, 211, 153, 0.45);
+  border-color: rgba(138, 109, 79, 0.35);
 }
 
 .onboarding-found[data-active="true"] {
-  border-color: rgba(52, 211, 153, 0.8);
-  box-shadow: 0 0 0 1px rgba(52, 211, 153, 0.25);
+  border-color: rgba(138, 109, 79, 0.55);
+  box-shadow: 0 0 0 1px rgba(138, 109, 79, 0.18);
 }
 
 .onboarding-found-head {
@@ -1336,7 +1780,7 @@
 }
 
 .onboarding-found[data-state="found"] .onboarding-found-dot {
-  background: rgb(52, 211, 153);
+  background: #3d8a5a;
 }
 
 @keyframes onboarding-found-pulse {
@@ -1456,12 +1900,12 @@
   margin: 0;
 }
 
-.onboarding-badge-address {
-  margin-left: calc(-1 * (9.5rem + 1.15rem));
-  width: calc(100% + 9.5rem + 1.15rem);
+/* The full-width row (headline) sits below whichever of photo or name is taller. */
+.onboarding-badge-wide {
+  grid-column: 1 / -1;
 }
 
-.onboarding-badge-address .onboarding-group {
+.onboarding-badge-wide .onboarding-group {
   margin: 0;
 }
 
@@ -1474,10 +1918,6 @@
     width: min(100%, 16rem);
   }
 
-  .onboarding-badge-address {
-    margin-left: 0;
-    width: auto;
-  }
 }
 
 .onboarding-group {
@@ -2391,6 +2831,10 @@ button.onboarding-verify-row {
   max-height: none;
   background: #f3efe6;
   color-scheme: light;
+}
+
+.onboarding-review-source .onboarding-preview-text {
+  background: #fff;
 }
 
 .onboarding-review-source .onboarding-preview[data-paged="true"] .onboarding-preview-pages {

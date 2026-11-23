@@ -323,6 +323,59 @@ describe("GET /api/history", () => {
     }
   });
 
+  it("keeps a job typed by hand off the resume saved beside it", async () => {
+    const ctx = setupUploads();
+    try {
+      const form = new FormData();
+      form.append("file", new File(["%PDF-1.4 hand"], "hand.pdf", { type: "application/pdf" }));
+      const uploaded = await ctx.app.request("/api/resumes", { method: "POST", body: form });
+      const stored = (await uploaded.json()) as { resume: { id: string } };
+      const saved = await ctx.app.request("/api/history", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          resumeId: stored.resume.id,
+          experience: [
+            { company: "Acme", title: "Lead", achievements: ["Read duty"] },
+            { company: "Typed Co", title: "Owner", achievements: ["Typed duty"] },
+          ],
+          education: [{ institution: "Typed School", degree: "BA" }],
+          skills: [],
+          evidence: {
+            experience: [
+              { resumeIds: [stored.resume.id], achievements: [stored.resume.id] },
+              { resumeIds: [], achievements: [""] },
+            ],
+            education: [{ resumeIds: [] }],
+            skills: [],
+          },
+        }),
+      });
+      expect(saved.status).toBe(201);
+      const history = await ctx.app.request("/api/history");
+      const career = (await history.json()) as { jobs: Array<{ company: string }>; schools: Array<{ institution: string }> };
+      expect(career.jobs.map((job) => job.company).sort()).toEqual(["Acme", "Typed Co"]);
+      const memory = await ctx.app.request("/api/memory");
+      const body = (await memory.json()) as {
+        facts: Array<{ factType: string; evidenceIds: string[]; value: Record<string, unknown> }>;
+      };
+      const resumeEvidence = body.facts.find((fact) => fact.factType === "role" && fact.value.company === "Acme")
+        ?.evidenceIds[0];
+      expect(resumeEvidence).toBeTruthy();
+      // Typed rows may get their own record, but never the resume's evidence.
+      const typed = body.facts.filter(
+        (fact) =>
+          fact.value.company === "Typed Co" ||
+          fact.value.institution === "Typed School" ||
+          fact.value.organization === "Typed School" ||
+          fact.value.statement === "Typed duty",
+      );
+      expect(typed.some((fact) => fact.evidenceIds.includes(resumeEvidence!))).toBe(false);
+    } finally {
+      ctx.close();
+    }
+  });
+
   it("points a duty from a second resume at that resume", async () => {
     const ctx = setupUploads();
     try {

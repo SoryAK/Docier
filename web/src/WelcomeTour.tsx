@@ -226,9 +226,11 @@ function Tour({
     let tries = 0;
     let timer = 0;
     const look = () => {
+      // The sidebar and top bar draw first; wait for Home's own content, the tiles or "Start your story".
+      const loaded = anchorRects(["overview", "start"]).length > 0;
       const isEmpty = empty ?? document.querySelector('[data-tour="start"]') !== null;
       const shown = tourSteps({ empty: isEmpty }).filter((candidate) => anchorRects(candidate.anchors).length > 0);
-      if (shown.length > 0 || tries >= 20) {
+      if ((loaded && shown.length > 0) || tries >= 20) {
         setSteps(shown);
         return;
       }

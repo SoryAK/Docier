@@ -76,6 +76,8 @@ The saved count line ("Saved: 10 jobs · 1 school") is removed.
 
 The desk scene becomes part of Docier's branding.
 
+> **Update, 2026-11-23:** the style rules below were replaced. A painted banner (`docs/assets/banner-source.jpg`) now sets the style: soft shading and real materials instead of flat shapes, and tools from more trades (a multimeter, a hammer, hex keys, a stethoscope, a medical cross). The current rules are in `web/src/branding/README.md`. The welcome card's `docier-desk.svg` is still the flat version.
+
 - **One source.** The scene lives in `web/src/branding/docier-desk.svg`. The welcome card loads that file, so there is one copy. Each item is its own labelled group, so later screens can reuse single items (for example, the open folder on an empty page).
 - **Style rules,** written into `web/src/branding/README.md`:
   - Colours: manila gold (#f3d59c → #cd9f5b), navy (#0d345e, #244f7e), steel (#d3dae1 → #97a4b2), warm paper (#fff, #f8f4ec) with soft beige edges (#e3d8c8). Nothing else.

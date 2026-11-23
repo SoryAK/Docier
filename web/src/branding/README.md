@@ -9,7 +9,13 @@ The Docier D mark, and the illustrations drawn to go with it.
 | `docier-mark-small.svg` | The D in a single solid gold, on a clear background, for small sizes where a gradient blurs. | Not used yet. |
 | `docier-desk.svg` | A desk scene: laptop, briefcase, tools, folders, certificate, ID badge, and a to-go coffee around a clear middle. It animates on its own. | The welcome card's banner (`WelcomeTour.tsx`). |
 
-The desk scene is also rendered as still images for GitHub, in `docs/assets/`: `banner.png` (1280×392, the top of the README) and `social-preview.png` (1280×640, uploaded by hand in the repository's Settings → General → Social preview). When the scene changes, render them again.
+GitHub uses a painted version of the scene, kept in `docs/assets/`:
+
+- `banner-source.jpg` (1832×560): the painted banner, the source the others are made from;
+- `banner.png` (1280×392): the top of the README, the source scaled down;
+- `social-preview.png` (1280×640): the source scaled to 640 tall and cropped to its middle, so the logo, name, cables, tools, folders, and certificate stay in. It is uploaded by hand in the repository's Settings → General → Social preview.
+
+When the banner changes, replace the source and make the other two from it again.
 
 Keep new marks and illustrations here, and add a row to this table when one is added or put to use. The desktop app's icons live in `web/src-tauri/icons/`.
 
@@ -19,17 +25,25 @@ Beside the mark, "Docier" is navy `#0d345e` (the folder in the D), weight 500, t
 
 ## Illustration style
 
-Draw new illustrations the way `docier-desk.svg` is drawn, so they belong together.
+The painted banner (`docs/assets/banner-source.jpg`) sets the style. Draw new illustrations to match it, so they belong together.
 
-- **Colours, and nothing else:**
-  - manila gold, `#f3d59c` → `#e2b672` → `#cd9f5b`;
+- **Colours:** the same few, with lighter and darker shades of each for light and shadow:
+  - manila gold, `#f3d59c` → `#e2b672` → `#cd9f5b`, which also covers tan leather, kraft paper, and wooden handles;
   - navy, `#0d345e` and `#244f7e`;
   - steel, `#d3dae1` → `#97a4b2`;
   - warm paper, `#fff` and `#f8f4ec`, with soft beige edges `#e3d8c8`;
-  - the cream band behind a scene, `#fbf6ee` → `#f4ecdf`.
-- **Shapes:** flat and rounded, with soft beige edges, never dark outlines. Text is drawn as bars, never real words.
-- **Things:** work things. Folders and papers first, then tools of any trade, such as a laptop, a wrench, a badge, a certificate, or a coffee.
-- **Composition:** items slightly tilted and scattered, with clear space kept around whatever is the focus.
+  - the cream background, about `#f8f2e6`, lighter behind the name.
+- **Look:** soft and lightly painted, with gentle shading, soft shadows, and real materials: leather, brushed steel, wood, paper, plastic. Never dark outlines.
+- **Text:** papers and screens show their writing as bars. Small details on a tool may show digits or key caps, such as a meter's reading or a keyboard, but never real words, names, or logos.
+- **Things:** work from many trades, so anyone can see their own work in it. Folders and papers first, then the tools of a trade:
+  - office: a laptop, a briefcase, folders, a resume, a certificate with a seal, an ID badge on a lanyard;
+  - building and repair: a hammer, a wrench, a screwdriver, pliers, hex keys;
+  - electrical and tech: a multimeter with its leads, cables hanging from the top edge with their plugs;
+  - care: a stethoscope and a medical cross;
+  - a to-go coffee with a sleeve and a little steam.
+- **Composition:** items around the edges, slightly tilted and partly cut off by the frame, with a clear middle for the focus. In the banner the focus is the mark and the name, with a thin gold line under the name.
 - **Never:** another company's logo or mark, real people, or real names.
-- **Motion:** gentle and once, such as items rising into place. A small ambient touch, such as steam, may loop. Everything stops when reduced motion is on.
-- **In the file:** prefix every id and class with the file's own prefix (`dd-` for the desk), so it can be placed inline in a page. Make each item its own group with an id, so it can be reused alone.
+- **Motion,** for illustrations drawn for the app: gentle and once, such as items rising into place. A small ambient touch, such as steam, may loop. Everything stops when reduced motion is on.
+- **In an SVG file:** prefix every id and class with the file's own prefix (`dd-` for the desk), so it can be placed inline in a page. Make each item its own group with an id, so it can be reused alone.
+
+`docier-desk.svg`, the welcome card's banner, was drawn before this style: it is flat, and has no multimeter, hammer, hex keys, stethoscope, or cross. Bring it in line when it is next redrawn.

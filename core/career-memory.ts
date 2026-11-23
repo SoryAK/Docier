@@ -185,7 +185,7 @@ export type ResumeImportRole = {
   isCurrent: boolean;
   description: string;
   achievements: string[];
-  /** When set, these evidence rows back the role. Otherwise the shared resume evidence is used. */
+  /** When set, these evidence rows back the role; an empty list means it was typed by hand and none does. Otherwise the shared resume evidence is used. */
   evidenceIds?: string[];
   /** Parallel to achievements. A blank entry uses the role's evidence. */
   achievementEvidenceIds?: string[];
@@ -200,7 +200,7 @@ export function planResumeImportFacts(input: {
 }): ChangeOperation[] {
   const operations: ChangeOperation[] = [];
   for (const role of input.roles) {
-    const roleEvidence = evidenceList(role.evidenceIds, input.evidenceId);
+    const roleEvidence = role.evidenceIds?.length === 0 ? [] : evidenceList(role.evidenceIds, input.evidenceId);
     if (roleEvidence.length === 0) continue;
     const factType = role.kind === "school" ? "education" : "role";
     operations.push({

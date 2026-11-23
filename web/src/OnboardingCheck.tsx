@@ -110,7 +110,6 @@ export function CheckOverview({
 
   return (
     <>
-      <Text type="label" display="block">Verify</Text>
       <Heading level={1}>
         Here's what was <em>extracted.</em>
       </Heading>
@@ -431,11 +430,14 @@ export function VerifyBoard({
   schools,
   onAddJob,
   onAddSchool,
+  hideEmpty = false,
 }: {
   jobs: VerifyCard[];
   schools: VerifyCard[];
   onAddJob?: () => void;
   onAddSchool?: () => void;
+  /** Leave out a section with nothing in it, instead of saying "None extracted." */
+  hideEmpty?: boolean;
 }) {
   const reviewLine = similarityReviewLine(jobs, schools);
   return (
@@ -445,8 +447,12 @@ export function VerifyBoard({
           {reviewLine}
         </Text>
       ) : null}
-      <VerifySection heading="Jobs" cards={jobs} addLabel="Add job" onAdd={onAddJob} />
-      <VerifySection heading="Schools" cards={schools} addLabel="Add school" onAdd={onAddSchool} />
+      {hideEmpty && jobs.length === 0 ? null : (
+        <VerifySection heading="Jobs" cards={jobs} addLabel="Add job" onAdd={onAddJob} />
+      )}
+      {hideEmpty && schools.length === 0 ? null : (
+        <VerifySection heading="Schools" cards={schools} addLabel="Add school" onAdd={onAddSchool} />
+      )}
     </div>
   );
 }

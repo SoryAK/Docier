@@ -149,7 +149,8 @@ async function importExtractedResume(
         endDate: job.endDate,
       });
       const jobEvidence = imports?.experience[index];
-      const linked = itemEvidenceIds(jobEvidence?.evidenceIds, evidenceId);
+      // A job listed with no evidence was typed by hand; the shared resume doesn't back it.
+      const linked = jobEvidence ? itemEvidenceIds(jobEvidence.evidenceIds) : itemEvidenceIds(undefined, evidenceId);
       const importId = importIdentity(roleIds?.experience[index]);
       const storedId = importId ? rowForImport(linked, importId) : undefined;
       const matchedId = storedId ?? (importId ? rowForKey(linked, key) : undefined);
@@ -233,7 +234,7 @@ async function importExtractedResume(
         endDate: school.endDate,
       });
       const schoolEvidence = imports?.education[index];
-      const linked = itemEvidenceIds(schoolEvidence?.evidenceIds, evidenceId);
+      const linked = schoolEvidence ? itemEvidenceIds(schoolEvidence.evidenceIds) : itemEvidenceIds(undefined, evidenceId);
       const importId = importIdentity(roleIds?.education[index]);
       const storedId = importId ? rowForImport(linked, importId) : undefined;
       const matchedId = storedId ?? (importId ? rowForKey(linked, key) : undefined);
@@ -644,6 +645,11 @@ function resolveResumeEvidence(
 ): string[] | null {
   const evidenceIds: string[] = [];
   for (const resumeId of resumeIds) {
+    // A blank achievement entry has no resume behind it.
+    if (!resumeId.trim()) {
+      evidenceIds.push("");
+      continue;
+    }
     const evidenceId = evidenceIdForResume(db, occupantId, resumeId);
     if (!evidenceId) return null;
     evidenceIds.push(evidenceId);

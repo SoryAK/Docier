@@ -260,6 +260,29 @@ describe("profileAfterOnboarding", () => {
     expect(next.headline).toBe("Mathematician");
   });
 
+  it("saves a typed headline, and keeps the one read from a resume when it is blank", () => {
+    const typed = profileAfterOnboarding({
+      current,
+      extracted: null,
+      firstName: "Ada",
+      lastName: "Lovelace",
+      headline: "  Analyst of engines ",
+      place: null,
+      links: null,
+    });
+    expect(typed.headline).toBe("Analyst of engines");
+    const blank = profileAfterOnboarding({
+      current,
+      extracted: resume().profile,
+      firstName: "Ada",
+      lastName: "Lovelace",
+      headline: " ",
+      place: null,
+      links: null,
+    });
+    expect(blank.headline).toBe("Mathematician");
+  });
+
   it("keeps a saved city when the confirmed field is blank", () => {
     const next = profileAfterOnboarding({
       current,

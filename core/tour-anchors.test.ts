@@ -30,12 +30,12 @@ function anchorsOnHome(): Set<string> {
   return found;
 }
 
-/** Every name a stop can point at: its anchors, its fallback, and the group it opens. */
+/** Every name a stop can point at: its anchors and its fallback. */
 function anchorsInTour(): Set<TourAnchor> {
   const used = new Set<TourAnchor>();
   for (const empty of [false, true]) {
     for (const step of tourSteps({ empty })) {
-      for (const anchor of [...step.anchors, ...(step.fallback ?? []), ...(step.reveal ? [step.reveal] : [])]) {
+      for (const anchor of [...step.anchors, ...(step.fallback ?? [])]) {
         used.add(anchor);
       }
     }

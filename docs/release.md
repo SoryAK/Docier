@@ -14,7 +14,7 @@ Run the app in development and walk:
 
 - `#welcome`, then **Show me around**, through every stop, with a career that has jobs saved (the first stop points at Home's overview, which an empty career doesn't have);
 - `#welcome?empty`, then the short tour to **Add your first job**, with an empty career (Home shows the saved career whatever the preview says). Start the app on a new database for this, such as `DATABASE_PATH=data/tour-review.sqlite pnpm dev`, and delete the file afterwards;
-- at desktop width, with the sidebar collapsed and the Resources group closed;
+- at desktop width, with the sidebar wide and with it narrowed to icons;
 - at phone width.
 
 For each stop, check:

@@ -12,8 +12,6 @@ export type TourAnchor =
   | "share"
   | "start"
   | "network"
-  /** The sidebar's Resources toggle; My Network sits inside it. */
-  | "resources"
   /** The menu button, for stops whose part of Home is in a hidden sidebar (phones). */
   | "menu";
 
@@ -25,16 +23,13 @@ export type TourStep = {
   body: string;
   /** The last step's main button does this instead of just closing the tour. */
   finish?: "add-job";
-  /** A closed group to open for this step, so its anchors come on screen. */
-  reveal?: "resources";
-  /** Pointed at when neither the anchors nor the group to open are on screen. */
+  /** Pointed at when none of the anchors are on screen. */
   fallback?: TourAnchor[];
 };
 
 const NETWORK_STEP: TourStep = {
   id: "network",
   anchors: ["network"],
-  reveal: "resources",
   fallback: ["menu"],
   title: "Build your network",
   body: "My Network keeps the people you've worked with and your conversations with them. Add someone to start.",
@@ -96,14 +91,12 @@ export function shouldWelcome(profile: {
 }
 
 /**
- * What a step points at, given the anchors on screen: its own anchors; or, when
- * they sit in a closed group that is on screen, its own anchors once the group
- * opens; or its fallback; or nothing, and the step is left out.
+ * What a step points at, given the anchors on screen: its own anchors; or its
+ * fallback; or nothing, and the step is left out.
  */
 export function pickAnchors(step: TourStep, onScreen: ReadonlySet<TourAnchor>): TourAnchor[] | null {
   const own = step.anchors.filter((anchor) => onScreen.has(anchor));
   if (own.length > 0) return own;
-  if (step.reveal && onScreen.has(step.reveal)) return step.anchors;
   const fallback = (step.fallback ?? []).filter((anchor) => onScreen.has(anchor));
   return fallback.length > 0 ? fallback : null;
 }

@@ -2,6 +2,7 @@ import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
+import type { FirstRunUpdate } from "../core/first-run";
 import { isOnboardingProfileComplete } from "../core/onboarding";
 import {
   PROFILE_AVATAR_MAX_BYTES,
@@ -89,6 +90,26 @@ export function completeOnboarding(
   db.prepare(
     "UPDATE profiles SET onboarding_completed_at = ?, updated_at = ? WHERE occupant_id = ?",
   ).run(now, now, occupantId);
+  return readProfile(db, occupantId);
+}
+
+/** Stamp or clear the welcome and tour marks. Clearing lets the card or the tour show again. */
+export function updateFirstRun(db: DatabaseSync, occupantId: string, update: FirstRunUpdate): ProfileRow {
+  const now = new Date().toISOString();
+  if (update.welcomeSeen !== undefined) {
+    db.prepare("UPDATE profiles SET welcome_seen_at = ?, updated_at = ? WHERE occupant_id = ?").run(
+      update.welcomeSeen ? now : null,
+      now,
+      occupantId,
+    );
+  }
+  if (update.tourDone !== undefined) {
+    db.prepare("UPDATE profiles SET tour_completed_at = ?, updated_at = ? WHERE occupant_id = ?").run(
+      update.tourDone ? now : null,
+      now,
+      occupantId,
+    );
+  }
   return readProfile(db, occupantId);
 }
 

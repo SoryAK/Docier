@@ -1,4 +1,5 @@
-import { useState, useEffect, type ReactNode } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
+import { TOUR_REVEAL, type TourReveal } from "./tour-reveal";
 import { Button } from "@astryxdesign/core/Button";
 import { Thumbnail } from "@astryxdesign/core/Thumbnail";
 import { roleCoverPhoto, type WorkMapRole } from "@core/work-map";
@@ -69,6 +70,26 @@ export function HomeNav({
   useEffect(() => {
     if (RESOURCE_PAGES.has(page)) setResourcesOpen(true);
   }, [page]);
+
+  // The tour opens Resources to point at My Network, then puts it back as it was.
+  const openedForTour = useRef(false);
+  useEffect(() => {
+    function onReveal(event: Event) {
+      const detail = (event as CustomEvent<TourReveal>).detail;
+      if (detail?.target !== "resources") return;
+      if (detail.open) {
+        setResourcesOpen((open) => {
+          openedForTour.current = !open;
+          return true;
+        });
+      } else if (openedForTour.current) {
+        openedForTour.current = false;
+        setResourcesOpen(false);
+      }
+    }
+    window.addEventListener(TOUR_REVEAL, onReveal);
+    return () => window.removeEventListener(TOUR_REVEAL, onReveal);
+  }, []);
 
   useEffect(() => {
     if (!mobileOpen) return;
@@ -148,6 +169,7 @@ export function HomeNav({
         <NavRow
           icon="history"
           label="Career History"
+          tour="history-nav"
           current={customId ? false : page === "history"}
           slim={slim}
           onSelect={() => {
@@ -186,6 +208,7 @@ export function HomeNav({
               label="My Network"
               current={customId ? false : page === "network"}
               slim={slim}
+              tour="network"
               onSelect={() => go("network")}
             />
             <GalleryResource slim onOpenRole={openGalleryRole} />
@@ -196,6 +219,7 @@ export function HomeNav({
               type="button"
               className="home-nav-group-toggle"
               aria-expanded={resourcesOpen}
+              data-tour="resources"
               onClick={() => setResourcesOpen((open) => !open)}
             >
               Resources
@@ -241,6 +265,7 @@ export function HomeNav({
                   label="My Network"
                   current={customId ? false : page === "network"}
                   slim={false}
+                  tour="network"
                   onSelect={() => go("network")}
                 />
                 <GalleryResource slim={false} onOpenRole={openGalleryRole} />
@@ -292,12 +317,15 @@ function NavRow({
   current,
   slim,
   onSelect,
+  tour,
 }: {
   icon: IconName;
   label: string;
   current?: boolean;
   slim: boolean;
   onSelect?: () => void;
+  /** Where the tour points at this row. */
+  tour?: string;
 }) {
   const className = ["home-nav-item", current ? "is-current" : ""]
     .filter(Boolean)
@@ -310,7 +338,7 @@ function NavRow({
   );
   if (!onSelect) {
     return (
-      <span className={className} title={slim ? label : undefined}>
+      <span className={className} title={slim ? label : undefined} data-tour={tour}>
         {inner}
       </span>
     );
@@ -321,6 +349,7 @@ function NavRow({
       className={className}
       title={slim ? label : undefined}
       aria-current={current ? "page" : undefined}
+      data-tour={tour}
       onClick={onSelect}
     >
       {inner}

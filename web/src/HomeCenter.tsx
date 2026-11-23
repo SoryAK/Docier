@@ -167,23 +167,23 @@ export function HomeCenter({
               </div>
             ) : story.roles > 0 ? (
               <div className="home-story">
-                  <article className="home-story-stat">
+                  <article className="home-story-stat" data-tour="overview">
                     <span>Jobs</span>
                     <strong>{story.jobs}</strong>
                   </article>
-                  <article className="home-story-stat">
+                  <article className="home-story-stat" data-tour="overview">
                     <span>Roles</span>
                     <strong>{story.roles}</strong>
                   </article>
-                  <article className="home-story-stat">
+                  <article className="home-story-stat" data-tour="overview">
                     <span>Tenure</span>
                     <strong>{story.tenure}</strong>
                   </article>
-                  <article className="home-story-stat">
+                  <article className="home-story-stat" data-tour="overview">
                     <span>Places</span>
                     <strong>{placed.length}</strong>
                   </article>
-                  <section className="home-story-panel home-story-timeline" aria-label="Career timeline">
+                  <section className="home-story-panel home-story-timeline" aria-label="Career timeline" data-tour="overview">
                     <h2>Career timeline</h2>
                     <StoryTimeline roles={roles} now={now} onSelect={onSelectRole} />
                   </section>
@@ -201,7 +201,7 @@ export function HomeCenter({
                       ))}
                     </ul>
                   </section>
-                  <section className="home-story-panel home-story-mapcard" aria-label="Map">
+                  <section className="home-story-panel home-story-mapcard" aria-label="Map" data-tour="map">
                     <h2>Map</h2>
                     <div className="home-story-map">
                       <CareerMap
@@ -249,7 +249,7 @@ export function HomeCenter({
                 error || !loaded || !onStart ? (
                   <p className="home-center-empty">{error || (loaded ? "Nothing in the story yet." : "")}</p>
                 ) : (
-                  <section className="home-center-start" aria-labelledby="home-center-start-title">
+                  <section className="home-center-start" aria-labelledby="home-center-start-title" data-tour="start">
                     <h2 id="home-center-start-title">Start your story</h2>
                     <p>
                       Add the jobs and schools you&apos;ve had. Each one becomes part of your story and your map, and
@@ -263,7 +263,7 @@ export function HomeCenter({
                   </section>
                 )
               )}
-                <section className="home-story-recent" aria-label="Recent events">
+                <section className="home-story-recent" aria-label="Recent events" data-tour="recent">
                   <div className="home-story-recent-switch">
                     <SegmentedControl
                       label="Recent views"

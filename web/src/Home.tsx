@@ -36,6 +36,7 @@ import { HomeCenter } from "./HomeCenter";
 import { HomeProforna, type ChatRole } from "./HomeProforna";
 import { RoleCanvasEntry } from "./RoleCanvas";
 import type { OnboardingProfileValue } from "./OnboardingProfile";
+import { WelcomeTour, type FirstRunMarks } from "./WelcomeTour";
 import { clearEvidenceRole } from "./onboarding-evidence";
 import { careerPreviewWindowUrl, isCareerPreview } from "./preview-placement";
 import "./home.css";
@@ -49,17 +50,22 @@ export function Home({
   initialFocusTab,
   profile,
   career,
+  careerReady = true,
   careerError,
   onProfileSaved,
 }: {
   initialFocusJobId?: string | null;
   initialFocusTab?: DetailTab;
-  profile: OnboardingProfileValue;
+  profile: OnboardingProfileValue & FirstRunMarks;
   career: CareerFile;
+  /** False until the career has loaded; the welcome card waits for it. */
+  careerReady?: boolean;
   careerError: string | null;
-  onProfileSaved: (profile: OnboardingProfileValue) => void;
+  onProfileSaved: (profile: OnboardingProfileValue & FirstRunMarks) => void;
 }) {
   const [editing, setEditing] = useState(false);
+  // Bumped by "Take the tour" in the user menu.
+  const [tourRequest, setTourRequest] = useState(0);
   const [bioMode, setBioMode] = useState<HomeBioMode>(isCareerPreview() ? "preview" : "browse");
   const [canvasFromNav, setCanvasFromNav] = useState(false);
   const [chatRoles, setChatRoles] = useState<ChatRole[]>([]);
@@ -391,6 +397,7 @@ export function Home({
             setSettingsOpen(true);
           }}
           onEditProfile={goProfile}
+          onTour={() => setTourRequest((count) => count + 1)}
           onSearch={() => setSearchOpen(true)}
           onProforna={togglePanel}
           onRequests={openRequests}
@@ -638,6 +645,26 @@ export function Home({
         onOpenNetwork={() => {
           setRequests(null);
           goPage("network");
+        }}
+      />
+      <WelcomeTour
+        firstName={profile.firstName}
+        marks={profile}
+        counts={{ jobs: career.jobs.length, schools: career.schools.length }}
+        ready={careerReady}
+        tourRequest={tourRequest}
+        onBeforeTour={() => {
+          setSearchOpen(false);
+          setSettingsOpen(false);
+          if (page !== "home") goPage("home");
+        }}
+        onSaved={(saved) => onProfileSaved({ ...profile, ...saved })}
+        onAddJob={() => {
+          setFocusJobId(null);
+          // Career History is drawn only with the sidebar open; the new job needs it.
+          showLeft();
+          goPage("history");
+          setAddRequest({ kind: "job", nonce: Date.now() });
         }}
       />
     </div>

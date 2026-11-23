@@ -628,6 +628,9 @@ export function openDatabase(path: string): DatabaseSync {
   );
   makeLegacyProjectionRevisionOptional(db);
   addColumnIfMissing(db, "profiles", "avatar_stored_name", "TEXT");
+  // First run after onboarding: the welcome card was seen, and the tour was finished or skipped.
+  addColumnIfMissing(db, "profiles", "welcome_seen_at", "TEXT");
+  addColumnIfMissing(db, "profiles", "tour_completed_at", "TEXT");
   addColumnIfMissing(db, "work_history_media", "stored_name", "TEXT");
   addColumnIfMissing(
     db,

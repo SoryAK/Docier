@@ -13,7 +13,11 @@ import { WorkMapPreviewPage } from "./WorkMapPreview";
 
 type Me = {
   occupant: { id: string };
-  profile: OnboardingProfileValue & { onboardingCompletedAt: string | null };
+  profile: OnboardingProfileValue & {
+    onboardingCompletedAt: string | null;
+    welcomeSeenAt?: string | null;
+    tourCompletedAt?: string | null;
+  };
 };
 
 const EMPTY_CAREER: CareerFile = { jobs: [], schools: [], skills: [] };
@@ -23,6 +27,8 @@ export function App() {
   const [career, setCareer] = useState<CareerFile>(EMPTY_CAREER);
   const [error, setError] = useState<string | null>(null);
   const [careerError, setCareerError] = useState<string | null>(null);
+  // Home renders before the career arrives; the welcome card waits for it.
+  const [careerReady, setCareerReady] = useState(false);
   const [reviewOnboarding, setReviewOnboarding] = useState(readReviewOnboarding);
   const [previewWindow, setPreviewWindow] = useState(isPreviewWindow);
   const [focusJobId, setFocusJobId] = useState<string | null>(readEvidenceRole);
@@ -62,6 +68,7 @@ export function App() {
       setCareer(EMPTY_CAREER);
       setCareerError("Could not load work history.");
     }
+    setCareerReady(true);
   }
 
   if (previewWindow) {
@@ -100,6 +107,7 @@ export function App() {
             setReviewOnboarding(false);
             setFocusJobId(focus);
             window.location.hash = exit.page === "history" ? "#/history" : "#/";
+            setCareerReady(false);
             void loadCareer();
           }}
         />
@@ -113,6 +121,7 @@ export function App() {
       initialFocusTab={focusJobId ? "evidence" : undefined}
       profile={me.profile}
       career={career}
+      careerReady={careerReady}
       careerError={careerError}
       onProfileSaved={(profile) =>
         setMe({

@@ -1,0 +1,145 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 176" preserveAspectRatio="xMidYMid slice" class="dd-scene" role="img" aria-label="A desk with a laptop, a briefcase, tools, folders, a certificate, an ID badge, and a coffee">
+  <!--
+    Docier desk scene. The style rules for drawing more like it are in README.md.
+    Every id and class starts with "dd-" so this file can be placed inline in a page.
+    Each item is its own group (dd-laptop, dd-briefcase, ...) so it can be reused alone.
+  -->
+  <style>
+    .dd-item { transform-box: fill-box; transform-origin: 50% 100%; animation: dd-rise .8s cubic-bezier(.19, 1, .22, 1) both; }
+    .dd-i1 { animation-delay: .10s; } .dd-i2 { animation-delay: .22s; } .dd-i3 { animation-delay: .34s; }
+    .dd-i4 { animation-delay: .46s; } .dd-i5 { animation-delay: .58s; } .dd-i6 { animation-delay: .70s; }
+    .dd-i7 { animation-delay: .30s; } .dd-i8 { animation-delay: .82s; }
+    @keyframes dd-rise { from { opacity: 0; transform: translateY(34px); } }
+    .dd-papers { transform-box: fill-box; animation: dd-papers 1s cubic-bezier(.19, 1, .22, 1) .75s both; }
+    @keyframes dd-papers { from { transform: translateY(40px); } }
+    .dd-swing { transform-box: view-box; transform-origin: 510px -16px; animation: dd-swing 2.4s ease-in-out .6s both; }
+    @keyframes dd-swing { 0% { transform: rotate(7deg); } 35% { transform: rotate(-4deg); } 65% { transform: rotate(2deg); } 100% { transform: rotate(0deg); } }
+    .dd-steam path { opacity: 0; transform-box: fill-box; transform-origin: 50% 100%; animation: dd-steam 3.2s ease-in-out infinite; }
+    .dd-steam .dd-s2 { animation-delay: 1.05s; } .dd-steam .dd-s3 { animation-delay: 2.1s; }
+    @keyframes dd-steam { 0% { opacity: 0; transform: translateY(6px) scaleY(.7); } 30% { opacity: .75; } 100% { opacity: 0; transform: translateY(-10px) scaleY(1.05); } }
+    @media (prefers-reduced-motion: reduce) {
+      .dd-item, .dd-papers, .dd-swing { animation: none; }
+      .dd-steam path { animation: none; opacity: .6; }
+    }
+  </style>
+  <defs>
+    <linearGradient id="dd-manila" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f3d59c"/><stop offset=".5" stop-color="#e2b672"/><stop offset="1" stop-color="#cd9f5b"/>
+    </linearGradient>
+    <linearGradient id="dd-manila-front" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f6dfb0"/><stop offset="1" stop-color="#e3b974"/>
+    </linearGradient>
+    <linearGradient id="dd-steel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#d3dae1"/><stop offset="1" stop-color="#97a4b2"/>
+    </linearGradient>
+    <radialGradient id="dd-focus" cx=".5" cy=".5" r=".5">
+      <stop offset="0" stop-color="#fbf6ee"/><stop offset=".6" stop-color="#fbf6ee" stop-opacity=".85"/><stop offset="1" stop-color="#fbf6ee" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- laptop, top left -->
+  <g id="dd-laptop" class="dd-item dd-i1"><g transform="translate(34 18) rotate(-7 56 40)">
+    <rect x="4" y="0" width="104" height="70" rx="6" fill="#0d345e"/>
+    <rect x="10" y="6" width="92" height="58" rx="2" fill="#f8f4ec"/>
+    <rect x="10" y="6" width="92" height="9" fill="#efe3cf"/>
+    <circle cx="16" cy="10.5" r="2" fill="#cd9f5b"/>
+    <rect x="16" y="21" width="26" height="36" rx="2" fill="#fff" stroke="#eadfce"/>
+    <rect x="47" y="21" width="48" height="5" rx="2.5" fill="#0d345e" opacity=".8"/>
+    <rect x="47" y="30" width="40" height="3" rx="1.5" fill="#e0d4c2"/>
+    <rect x="47" y="36" width="44" height="3" rx="1.5" fill="#e0d4c2"/>
+    <rect x="47" y="45" width="22" height="8" rx="4" fill="#cd9f5b"/>
+    <path d="M-6 70h124l-7 10h-110z" fill="url(#dd-steel)"/>
+    <rect x="42" y="70" width="28" height="3" rx="1.5" fill="#8794a2"/>
+  </g></g>
+
+  <!-- briefcase, bottom left -->
+  <g id="dd-briefcase" class="dd-item dd-i2"><g transform="translate(14 118) rotate(-9 44 35)">
+    <path d="M28 14v-9a7 7 0 0 1 7-7h18a7 7 0 0 1 7 7v9" fill="none" stroke="#0d345e" stroke-width="5"/>
+    <rect x="0" y="12" width="88" height="58" rx="9" fill="#0d345e"/>
+    <path d="M0 32h88" stroke="#244f7e" stroke-width="2"/>
+    <rect x="37" y="26" width="14" height="11" rx="2.5" fill="#e6bf7f"/>
+  </g></g>
+
+  <!-- wrench and screwdriver, crossed -->
+  <g id="dd-tools" class="dd-item dd-i3"><g transform="translate(132 98)">
+    <g transform="rotate(-40 25 35)">
+      <rect x="20" y="14" width="10" height="56" rx="4" fill="url(#dd-steel)"/>
+      <path d="M15 0a15 15 0 1 0 20 0v10a4 4 0 0 1-4 4h-12a4 4 0 0 1-4-4z" fill="url(#dd-steel)"/>
+      <path d="M20 -4h10v12h-10z" fill="#f7f0e4"/>
+    </g>
+    <g transform="rotate(32 25 35)">
+      <rect x="23" y="2" width="4" height="40" rx="1.5" fill="url(#dd-steel)"/>
+      <path d="M23 2l2-6 2 6z" fill="#97a4b2"/>
+      <rect x="18" y="40" width="14" height="34" rx="5" fill="#cd9f5b"/>
+      <path d="M21 46v22M25 46v22M29 46v22" stroke="#b8894a" stroke-width="1.2"/>
+      <rect x="17" y="38" width="16" height="5" rx="2" fill="#0d345e"/>
+    </g>
+  </g></g>
+
+  <!-- closed folders -->
+  <g id="dd-folders" class="dd-item dd-i4"><g transform="translate(226 140) rotate(-3 62 20)">
+    <path d="M6 -4h26l5 6h82a5 5 0 0 1 5 5v40h-124v-46a5 5 0 0 1 6-5z" fill="#0d345e" opacity=".9" transform="rotate(-4 62 20) translate(4 -4)"/>
+    <path d="M6 0h28l5 6h80a5 5 0 0 1 5 5v40h-124v-46a5 5 0 0 1 6-5z" fill="url(#dd-manila)"/>
+    <path d="M0 14h124" stroke="#f6dfb0" stroke-width="1.5" opacity=".8"/>
+  </g></g>
+
+  <!-- certificate, top right -->
+  <g id="dd-certificate" class="dd-item dd-i5"><g transform="translate(392 14) rotate(8 44 34) scale(.86)">
+    <rect x="0" y="0" width="88" height="68" rx="3" fill="#fff" stroke="#e8dccb"/>
+    <rect x="6" y="6" width="76" height="56" rx="2" fill="none" stroke="#e6bf7f" stroke-width="1.5"/>
+    <rect x="22" y="15" width="44" height="4" rx="2" fill="#0d345e" opacity=".8"/>
+    <rect x="16" y="25" width="56" height="3" rx="1.5" fill="#e6dccd"/>
+    <rect x="20" y="32" width="48" height="3" rx="1.5" fill="#e6dccd"/>
+    <path d="M62 48l-5 14 6-3 4 5 1-14z" fill="#0d345e"/>
+    <path d="M72 48l5 14-6-3-4 5-1-14z" fill="#244f7e"/>
+    <circle cx="67" cy="46" r="9" fill="#cd9f5b" stroke="#f3d59c" stroke-width="2"/>
+  </g></g>
+
+  <!-- open folder with resume pages -->
+  <g id="dd-open-folder" class="dd-item dd-i6"><g transform="translate(360 98) rotate(4 62 50) scale(.84)">
+    <path d="M12 24h34l6 8h58a6 6 0 0 1 6 6v60h-110v-68a6 6 0 0 1 6-6z" fill="url(#dd-manila)"/>
+    <g class="dd-papers">
+      <g transform="rotate(-6 64 42)">
+        <rect x="22" y="0" width="80" height="90" rx="3" fill="#f8f4ec" stroke="#e8dccb"/>
+      </g>
+      <rect x="20" y="4" width="84" height="90" rx="3" fill="#fff" stroke="#e8dccb"/>
+      <circle cx="34" cy="19" r="6" fill="#f3d59c"/>
+      <rect x="45" y="14" width="42" height="5" rx="2.5" fill="#0d345e" opacity=".85"/>
+      <rect x="45" y="22" width="28" height="3" rx="1.5" fill="#d8c9b3"/>
+      <rect x="28" y="34" width="66" height="3" rx="1.5" fill="#e6dccd"/>
+      <rect x="28" y="41" width="58" height="3" rx="1.5" fill="#e6dccd"/>
+      <rect x="28" y="48" width="62" height="3" rx="1.5" fill="#e6dccd"/>
+    </g>
+    <path d="M0 54h124l-9 44h-106z" fill="url(#dd-manila-front)"/>
+    <path d="M0 54h124" stroke="#fbeccc" stroke-width="2"/>
+  </g></g>
+
+  <!-- ID badge, slung from the top on a short lanyard -->
+  <g id="dd-badge" class="dd-item dd-i7"><g class="dd-swing"><g transform="translate(482 -22) rotate(12 28 0)">
+    <path d="M18 -20 L25 40 M38 -20 L31 40" stroke="#0d345e" stroke-width="3.5" fill="none"/>
+    <rect x="21" y="36" width="14" height="9" rx="2" fill="#b9c2cc"/>
+    <rect x="0" y="43" width="56" height="66" rx="8" fill="#fff" stroke="#e8dccb"/>
+    <path d="M0 51a8 8 0 0 1 8-8h40a8 8 0 0 1 8 8v6h-56z" fill="#0d345e"/>
+    <circle cx="28" cy="74" r="10" fill="#f3d59c"/>
+    <rect x="12" y="89" width="32" height="4" rx="2" fill="#0d345e" opacity=".8"/>
+    <rect x="17" y="97" width="22" height="3" rx="1.5" fill="#e6dccd"/>
+  </g></g></g>
+
+  <!-- to-go coffee, bottom right corner -->
+  <g id="dd-coffee" class="dd-item dd-i8"><g transform="translate(508 92) rotate(-4 26 40)">
+    <g class="dd-steam" fill="none" stroke="#c9b79e" stroke-width="2.2" stroke-linecap="round" transform="translate(4 2) scale(1 .7)">
+      <path class="dd-s1" d="M14 4c-5-6 5-10 0-17s4-10 0-15"/>
+      <path class="dd-s2" d="M24 2c-5-6 5-10 0-17s4-10 0-15"/>
+      <path class="dd-s3" d="M34 4c-5-6 5-10 0-17s4-10 0-15"/>
+    </g>
+    <path d="M4 18h44l-6 60a5 5 0 0 1-5 4h-22a5 5 0 0 1-5-4z" fill="#fff" stroke="#e3d8c8"/>
+    <path d="M7.4 38h37.2l-2.4 26h-32.4z" fill="url(#dd-manila)"/>
+    <path d="M7.8 42h36.4M9.6 60h32.8" stroke="#f6dfb0" stroke-width="1.2" opacity=".9"/>
+    <path d="M1 14h50a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-50a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2z" fill="#f4f1ec" stroke="#ddd3c4"/>
+    <path d="M6 14l3-8a3 3 0 0 1 3-2h28a3 3 0 0 1 3 2l3 8z" fill="#fbf9f5" stroke="#ddd3c4"/>
+    <ellipse cx="17" cy="7.5" rx="4" ry="1.6" fill="#8b7f70"/>
+  </g></g>
+
+  <!-- a soft clearing in the middle, for a name or a heading -->
+  <ellipse id="dd-clearing" cx="288" cy="86" rx="118" ry="52" fill="url(#dd-focus)"/>
+</svg>

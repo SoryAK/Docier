@@ -23,6 +23,8 @@ export type ProfileRow = {
   portfolioUrl: string;
   avatarUrl: string | null;
   onboardingCompletedAt: string | null;
+  welcomeSeenAt: string | null;
+  tourCompletedAt: string | null;
 };
 
 export function ensureOccupant(db: DatabaseSync): OccupantRow {
@@ -68,7 +70,9 @@ export function readProfile(db: DatabaseSync, occupantId: string): ProfileRow {
         github_url AS githubUrl,
         portfolio_url AS portfolioUrl,
         avatar_stored_name AS avatarStoredName,
-        onboarding_completed_at AS onboardingCompletedAt
+        onboarding_completed_at AS onboardingCompletedAt,
+        welcome_seen_at AS welcomeSeenAt,
+        tour_completed_at AS tourCompletedAt
       FROM profiles WHERE occupant_id = ?`,
     )
     .get(occupantId) as
@@ -88,6 +92,8 @@ export function readProfile(db: DatabaseSync, occupantId: string): ProfileRow {
         portfolioUrl: string;
         avatarStoredName: string | null;
         onboardingCompletedAt: string | null;
+        welcomeSeenAt: string | null;
+        tourCompletedAt: string | null;
       }
     | undefined;
   if (!row) {

@@ -146,7 +146,7 @@ export function RoleView({
     { id: "achievements", label: "Achievements", count: role.achievements.length },
     ...(isJob
       ? ([
-          { id: "setup", label: "Work setup" },
+          { id: "setup", label: "Setup" },
           { id: "pay", label: "Pay & benefits", locked: true },
         ] as const)
       : []),

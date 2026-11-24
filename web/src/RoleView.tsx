@@ -213,6 +213,22 @@ export function RoleView({
         {subtitle ? <p>{subtitle}</p> : null}
       </div>
 
+      {glance.length > 0 ? (
+        <ul className="role-view-glance" aria-label={`${name} at a glance`}>
+          {glance.map((item) => {
+            const Icon = GLANCE_ICON[item.kind];
+            return (
+              <li key={item.kind}>
+                <button type="button" onClick={() => openTab(item.tab)}>
+                  <Icon size={15} aria-hidden="true" />
+                  <span>{item.text}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+
       <div className="role-view-meta">
         <p>
           {place}
@@ -229,22 +245,6 @@ export function RoleView({
         </p>
         <RolePeople role={role} roles={roles} onSaved={onSaved} openRequest={peopleRequest} />
       </div>
-
-      {glance.length > 0 ? (
-        <ul className="role-view-glance" aria-label={`${name} at a glance`}>
-          {glance.map((item) => {
-            const Icon = GLANCE_ICON[item.kind];
-            return (
-              <li key={item.kind}>
-                <button type="button" onClick={() => openTab(item.tab)}>
-                  <Icon size={15} aria-hidden="true" />
-                  <span>{item.text}</span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      ) : null}
 
       {settings ? <RoleSettings role={role} panel={settings} onClose={() => setSettings(null)} onSaved={onSaved} /> : null}
       {(

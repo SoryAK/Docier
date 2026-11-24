@@ -1577,3 +1577,127 @@ img.role-view-avatar {
     gap: 4px;
   }
 }
+
+/* Each achievement as its own row: easy to tell apart, the whole row opens it. */
+.achievement-rows {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
+}
+
+.achievement-row {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px 10px 14px;
+  border: 1px solid #ebe8e4;
+  border-left: 3px solid #e8d6b3;
+  border-radius: 12px;
+  background: #fff;
+  transition: border-color 0.15s ease-out, background 0.15s ease-out;
+}
+
+.achievement-row:hover,
+.achievement-row:focus-within {
+  border-color: #e2cfa8;
+  border-left-color: #cd9f5b;
+  background: #fffcf6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .achievement-row {
+    transition: none;
+  }
+}
+
+.achievement-row-open {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #171717;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.achievement-row-text {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.achievement-row-chevron {
+  flex: none;
+  margin-top: 3px;
+  color: #b8a48a;
+}
+
+.achievement-row:hover .achievement-row-chevron {
+  color: #8a6d4f;
+}
+
+.achievement-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.achievement-row-meta .role-proof {
+  margin-left: 0;
+}
+
+.achievement-row-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: #6b6b70;
+  font-size: 0.75rem;
+}
+
+.achievement-row-skill {
+  padding: 0 8px;
+  border-radius: 999px;
+  background: #f1f1f2;
+  color: #3f3f46;
+  font-size: 0.75rem;
+}
+
+/* History: each entry its own row too. */
+.role-history-year li {
+  padding: 6px 6px;
+  border-radius: 8px;
+}
+
+.role-history-year li + li {
+  border-top: 1px solid #f1eee9;
+  border-radius: 0 0 8px 8px;
+}
+
+.role-history-year li:has(.role-history-go):hover {
+  background: #fffaf0;
+}
+
+.role-history-year ol {
+  gap: 0;
+}
+
+.role-history-go {
+  display: block;
+  width: 100%;
+}
+
+.role-history-go:hover,
+.role-history-go:focus-visible {
+  text-decoration: none;
+  color: #171717;
+}

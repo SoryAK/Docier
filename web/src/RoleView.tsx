@@ -6,7 +6,7 @@ import {
   tenureMonths,
 } from "@core/career-history";
 import { roleCoverPhoto, type WorkMapRole } from "@core/work-map";
-import { Globe, ImagePlus, Images, Pencil, Plus, Trash2, UserRound, X } from "lucide-react";
+import { CalendarDays, ChevronRight, Globe, ImagePlus, Images, MapPin, Pencil, Plus, Trash2, UserRound, X } from "lucide-react";
 import { AchievementDate } from "./AchievementDate";
 import { AchievementDetail } from "./AchievementDetail";
 import { AchievementProof } from "./AchievementProof";
@@ -257,23 +257,43 @@ export function RoleView({
               {openAchievement ? (
                 <AchievementDetail role={role} achievementId={openAchievement} onBack={() => setOpenAchievement(null)} onSaved={onSaved} />
               ) : role.achievements.length > 0 ? (
-                <ol className="role-view-achievements">
+                <ol className="achievement-rows">
                   {role.achievements.map((achievement, index) => {
                     const id = role.achievementIds?.[index];
+                    const links = role.achievementLinks?.[index];
+                    const counts = [
+                      { icon: UserRound, n: links?.people.length ?? 0, label: "people" },
+                      { icon: CalendarDays, n: links?.moments.length ?? 0, label: "events and milestones" },
+                      { icon: MapPin, n: links?.places.length ?? 0, label: "places" },
+                    ].filter((item) => item.n > 0);
                     return (
-                      <li key={id ?? index} data-achievement-id={id}>
+                      <li key={id ?? index} className="achievement-row" data-achievement-id={id}>
                         {id ? (
-                          <button type="button" className="role-view-achievement-open" onClick={() => setOpenAchievement(id)}>
-                            {achievement}
+                          <button type="button" className="achievement-row-open" onClick={() => setOpenAchievement(id)}>
+                            <span className="achievement-row-text">{achievement}</span>
+                            <ChevronRight size={16} aria-hidden="true" className="achievement-row-chevron" />
                           </button>
                         ) : (
-                          <span>{achievement}</span>
+                          <span className="achievement-row-text">{achievement}</span>
                         )}
                         {id ? (
-                          <>
+                          <div className="achievement-row-meta">
                             <AchievementDate role={role} achievementId={id} date={role.achievementDates?.[index] ?? ""} onSaved={onSaved} />
                             <AchievementProof role={role} achievementId={id} statement={achievement} onSaved={onSaved} />
-                          </>
+                            {counts.map(({ icon: CountIcon, n, label }) => (
+                              <span key={label} className="achievement-row-count" title={`Linked to ${n} ${label}`}>
+                                <CountIcon size={12} aria-hidden="true" /> {n}
+                              </span>
+                            ))}
+                            {(links?.skills ?? []).slice(0, 3).map((skill) => (
+                              <span key={skill} className="achievement-row-skill">
+                                {skill}
+                              </span>
+                            ))}
+                            {(links?.skills.length ?? 0) > 3 ? (
+                              <span className="achievement-row-count">+{(links?.skills.length ?? 0) - 3}</span>
+                            ) : null}
+                          </div>
                         ) : null}
                       </li>
                     );

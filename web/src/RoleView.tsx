@@ -13,11 +13,24 @@ import "./role-view.css";
 
 type RoleTab = "overview" | "achievements";
 
+/** A thing picked in the role's History, to show in the role. */
+export type RoleFocusRequest = { kind: "achievement" | "person" | "overview"; id: string; nonce: number };
+
 /**
  * One role, opened from Career History: its photo as a banner (or a cream band),
  * buttons for what it has, and two tabs. The role's History sits beside it.
  */
-export function RoleView({ role, roles, onSaved }: { role: WorkMapRole; roles: WorkMapRole[]; onSaved: () => void }) {
+export function RoleView({
+  role,
+  roles,
+  onSaved,
+  focusRequest = null,
+}: {
+  role: WorkMapRole;
+  roles: WorkMapRole[];
+  onSaved: () => void;
+  focusRequest?: RoleFocusRequest | null;
+}) {
   const [tab, setTab] = useState<RoleTab>("overview");
   const [editing, setEditing] = useState(false);
   const galleryRef = useRef<HTMLDialogElement>(null);
@@ -63,6 +76,35 @@ export function RoleView({ role, roles, onSaved }: { role: WorkMapRole; roles: W
       setPhotoBusy(false);
     }
   }
+
+  // Something picked in History: show it here. An achievement is scrolled to and
+  // briefly marked; a person opens the list of people worked with.
+  const [flashId, setFlashId] = useState<string | null>(null);
+  const [peopleRequest, setPeopleRequest] = useState<{ linkId: string; nonce: number } | null>(null);
+  useEffect(() => {
+    if (!focusRequest) return;
+    setEditing(false);
+    if (focusRequest.kind === "overview") {
+      setTab("overview");
+      return;
+    }
+    if (focusRequest.kind === "person") {
+      setPeopleRequest({ linkId: focusRequest.id, nonce: focusRequest.nonce });
+      return;
+    }
+    setTab("achievements");
+    setFlashId(focusRequest.id);
+    const frame = requestAnimationFrame(() => {
+      document
+        .querySelector(`[data-achievement-id="${CSS.escape(focusRequest.id)}"]`)
+        ?.scrollIntoView({ block: "center", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    });
+    const timer = window.setTimeout(() => setFlashId(null), 1800);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
+    };
+  }, [focusRequest]);
 
   // A different role starts on its overview, with nothing left open.
   useEffect(() => {
@@ -132,7 +174,7 @@ export function RoleView({ role, roles, onSaved }: { role: WorkMapRole; roles: W
           {role.isCurrent ? <mark>Current</mark> : null}
           {tenure ? <span className="role-view-tenure">({tenure})</span> : null}
         </p>
-        <RolePeople role={role} roles={roles} onSaved={onSaved} />
+        <RolePeople role={role} roles={roles} onSaved={onSaved} openRequest={peopleRequest} />
       </div>
 
       {editing ? (
@@ -216,7 +258,7 @@ export function RoleView({ role, roles, onSaved }: { role: WorkMapRole; roles: W
                   {role.achievements.map((achievement, index) => {
                     const id = role.achievementIds?.[index];
                     return (
-                      <li key={id ?? index}>
+                      <li key={id ?? index} data-achievement-id={id} className={id && id === flashId ? "is-flash" : undefined}>
                         <span>{achievement}</span>
                         {id ? (
                           <>

@@ -16,7 +16,7 @@ import { ArrowLeft } from "lucide-react";
 import { CareerMap } from "./CareerMap";
 import type { MapFitMode } from "./map-camera";
 import { RoleHistoryPanel } from "./RoleHistoryPanel";
-import { RoleView } from "./RoleView";
+import { RoleView, type RoleFocusRequest } from "./RoleView";
 import "./home-center.css";
 
 export function HomeCenter({
@@ -52,6 +52,8 @@ export function HomeCenter({
   const [recentQuery, setRecentQuery] = useState("");
   const [recentFilter, setRecentFilter] = useState<RecentFilter>("all");
   const [recentSort, setRecentSort] = useState<RecentSort>("date");
+  // An entry picked in a role's History, shown in the role beside it.
+  const [roleFocus, setRoleFocus] = useState<RoleFocusRequest | null>(null);
 
   useEffect(() => {
     if (!viewRequest) return;
@@ -157,7 +159,7 @@ export function HomeCenter({
               <div className="home-story-page">{pageContent}</div>
             ) : showRole && focus ? (
               <div className="home-role">
-                <RoleView role={focus} roles={roles} onSaved={() => onRoleSaved?.()} />
+                <RoleView role={focus} roles={roles} onSaved={() => onRoleSaved?.()} focusRequest={roleFocus} />
               </div>
             ) : view === "map" ? (
               <div className="home-center-map">
@@ -277,7 +279,11 @@ export function HomeCenter({
               )}
                 {showRole && focus ? (
                   <section className="home-story-recent home-role-history">
-                    <RoleHistoryPanel role={focus} onSaved={() => onRoleSaved?.()} />
+                    <RoleHistoryPanel
+                      role={focus}
+                      onSaved={() => onRoleSaved?.()}
+                      onSelect={(target) => setRoleFocus({ ...target, nonce: Date.now() })}
+                    />
                   </section>
                 ) : (
                 <section className="home-story-recent" aria-label="Recent events">

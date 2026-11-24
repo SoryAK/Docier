@@ -30,10 +30,13 @@ export function RolePeople({
   role,
   roles,
   onSaved,
+  openRequest = null,
 }: {
   role: WorkMapRole;
   roles: WorkMapRole[];
   onSaved: () => void;
+  /** Opens the list with this person marked, as when they're picked in History. */
+  openRequest?: { linkId: string; nonce: number } | null;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -43,6 +46,16 @@ export function RolePeople({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const wrapRef = useRef<HTMLDivElement>(null);
+  const [marked, setMarked] = useState<string | null>(null);
+  useEffect(() => {
+    if (!openRequest) return;
+    setDraft(null);
+    setAsk(null);
+    setOpen(true);
+    setMarked(openRequest.linkId);
+    const timer = window.setTimeout(() => setMarked(null), 1800);
+    return () => window.clearTimeout(timer);
+  }, [openRequest]);
   const people = role.people ?? [];
   const name = role.organization.trim() || role.title.trim() || "this role";
 
@@ -374,7 +387,7 @@ export function RolePeople({
               {people.length > 0 ? (
                 <ul className="role-people-list">
                   {people.map((person) => (
-                    <li key={person.linkId}>
+                    <li key={person.linkId} className={person.linkId === marked ? "is-flash" : undefined}>
                       <Face person={person} />
                       <span className="role-people-who">
                         <b>

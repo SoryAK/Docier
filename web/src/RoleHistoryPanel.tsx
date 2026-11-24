@@ -16,7 +16,16 @@ const KIND_LABEL: Record<RoleHistoryKind, string> = {
 };
 
 /** A role's story over time, year by year, beside the role in Career History. */
-export function RoleHistoryPanel({ role, onSaved }: { role: WorkMapRole; onSaved: () => void }) {
+export function RoleHistoryPanel({
+  role,
+  onSaved,
+  onSelect,
+}: {
+  role: WorkMapRole;
+  onSaved: () => void;
+  /** Shows an entry in the role: an achievement, a person, or the role's overview. */
+  onSelect?: (target: { kind: "achievement" | "person" | "overview"; id: string }) => void;
+}) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<RoleHistoryFilter>("all");
   const [order, setOrder] = useState<"newest" | "oldest">("newest");
@@ -167,7 +176,13 @@ export function RoleHistoryPanel({ role, onSaved }: { role: WorkMapRole; onSaved
                       <li key={`${item.kind}:${item.id}`}>
                         <small>{item.month}</small>
                         <span className="role-history-kind">{KIND_LABEL[item.kind]}</span>
-                        <span className="role-history-text">{item.text}</span>
+                        {target(item) && onSelect ? (
+                          <button type="button" className="role-history-text role-history-go" onClick={() => onSelect(target(item)!)}>
+                            {item.text}
+                          </button>
+                        ) : (
+                          <span className="role-history-text">{item.text}</span>
+                        )}
                         {item.kind === "note" || item.kind === "milestone" || item.kind === "event" ? (
                           <button
                             type="button"
@@ -214,6 +229,15 @@ export function RoleHistoryPanel({ role, onSaved }: { role: WorkMapRole; onSaved
       </form>
     </section>
   );
+}
+
+/** Where an entry leads in the role, or null for entries shown in full here. */
+function target(item: { kind: RoleHistoryKind; id: string }): { kind: "achievement" | "person" | "overview"; id: string } | null {
+  if (item.kind === "achievement") return { kind: "achievement", id: item.id };
+  // A confirmation entry carries the link's id with a ":confirmed" ending.
+  if (item.kind === "person") return { kind: "person", id: item.id.replace(/:confirmed$/, "") };
+  if (item.kind === "start" || item.kind === "end") return { kind: "overview", id: item.id };
+  return null;
 }
 
 function today(): string {

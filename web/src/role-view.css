@@ -1331,3 +1331,38 @@ img.role-view-avatar {
   font: inherit;
   font-size: 0.8125rem;
 }
+
+/* History entries that lead to something in the role. */
+.role-history-go {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.role-history-go:hover,
+.role-history-go:focus-visible {
+  color: #6f5536;
+  text-decoration: underline;
+  text-decoration-color: #e2b672;
+  text-underline-offset: 2px;
+}
+
+/* The achievement or person just picked in History, marked for a moment. */
+.role-view-achievements li.is-flash,
+.role-people-list li.is-flash {
+  border-radius: 8px;
+  background: #fbefd6;
+  box-shadow: 0 0 0 6px #fbefd6;
+  transition: background 0.6s ease-out, box-shadow 0.6s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .role-view-achievements li.is-flash,
+  .role-people-list li.is-flash {
+    transition: none;
+  }
+}

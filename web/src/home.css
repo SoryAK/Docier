@@ -686,6 +686,59 @@
   }
 }
 
+/*
+ * Wide screens: the cards sit in a centred band with room around them, a clear
+ * gap between each, and the role about twice its side column's width. The top
+ * bar keeps the full width.
+ */
+@media (min-width: 1280px) {
+  .home-sheet.is-home {
+    --home-gutter: max(1.5rem, calc((100vw - 1480px) / 2));
+    margin: 0 0 1rem;
+    padding-inline: var(--home-gutter);
+    row-gap: 1rem;
+  }
+
+  .home-sheet.is-home > .home-bar {
+    margin-inline: calc(0.75rem - var(--home-gutter));
+  }
+
+  .home-sheet.is-home:has(.pch) {
+    grid-template-columns: 22rem minmax(0, 1fr);
+  }
+
+  .home-sheet.is-home.is-right-open:has(.pch) {
+    grid-template-columns: 22rem minmax(20rem, 1fr) minmax(14rem, 26rem);
+  }
+
+  .home-sheet.is-home:not(.is-left-closed) > .home-center,
+  .home-sheet.is-home:not(.is-left-closed) > .home-stage,
+  .home-sheet.is-home.is-right-open > .home-proforna {
+    margin-left: 1rem;
+  }
+
+  /* Under 1440 px the list is a little narrower; above it History is a little wider. Either way the role keeps room for its six tabs. */
+  @media (max-width: 1439px) {
+    .home-sheet.is-home:has(.pch) {
+      grid-template-columns: 20rem minmax(0, 1fr);
+    }
+
+    .home-sheet.is-home.is-right-open:has(.pch) {
+      grid-template-columns: 20rem minmax(20rem, 1fr) minmax(14rem, 26rem);
+    }
+  }
+
+  @media (min-width: 1440px) {
+    .home-sheet.is-home .home-center {
+      --home-rail: 24rem;
+    }
+  }
+
+  .home-sheet.is-home:not(.is-right-open) .home-center.is-split .home-story-layout {
+    gap: 1rem;
+  }
+}
+
 .home-sheet > .home-bar {
   grid-column: 1 / -1;
   grid-row: 1;

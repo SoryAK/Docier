@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button } from "@astryxdesign/core/Button";
 import { Dialog, DialogHeader } from "@astryxdesign/core/Dialog";
 import { Icon } from "@astryxdesign/core/Icon";
@@ -18,6 +18,7 @@ import type { MapFitMode } from "./map-camera";
 import { AchievementPopout } from "./AchievementPopout";
 import { RoleHistoryPanel } from "./RoleHistoryPanel";
 import { RoleView, type RoleFocusRequest } from "./RoleView";
+import { RoleScrollbar } from "./RoleScrollbar";
 import "./home-center.css";
 
 export function HomeCenter({
@@ -145,6 +146,7 @@ export function HomeCenter({
 
   // The story and a role keep a column at the right (Recent, or the role's History);
   // it stands as its own card beside the main one.
+  const roleScrollRef = useRef<HTMLDivElement>(null);
   const split = !pageContent && (view !== "map" || Boolean(showRole && focus));
 
   return (
@@ -169,8 +171,9 @@ export function HomeCenter({
             {pageContent ? (
               <div className="home-story-page">{pageContent}</div>
             ) : showRole && focus ? (
-              <div className="home-role">
+              <div className="home-role" ref={roleScrollRef}>
                 <RoleView role={focus} roles={roles} onSaved={() => onRoleSaved?.()} focusRequest={roleFocus} onClose={onCloseRole} />
+                <RoleScrollbar scroller={roleScrollRef} />
               </div>
             ) : view === "map" ? (
               <div className="home-center-map">

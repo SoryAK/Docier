@@ -24,6 +24,7 @@ import {
   ArrowUturnLeftIcon,
   ArrowTrendingUpIcon,
   BanknotesIcon,
+  Bars3BottomLeftIcon,
   BriefcaseIcon,
   ChartBarIcon,
   BuildingOffice2Icon,
@@ -96,7 +97,7 @@ function groupsFor(role: WorkMapRole): { label: string; panels: PanelConfig[] }[
       label: school ? "School" : "Role",
       panels: [
         { id: "basics", label: "Basics", description: school ? "School, program, place, dates, and links." : "Company, title, place, dates, and links.", icon: school ? AcademicCapIcon : BriefcaseIcon },
-        { id: "about", label: "About", description: "A few lines on what this was.", icon: DocumentTextIcon },
+        { id: "about", label: "About", description: "A one-line summary, and a few lines on what this was.", icon: DocumentTextIcon },
         { id: "achievements", label: "Achievements", description: "What you got done, one per line.", icon: TrophyIcon },
       ],
     },
@@ -254,6 +255,9 @@ export function RoleSettings({
   const [reflection, setReflection] = useState(initialReflection);
   const [initialLinks] = useState(() => linksDraft(role));
   const [links, setLinks] = useState(initialLinks);
+  // The one line shown in larger type above the description.
+  const [initialSummary] = useState(() => role.details.summary);
+  const [summary, setSummary] = useState(initialSummary);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const config = panels.find((item) => item.id === panel) ?? panels[0]!;
@@ -264,7 +268,8 @@ export function RoleSettings({
   const gearChanged = JSON.stringify(gear) !== JSON.stringify(initialGear);
   const reflectionChanged = JSON.stringify(reflection) !== JSON.stringify(initialReflection);
   const linksChanged = JSON.stringify(links) !== JSON.stringify(initialLinks);
-  const detailsChanged = setupChanged || payChanged || gearChanged || reflectionChanged || linksChanged;
+  const summaryChanged = summary.trim() !== initialSummary.trim();
+  const detailsChanged = setupChanged || payChanged || gearChanged || reflectionChanged || linksChanged || summaryChanged;
   const people = [...new Set((role.people ?? []).map((person) => person.name))];
 
   const edit = (patch: Partial<typeof draft>) => setDraft((current) => ({ ...current, ...patch }));
@@ -279,6 +284,19 @@ export function RoleSettings({
         [gearChanged, "gear", gearBody(gear), GEAR_ERROR, "The gear could not be saved. Try again."],
         [reflectionChanged, "reflection", reflectionBody(reflection), REFLECTION_ERROR, "Looking back could not be saved. Try again."],
       ];
+      if (summaryChanged) {
+        const response = await fetch(`/api/work-map/roles/${encodeURIComponent(role.id)}/details`, {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ summary: summary.trim() }),
+        });
+        if (!response.ok) {
+          setPanel("about");
+          setError("The summary could not be saved. Try again.");
+          onSaved();
+          return;
+        }
+      }
       if (linksChanged) {
         const response = await fetch(`/api/work-map/roles/${encodeURIComponent(role.id)}/links`, {
           method: "PUT",
@@ -494,9 +512,15 @@ export function RoleSettings({
       {panel === "about" ? (
         <SettingsCard>
           <SettingsRow
+            title="Summary"
+            icon={Bars3BottomLeftIcon}
+            description="One line in larger type, above the description."
+            detail={<TextArea label="Summary" isLabelHidden size="sm" width="100%" rows={2} value={summary} onChange={setSummary} />}
+          />
+          <SettingsRow
             title="Description"
             icon={PencilSquareIcon}
-            description="Shown at the top of the role."
+            description="The rest: what the job was, in a few lines."
             detail={<TextArea label="Description" isLabelHidden size="sm" width="100%" rows={6} value={draft.description} onChange={(value) => edit({ description: value })} />}
           />
         </SettingsCard>

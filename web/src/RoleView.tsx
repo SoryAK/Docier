@@ -18,6 +18,7 @@ import { RoleGearSection, RoleReflectionSection } from "./RoleMoreSections";
 import { RolePaySection } from "./RolePaySection";
 import { RolePlaces } from "./RolePlaces";
 import { RoleWorkSetup } from "./RoleWorkSetup";
+import { BrandLogo } from "./BrandLogo";
 import { SocialMark } from "./SocialMark";
 import "./role-view.css";
 
@@ -176,7 +177,7 @@ export function RoleView({
         <nav className="role-view-links" aria-label="Company links">
           {links.map((link) => (
             <a key={link.kind} href={link.url} target="_blank" rel="noreferrer" title={link.url}>
-              <SocialMark kind={link.kind === "website" ? "site" : link.kind} />
+              {link.kind === "website" ? <SocialMark kind="site" /> : <BrandLogo kind={link.kind} />}
               {link.label}
             </a>
           ))}

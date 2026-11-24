@@ -72,6 +72,7 @@ import {
   type GearPanel,
   type ReflectionPanel,
 } from "./RoleSettingsMore";
+import { brandLogoIcon } from "./BrandLogo";
 import { socialMarkIcon } from "./SocialMark";
 import { PAY_ERROR, PAY_PANELS, PayPanels, payBody, payDraft, type PayPanel } from "./RoleSettingsPay";
 import { SettingsCard, SettingsRow, SettingsStatus } from "./SettingsRows";
@@ -184,11 +185,11 @@ const LINK_PLACEHOLDER: Record<RoleLinkKind, string> = {
 
 const LINK_ICON: Record<RoleLinkKind, ComponentType<SVGProps<SVGSVGElement>>> = {
   website: socialMarkIcon("site"),
-  linkedin: socialMarkIcon("linkedin"),
-  instagram: socialMarkIcon("instagram"),
-  facebook: socialMarkIcon("facebook"),
-  x: socialMarkIcon("x"),
-  youtube: socialMarkIcon("youtube"),
+  linkedin: brandLogoIcon("linkedin"),
+  instagram: brandLogoIcon("instagram"),
+  facebook: brandLogoIcon("facebook"),
+  x: brandLogoIcon("x"),
+  youtube: brandLogoIcon("youtube"),
 };
 
 function setupDraft(role: WorkMapRole) {

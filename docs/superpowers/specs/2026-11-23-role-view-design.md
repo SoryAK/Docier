@@ -20,6 +20,7 @@ Anti-goals: a long row of tabs; boxes and pills crammed into narrow space; achie
 - **Card in the left panel, links open elsewhere:** tried first; the card was squeezed and the left panel lost the list.
 - **Banner and tabs, header and tiles, story and side boxes, one long page:** tried; tiles and long tab rows felt busy.
 - **D · banner with buttons, two tabs, History on the right.** **Picked.** Prototype: `web/prototypes/role-card/index.html` (kept on the developer's machine).
+- **Later (2026-11-24): the name under the banner, a line at a glance, six tabs for a job.** Work setup, Pay & benefits, Gear, and Looking back had stacked on Overview as four cards that each opened with "Show all"; they became tabs of their own instead, and their key facts went in one line under the name. Tried as pills and as plain text: plain text picked. Pay was weighed as hidden behind an eye, masked as dots, or off until a switch in the Pay tab turns it on: the switch picked. This revisits the "long row of tabs" anti-goal on purpose; on a narrow screen the row scrolls sideways.
 
 ## The design (as decided)
 
@@ -28,9 +29,11 @@ Three columns, as on Home.
 **Left: the Career History list.** It stays a list when a role is open; the open role is highlighted, and clicking another role switches to it.
 
 **Middle: the role.**
-- **Banner:** the role's cover photo, or a cream band (`#fbf6ee` to `#f4ecdf`) when there is none. On it: the company (two lines at most), the title, a photos button that opens a gallery ("Add photos" when there are none), and Edit. The company's links (website, LinkedIn, Instagram, Facebook, X, YouTube) sit on the line under the banner with the place and dates, beside the people: the website by its name with a globe, each network by its logo alone (its name on hover and read aloud), shown only when saved; the banner itself carries no links. They are set under Basics → Company links, saved together and recorded in Edits, and never go on your public page.
+- **Banner:** the role's cover photo, or a cream band (`#fbf6ee` to `#f4ecdf`) when there is none. On it, in the top corner: a photos button that opens a gallery ("Add photos" when there are none), and Edit. Under it, on the card: the company (two lines at most) and the title. The company's links (website, LinkedIn, Instagram, Facebook, X, YouTube) sit on the line under the banner with the place and dates, beside the people: the website by its name with a globe, each network by its logo alone (its name on hover and read aloud), shown only when saved; the banner itself carries no links. They are set under Basics → Company links, saved together and recorded in Edits, and never go on your public page.
 - **Under the banner:** place · dates, a "current" tag and how long; on the right, a stack of faces for the people worked with, which opens their list.
-- **Two tabs:** Overview and Achievements (with a count).
+- **At a glance:** for a job, one line of plain facts under the place and dates, each with a small icon and each opening its tab: work type and where ("Full-time, on site"), hours a week, who you reported to, pay (only when switched on), the overall rating, and the commute. A fact shows only when it is set; with none, the line is not there. Built by `roleGlance` in `core/role-glance.ts`.
+- **Pay at a glance:** off by default. "Show pay under the name" at the top of the Pay & benefits tab turns it on for that role; it is saved in the role's details (`glance.pay`), recorded in Edits ("Showed pay under the name" / "Hid pay under the name"), can be undone, and never goes on your public page.
+- **Tabs:** Overview and Achievements (with a count) for every role; a job adds Work setup, Pay & benefits (with a lock), Gear, and Looking back. Each of those shows all its details at once, with Edit, or what it holds and "+ Add" when empty.
   - Overview: the summary and description in words, a few quiet facts, then a **Photos & events** section (thumbnails, then events) and a **Places** section (the main site, client sites, travel).
   - Achievements: the list, each with a small proof tag for the evidence behind it.
 - **Adding in place:** small "+" adds where each thing appears; empty spots say what to add.
@@ -80,7 +83,7 @@ Three columns, as on Home.
    - Places: under Places, "+ Add a place" opens a form (name, kind: site, client site, or travel; an address with Find, which looks it up so it goes on the map; show on my page). Each place can be changed or removed from its row; these are logged in Edits.
    - Tablet, landscape (801 to 1180 px): the list narrows to 17rem, and the role's History moves under the role, in one column that scrolls.
    - Tablet, portrait, and phone (800 px and under): the list hides while a role is open, and "← Career history" at the top of the role goes back to it. History sits under the role.
-   - Phone (560 px and under): the banner's buttons go under the name, so the name keeps the full width.
+   - Phone (560 px and under): a shorter banner, and the name, the glance line, and the place line keep a 16 px gutter. The tabs scroll sideways.
 
 Achievements without a date sit in the year the role started.
 

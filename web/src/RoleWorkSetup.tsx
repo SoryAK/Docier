@@ -1,7 +1,6 @@
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import type { WorkMapRole } from "@core/work-map";
-import { shiftLabel, workSetupSummary } from "@core/role-work-setup";
-import { ChevronDown } from "lucide-react";
+import { SCHEDULE_TYPE_LABEL, shiftLabel, workModeText, workSetupSummary } from "@core/role-work-setup";
 import type { RoleSettingsPanel } from "./RoleSettings";
 
 function monthYear(date: string): string {
@@ -11,11 +10,10 @@ function monthYear(date: string): string {
 }
 
 /**
- * How the work was set up: schedule, shifts, team, and growth. A section on the
- * role's Overview, closed to one line; changed in the role's settings.
+ * How the work was set up: schedule, shifts, team, and growth. The role's Work
+ * setup tab; changed in the role's settings.
  */
 export function RoleWorkSetup({ role, onEdit }: { role: WorkMapRole; onEdit: (panel: RoleSettingsPanel) => void }) {
-  const [open, setOpen] = useState(false);
   const d = role.details;
   const summary = workSetupSummary({ schedule: d.schedule, team: d.team });
   const hasAny =
@@ -33,12 +31,6 @@ export function RoleWorkSetup({ role, onEdit }: { role: WorkMapRole; onEdit: (pa
       <div className="role-view-section-head">
         <h2 id={`${role.id}-setup`}>Work setup</h2>
         <span className="role-setup-actions">
-          {hasAny ? (
-            <button type="button" className="role-view-text" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
-              {open ? "Hide" : "Show all"}
-              <ChevronDown size={14} aria-hidden="true" className={open ? "role-setup-flip" : undefined} />
-            </button>
-          ) : null}
           <button type="button" className="role-view-text" onClick={() => onEdit("schedule")}>
             {hasAny ? "Edit" : "+ Add"}
           </button>
@@ -46,11 +38,12 @@ export function RoleWorkSetup({ role, onEdit }: { role: WorkMapRole; onEdit: (pa
       </div>
       {!hasAny ? (
         <p className="role-view-empty">Your schedule, shifts, who you reported to, and what you learned. Only you see it unless you share it.</p>
-      ) : (
-        <p className="role-setup-line">{summary || "Set up, with details inside"}</p>
-      )}
-      {hasAny && open ? (
+      ) : null}
+      {hasAny ? (
         <dl className="role-view-facts role-setup-facts">
+          {d.schedule.type ? <Fact label="Type">{SCHEDULE_TYPE_LABEL[d.schedule.type]}</Fact> : null}
+          {summary ? <Fact label="Where">{workModeText(d.schedule)}</Fact> : null}
+          {d.schedule.hoursPerWeek ? <Fact label="Hours">{d.schedule.hoursPerWeek} h/week</Fact> : null}
           {d.schedule.shift ? <Fact label="Schedule">{d.schedule.shift}</Fact> : null}
           {d.shifts.length > 0 ? (
             <Fact label="Shifts">

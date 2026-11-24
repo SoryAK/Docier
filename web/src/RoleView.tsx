@@ -5,9 +5,10 @@ import {
   formatTenureMonths,
   tenureMonths,
 } from "@core/career-history";
+import { roleGlance, type GlanceKind } from "@core/role-glance";
 import { roleLinkList } from "@core/role-links";
 import { roleCoverPhoto, type WorkMapRole } from "@core/work-map";
-import { ArrowLeft, CalendarDays, ChevronRight, ImagePlus, Images, MapPin, Pencil, Plus, Trash2, UserRound, X } from "lucide-react";
+import { ArrowLeft, Banknote, BriefcaseBusiness, CalendarDays, Car, ChevronRight, Clock, ImagePlus, Images, Lock, MapPin, Pencil, Plus, Star, Trash2, UserRound, X, type LucideIcon } from "lucide-react";
 import { AchievementDate } from "./AchievementDate";
 import { AchievementDetail } from "./AchievementDetail";
 import { AchievementProof } from "./AchievementProof";
@@ -22,14 +23,24 @@ import { BrandLogo } from "./BrandLogo";
 import { SocialMark } from "./SocialMark";
 import "./role-view.css";
 
-type RoleTab = "overview" | "achievements";
+type RoleTab = "overview" | "achievements" | "setup" | "pay" | "gear" | "back";
+
+const GLANCE_ICON: Record<GlanceKind, LucideIcon> = {
+  work: BriefcaseBusiness,
+  hours: Clock,
+  manager: UserRound,
+  pay: Banknote,
+  rating: Star,
+  commute: Car,
+};
 
 /** A thing picked in the role's History, to show in the role. */
 export type RoleFocusRequest = { kind: "achievement" | "person" | "overview"; id: string; nonce: number };
 
 /**
  * One role, opened from Career History: its photo as a banner (or a cream band),
- * buttons for what it has, and two tabs. The role's History sits beside it.
+ * its name below, a line of what it was like at a glance, and its tabs: two for
+ * a school, six for a job. The role's History sits beside it.
  */
 export function RoleView({
   role,
@@ -128,6 +139,24 @@ export function RoleView({
   const summary = details.summary.trim();
   const description = role.description.trim();
   const links = roleLinkList(details);
+  const isJob = role.kind !== "school";
+  const glance = isJob ? roleGlance(details) : [];
+  const tabs: Array<{ id: RoleTab; label: string; count?: number; locked?: boolean }> = [
+    { id: "overview", label: "Overview" },
+    { id: "achievements", label: "Achievements", count: role.achievements.length },
+    ...(isJob
+      ? ([
+          { id: "setup", label: "Work setup" },
+          { id: "pay", label: "Pay & benefits", locked: true },
+          { id: "gear", label: "Gear" },
+          { id: "back", label: "Looking back" },
+        ] as const)
+      : []),
+  ];
+  function openTab(next: RoleTab) {
+    setTab(next);
+    setOpenAchievement(null);
+  }
 
   return (
     <article className="role-view" aria-label={name}>
@@ -140,10 +169,6 @@ export function RoleView({
       <header className={cover ? "role-view-banner" : "role-view-banner is-cream"}>
         {cover ? <img className="role-view-cover" src={cover.url} alt="" /> : null}
         <div className="role-view-heading">
-          <div className="role-view-names">
-            <h1>{name}</h1>
-            {subtitle ? <p>{subtitle}</p> : null}
-          </div>
           <div className="role-view-actions">
             {photos.length > 0 ? (
               <button type="button" className="role-view-glass" onClick={() => galleryRef.current?.showModal()}>
@@ -163,6 +188,11 @@ export function RoleView({
           </div>
         </div>
       </header>
+
+      <div className="role-view-names">
+        <h1>{name}</h1>
+        {subtitle ? <p>{subtitle}</p> : null}
+      </div>
 
       <div className="role-view-meta">
         <p>
@@ -190,25 +220,33 @@ export function RoleView({
         <RolePeople role={role} roles={roles} onSaved={onSaved} openRequest={peopleRequest} />
       </div>
 
+      {glance.length > 0 ? (
+        <ul className="role-view-glance" aria-label={`${name} at a glance`}>
+          {glance.map((item) => {
+            const Icon = GLANCE_ICON[item.kind];
+            return (
+              <li key={item.kind}>
+                <button type="button" onClick={() => openTab(item.tab)}>
+                  <Icon size={15} aria-hidden="true" />
+                  <span>{item.text}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+
       {settings ? <RoleSettings role={role} panel={settings} onClose={() => setSettings(null)} onSaved={onSaved} /> : null}
       {(
         <>
           <div className="role-view-tabs" role="tablist" aria-label={`${name} sections`}>
-            <button type="button" role="tab" aria-selected={tab === "overview"} onClick={() => setTab("overview")}>
-              Overview
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === "achievements"}
-              onClick={() => {
-                setTab("achievements");
-                setOpenAchievement(null);
-              }}
-            >
-              Achievements
-              {role.achievements.length > 0 ? <span>{role.achievements.length}</span> : null}
-            </button>
+            {tabs.map((item) => (
+              <button key={item.id} type="button" role="tab" aria-selected={tab === item.id} onClick={() => openTab(item.id)}>
+                {item.label}
+                {item.locked ? <Lock size={12} aria-label="Only you see this" className="role-view-tab-lock" /> : null}
+                {item.count ? <span>{item.count}</span> : null}
+              </button>
+            ))}
           </div>
 
           {tab === "overview" ? (
@@ -226,11 +264,6 @@ export function RoleView({
                   </button>
                 </p>
               )}
-
-              {role.kind === "school" ? null : <RoleWorkSetup role={role} onEdit={setSettings} />}
-              {role.kind === "school" ? null : <RolePaySection role={role} onEdit={setSettings} />}
-              {role.kind === "school" ? null : <RoleGearSection role={role} onEdit={setSettings} />}
-              {role.kind === "school" ? null : <RoleReflectionSection role={role} onEdit={setSettings} />}
 
               <section className="role-view-section" aria-labelledby={`${role.id}-photos`}>
                 <div className="role-view-section-head">
@@ -261,6 +294,22 @@ export function RoleView({
                 </div>
                 <RolePlaces role={role} mainPlace={place} onSaved={onSaved} />
               </section>
+            </div>
+          ) : tab === "setup" ? (
+            <div className="role-view-pane" role="tabpanel">
+              <RoleWorkSetup role={role} onEdit={setSettings} />
+            </div>
+          ) : tab === "pay" ? (
+            <div className="role-view-pane" role="tabpanel">
+              <RolePaySection role={role} onEdit={setSettings} onSaved={onSaved} />
+            </div>
+          ) : tab === "gear" ? (
+            <div className="role-view-pane" role="tabpanel">
+              <RoleGearSection role={role} onEdit={setSettings} />
+            </div>
+          ) : tab === "back" ? (
+            <div className="role-view-pane" role="tabpanel">
+              <RoleReflectionSection role={role} onEdit={setSettings} />
             </div>
           ) : (
             <div className="role-view-pane" role="tabpanel">

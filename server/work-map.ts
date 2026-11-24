@@ -1,5 +1,6 @@
 import { moveColleaguesToNetwork, readRolePeople } from "./role-people";
 import { prepareRoleLinks, type RoleLinkKind } from "../core/role-links";
+import { prepareRoleGlance } from "../core/role-glance";
 import {
   logRoleEvent,
   markUndone,
@@ -372,6 +373,7 @@ export function saveWorkMapDetails(
     leaving: current.leaving,
     commute: current.commute,
     uniformItems: current.uniformItems,
+    glance: current.glance,
     // Names typed here become items; items already saved keep their details.
     equipmentItems: Array.isArray(input.equipment)
       ? syncEquipmentItems(current.equipmentItems, stringArray(input.equipment))
@@ -531,6 +533,21 @@ export function saveRoleLinks(
 ): { ok: true; details: WorkMapRoleDetails } | { ok: false; error: "url-invalid"; field: RoleLinkKind } {
   requireRole(db, occupantId, roleId);
   const prepared = prepareRoleLinks(input);
+  if (!prepared.ok) return prepared;
+  const details: WorkMapRoleDetails = { ...readDetails(db, occupantId, roleId), ...prepared.value };
+  writeDetails(db, occupantId, roleId, details);
+  return { ok: true, details };
+}
+
+/** Saves what shows in the line under a role's name by choice: for now, its pay. */
+export function saveRoleGlance(
+  db: DatabaseSync,
+  occupantId: string,
+  roleId: string,
+  input: JsonObject,
+): { ok: true; details: WorkMapRoleDetails } | { ok: false; error: "glance-invalid" } {
+  requireRole(db, occupantId, roleId);
+  const prepared = prepareRoleGlance(input);
   if (!prepared.ok) return prepared;
   const details: WorkMapRoleDetails = { ...readDetails(db, occupantId, roleId), ...prepared.value };
   writeDetails(db, occupantId, roleId, details);

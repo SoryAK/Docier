@@ -147,6 +147,7 @@ const DETAIL_LABEL: Partial<Record<keyof WorkMapRoleDetails, string>> = {
   skills: "skills used",
   skillsGained: "skills gained",
   promotions: "promotions",
+  glance: "what shows under the name",
   share: "what shows on your page",
 };
 
@@ -186,6 +187,10 @@ export function describeDetailsChange(before: WorkMapRoleDetails, after: WorkMap
     keys.push(key);
     // Equipment names follow the items, which say what changed.
     if (key === "equipment" && !sameValue(before.equipmentItems, after.equipmentItems)) continue;
+    if (key === "glance") {
+      parts.push(after.glance?.pay ? "Showed pay under the name" : "Hid pay under the name");
+      continue;
+    }
     const noun = NAMED_LISTS[key];
     if (noun) parts.push(...describeList(noun, before[key], after[key]));
     else parts.push(`Changed ${DETAIL_LABEL[key] ?? key}`);

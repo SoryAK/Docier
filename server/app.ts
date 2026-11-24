@@ -304,6 +304,7 @@ import {
   saveWorkMapDetails,
   saveWorkSetup,
   saveGear,
+  saveRoleGlance,
   saveRoleLinks,
   saveReflection,
   undoRoleEdit,
@@ -1536,6 +1537,26 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
     const occupant = ensureOccupant(db);
     try {
       const saved = saveGear(
+        db,
+        occupant.id,
+        c.req.param("id"),
+        (await c.req.json().catch(() => ({}))) as Record<string, unknown>,
+      );
+      if (!saved.ok) return c.json({ error: saved.error }, 400);
+      return c.json({ details: saved.details });
+    } catch (error) {
+      if (error instanceof WorkMapStoreError) {
+        return c.json({ error: error.code }, 404);
+      }
+      throw error;
+    }
+  });
+
+  // Whether a role's pay shows in the line under its name. Never published.
+  app.put("/api/work-map/roles/:id/glance", async (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      const saved = saveRoleGlance(
         db,
         occupant.id,
         c.req.param("id"),

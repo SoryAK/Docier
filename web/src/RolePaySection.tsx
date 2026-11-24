@@ -10,7 +10,7 @@ import {
   paySummary,
 } from "@core/role-pay";
 import type { WorkMapRole } from "@core/work-map";
-import { ChevronDown, Lock } from "lucide-react";
+import { Lock } from "lucide-react";
 import type { RoleSettingsPanel } from "./RoleSettings";
 
 function monthYear(date: string): string {
@@ -19,9 +19,18 @@ function monthYear(date: string): string {
   return new Date(Number(year), Number(month) - 1, 1).toLocaleString("en-US", { month: "short", year: "numeric" });
 }
 
-/** Pay and benefits on the role's Overview: one line, or all of it. Only the occupant sees it. */
-export function RolePaySection({ role, onEdit }: { role: WorkMapRole; onEdit: (panel: RoleSettingsPanel) => void }) {
-  const [open, setOpen] = useState(false);
+/** Pay and benefits: the role's Pay tab, and whether pay shows under the role's name. Only the occupant sees it. */
+export function RolePaySection({
+  role,
+  onEdit,
+  onSaved,
+}: {
+  role: WorkMapRole;
+  onEdit: (panel: RoleSettingsPanel) => void;
+  onSaved: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
   const d = role.details;
   const pay = d.compensation;
   const summary = paySummary({ compensation: pay, benefits: d.benefits, timeOff: d.timeOff });
@@ -35,6 +44,27 @@ export function RolePaySection({ role, onEdit }: { role: WorkMapRole; onEdit: (p
     d.benefitNotes !== "" ||
     d.paidTimeOff !== "";
 
+  const shown = d.glance.pay;
+  const amount = formatPay(pay.amount, pay.currency, pay.period);
+
+  async function setShown(next: boolean) {
+    setBusy(true);
+    setMessage("");
+    try {
+      const response = await fetch(`/api/work-map/roles/${encodeURIComponent(role.id)}/glance`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ pay: next }),
+      });
+      if (!response.ok) setMessage("That didn't save. Try again.");
+      else onSaved();
+    } catch {
+      setMessage("That didn't save. Check your connection and try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <section className="role-view-section role-setup" aria-labelledby={`${role.id}-pay`}>
       <div className="role-view-section-head">
@@ -42,12 +72,6 @@ export function RolePaySection({ role, onEdit }: { role: WorkMapRole; onEdit: (p
           Pay &amp; benefits <Lock size={12} aria-label="Only you see this" className="role-pay-lock" />
         </h2>
         <span className="role-setup-actions">
-          {hasAny ? (
-            <button type="button" className="role-view-text" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
-              {open ? "Hide" : "Show all"}
-              <ChevronDown size={14} aria-hidden="true" className={open ? "role-setup-flip" : undefined} />
-            </button>
-          ) : null}
           <button type="button" className="role-view-text" onClick={() => onEdit("pay")}>
             {hasAny ? "Edit" : "+ Add"}
           </button>
@@ -55,10 +79,26 @@ export function RolePaySection({ role, onEdit }: { role: WorkMapRole; onEdit: (p
       </div>
       {!hasAny ? (
         <p className="role-view-empty">Your pay, raises, benefits, and time off. Only you see it; it never goes on your page.</p>
-      ) : (
-        <p className="role-setup-line">{summary || "Set up, with details inside"}</p>
-      )}
-      {hasAny && open ? (
+      ) : null}
+      {amount ? (
+        <div className="role-pay-glance">
+          <div>
+            <b id={`${role.id}-pay-glance`}>Show pay under the name</b>
+            <span>Only you see it. It never goes on your page.</span>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            className="role-switch"
+            aria-checked={shown}
+            aria-labelledby={`${role.id}-pay-glance`}
+            disabled={busy}
+            onClick={() => void setShown(!shown)}
+          />
+        </div>
+      ) : null}
+      {message ? <p className="role-view-error" role="alert">{message}</p> : null}
+      {hasAny ? (
         <dl className="role-view-facts role-setup-facts">
           {pay.payType || pay.amount != null ? (
             <Fact label="Pay">{[pay.payType ? PAY_TYPE_LABEL[pay.payType] : "", formatPay(pay.amount, pay.currency, pay.period)].filter(Boolean).join(", ")}</Fact>

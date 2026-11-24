@@ -1,6 +1,7 @@
 import { uniformLine, type EquipmentItem, type UniformItem } from "./role-gear";
 import { EMPTY_COMMUTE, EMPTY_LEAVING, EMPTY_RATINGS, type RoleCommute, type RoleLeaving, type RoleRatings } from "./role-reflection";
 import type { RoleEdit } from "./role-edits";
+import { EMPTY_GLANCE, type RoleGlanceChoice } from "./role-glance";
 import { EMPTY_PAY, type PayEvent, type RolePay, type TimeOffBalance } from "./role-pay";
 import { EMPTY_SCHEDULE, EMPTY_TEAM, type RolePromotion, type RoleSchedule, type RoleShift, type RoleTeam } from "./role-work-setup";
 import type { RolePerson } from "./role-people";
@@ -350,6 +351,8 @@ export type WorkMapRoleDetails = {
   skills: string[];
   skillsGained: string[];
   promotions: RolePromotion[];
+  /** What shows in the line under the role's name by choice. Never published. */
+  glance: RoleGlanceChoice;
   share: WorkMapShare;
 };
 
@@ -671,6 +674,7 @@ export const EMPTY_WORK_MAP_DETAILS: WorkMapRoleDetails = {
   skills: [],
   skillsGained: [],
   promotions: [],
+  glance: { ...EMPTY_GLANCE },
   share: {
     growth: false,
     departure: false,
@@ -702,6 +706,7 @@ export function normalizeWorkMapDetails(
     commute: { ...empty.commute, ...details?.commute },
     equipmentItems: Array.isArray(details?.equipmentItems) ? details.equipmentItems : [],
     uniformItems: Array.isArray(details?.uniformItems) ? details.uniformItems : [],
+    glance: { pay: details?.glance?.pay === true },
     share: { ...empty.share, ...details?.share },
     summary: typeof details?.summary === "string" ? details.summary.trim() : "",
     website: workMapLink(details?.website),

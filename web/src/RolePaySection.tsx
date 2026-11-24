@@ -71,12 +71,16 @@ export function RolePaySection({
               Boolean(amount || pay.payType) && [
                 "Rate",
                 <>
-                  {amount ? <b className="role-group-big">{amount}</b> : null} {pay.payType ? <span className="role-group-muted">{PAY_TYPE_LABEL[pay.payType].toLowerCase()}</span> : null}
+                  {amount ? <b className="role-group-big">{amount}</b> : null}{" "}
+                  {/* "/hr" and "/yr" already say hourly and salary; other kinds of pay are named. */}
+                  {pay.payType && !(amount && (pay.payType === "hourly" || pay.payType === "salary")) ? (
+                    <span className="role-group-muted">{PAY_TYPE_LABEL[pay.payType].toLowerCase()}</span>
+                  ) : null}
                 </>,
               ],
               Boolean(pay.frequency) && ["Paid", pay.frequency ? PAY_FREQUENCY_LABEL[pay.frequency] : ""],
               pay.overtimeRate != null && ["Overtime", `${pay.overtimeRate}× the rate`],
-              ...pay.differentials.map((item) => [item.label, differentialText(item, pay.currency)] as [string, string]),
+              ...pay.differentials.map((item) => [/differential/i.test(item.label) ? item.label : `${item.label} differential`, differentialText(item, pay.currency)] as [string, string]),
               Boolean(pay.bonusNotes) && ["Bonus", pay.bonusNotes],
               Boolean(pay.equityNotes) && ["Equity", pay.equityNotes],
             ]}

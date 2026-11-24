@@ -131,9 +131,15 @@ export function RoleEvents({ role, onSaved }: { role: WorkMapRole; onSaved: () =
       ) : (
         <>
           {message ? <p className="role-view-error" role="alert">{message}</p> : null}
-          <button type="button" className="role-view-text role-inline-add" onClick={() => setDraft({ id: null, date: "", title: "", detail: "", isPublic: false })}>
-            <Plus size={14} aria-hidden="true" /> {events.length ? "Add an event" : "Add an event, like a peak season or a shutdown"}
-          </button>
+          {events.length ? (
+            <button type="button" className="role-view-text role-inline-add" onClick={() => setDraft({ id: null, date: "", title: "", detail: "", isPublic: false })}>
+              <Plus size={14} aria-hidden="true" /> Add an event
+            </button>
+          ) : (
+            <button type="button" className="role-group-add role-events-empty" onClick={() => setDraft({ id: null, date: "", title: "", detail: "", isPublic: false })}>
+              + Add an event, like a peak season or a shutdown
+            </button>
+          )}
         </>
       )}
     </div>

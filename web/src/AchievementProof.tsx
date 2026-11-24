@@ -179,7 +179,7 @@ export function AchievementProof({
         title="Evidence for this achievement"
         onClick={() => setOpen((value) => !value)}
       >
-        {items.length > 0 ? `${items.length} proof` : "+ proof"}
+        {items.length > 0 ? `${items.length} proof` : "+ Proof"}
       </button>
       )}
       {open ? (

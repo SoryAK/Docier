@@ -121,6 +121,18 @@ export function RoleView({
     setOpenAchievement(focusRequest.id);
   }, [focusRequest]);
 
+  // On a narrow screen the tabs scroll: keep the open one in view.
+  const tabsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const active = tabsRef.current?.querySelector<HTMLElement>('[aria-selected="true"]');
+    const row = tabsRef.current;
+    if (!active || !row) return;
+    const left = active.offsetLeft - row.offsetLeft;
+    if (left < row.scrollLeft || left + active.offsetWidth > row.scrollLeft + row.clientWidth - 28) {
+      row.scrollTo({ left: Math.max(0, left - 16), behavior: "smooth" });
+    }
+  }, [tab]);
+
   // A different role starts on its overview, with nothing left open.
   useEffect(() => {
     setTab("overview");
@@ -251,7 +263,7 @@ export function RoleView({
       {settings ? <RoleSettings role={role} panel={settings} onClose={() => setSettings(null)} onSaved={onSaved} /> : null}
       {(
         <>
-          <div className="role-view-tabs" role="tablist" aria-label={`${name} sections`}>
+          <div ref={tabsRef} className="role-view-tabs" role="tablist" aria-label={`${name} sections`}>
             {tabs.map((item) => (
               <button key={item.id} type="button" role="tab" aria-selected={tab === item.id} onClick={() => openTab(item.id)}>
                 {item.label}
@@ -267,7 +279,7 @@ export function RoleView({
                 <div className="role-view-section-head">
                   <h2 id={`${role.id}-about`}>Description</h2>
                   {summary || description ? (
-                    <button type="button" className="role-view-text" onClick={() => setSettings("about")}>
+                    <button type="button" className="role-edit" onClick={() => setSettings("about")}>
                       Edit
                     </button>
                   ) : null}
@@ -295,16 +307,24 @@ export function RoleView({
                     </button>
                   ) : null}
                 </div>
-                <div className="role-view-strip">
-                  {photos.slice(0, 6).map((photo) => (
-                    <button key={photo.id} type="button" onClick={() => galleryRef.current?.showModal()} aria-label={photo.caption || photo.title || "Photo"}>
-                      <img src={photo.url} alt="" />
+                {photos.length > 0 ? (
+                  <>
+                    <div className="role-view-strip">
+                      {photos.slice(0, 6).map((photo) => (
+                        <button key={photo.id} type="button" onClick={() => galleryRef.current?.showModal()} aria-label={photo.caption || photo.title || "Photo"}>
+                          <img src={photo.url} alt="" />
+                        </button>
+                      ))}
+                    </div>
+                    <button type="button" className="role-view-text role-inline-add" disabled={photoBusy} onClick={() => fileRef.current?.click()}>
+                      <Plus size={14} aria-hidden="true" /> {photoBusy ? "Adding…" : "Add photos"}
                     </button>
-                  ))}
-                  <button type="button" className="role-view-add-photo" disabled={photoBusy} onClick={() => fileRef.current?.click()} aria-label="Add photos">
-                    <Plus size={20} aria-hidden="true" />
+                  </>
+                ) : (
+                  <button type="button" className="role-group-add" disabled={photoBusy} onClick={() => fileRef.current?.click()}>
+                    {photoBusy ? "Adding…" : `+ Add photos from ${name}`}
                   </button>
-                </div>
+                )}
                 {photoMessage ? <p className="role-view-error" role="alert">{photoMessage}</p> : null}
                 <RoleEvents role={role} onSaved={onSaved} />
               </section>
@@ -391,11 +411,13 @@ export function RoleView({
                   })}
                 </ol>
               ) : (
-                <p className="role-view-empty">No achievements yet. What are you proud of from {name}?</p>
+                <button type="button" className="role-group-add" onClick={() => setSettings("achievements")}>
+                  + Add an achievement: what are you proud of from {name}?
+                </button>
               )}
-              {openAchievement ? null : (
-                <button type="button" className="role-view-text" onClick={() => setSettings("achievements")}>
-                  + Add an achievement
+              {openAchievement || role.achievements.length === 0 ? null : (
+                <button type="button" className="role-view-text role-inline-add" onClick={() => setSettings("achievements")}>
+                  <Plus size={14} aria-hidden="true" /> Add an achievement
                 </button>
               )}
             </div>

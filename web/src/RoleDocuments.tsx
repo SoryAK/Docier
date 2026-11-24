@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { DOCUMENT_KIND_LABEL, type DocumentKind } from "@core/document-vault";
 import { groupRoleDocuments, ROLE_DOCUMENT_KINDS, type RoleDocument } from "@core/role-documents";
 import type { WorkMapRole } from "@core/work-map";
-import { FileText, Pencil, Upload, X } from "lucide-react";
+import { FileText, Pencil, Plus, Upload, X } from "lucide-react";
 import { monthYear } from "./RoleGroups";
 
 type VaultFile = { id: string; originalName: string; category: string; createdAt: string };
@@ -116,14 +116,6 @@ export function RoleDocuments({ role, onSaved }: { role: WorkMapRole; onSaved: (
 
   return (
     <section className="role-view-section role-documents" aria-label="Documents">
-      <div className="role-view-section-head">
-        <h2>Documents</h2>
-        {documents.length > 0 && !adding ? (
-          <button type="button" className="role-view-text" onClick={() => setAdding(true)}>
-            + Add a document
-          </button>
-        ) : null}
-      </div>
 
       {adding ? (
         <div className="role-documents-add">
@@ -227,6 +219,12 @@ export function RoleDocuments({ role, onSaved }: { role: WorkMapRole; onSaved: (
             </section>
           ))}
         </div>
+      ) : null}
+
+      {documents.length > 0 && !adding ? (
+        <button type="button" className="role-view-text role-inline-add" onClick={() => setAdding(true)}>
+          <Plus size={14} aria-hidden="true" /> Add a document
+        </button>
       ) : null}
 
       <p className="role-group-share">Kept in Documents too. Only you see these; they never go on your page.</p>

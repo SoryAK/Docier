@@ -425,6 +425,19 @@
   display: none;
 }
 
+/* On a phone the tabs scroll; the far edge fades so the row reads as more than it shows. */
+@media (max-width: 560px) {
+  .role-view-tabs {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+    padding-right: 28px;
+  }
+}
+
+.role-events-empty {
+  margin-top: 12px;
+}
+
 .role-view-tab-lock {
   margin-left: 4px;
   color: var(--rv-muted);
@@ -537,15 +550,6 @@
   border-radius: 10px;
   background: #d8d2c8;
   cursor: zoom-in;
-}
-
-.role-view-strip .role-view-add-photo {
-  display: grid;
-  place-items: center;
-  border: 1px dashed #d6d0c6;
-  background: #f6f5f3;
-  color: #6b6b70;
-  cursor: pointer;
 }
 
 .role-view-strip img {
@@ -2613,18 +2617,29 @@ img.role-view-avatar {
  * A role's detail tabs: groups two across where there's room, each with its own
  * Edit; a grey note under a group; a dashed line saying what to add when empty.
  */
+/* Two columns that each stack on their own, so a short group never leaves a hole beside a tall one. */
 .role-groups {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
-  gap: 26px 32px;
+  columns: 15rem 2;
+  column-gap: 32px;
 }
 
 .role-group {
   min-width: 0;
+  margin-bottom: 26px;
+  break-inside: avoid;
 }
 
 .role-group.is-wide {
-  grid-column: 1 / -1;
+  column-span: all;
+}
+
+/* The columns lose their last group's bottom margin, so a full-width group after them makes its own. */
+.role-group:not(.is-wide) + .role-group.is-wide {
+  margin-top: 26px;
+}
+
+.role-groups + .role-group-share {
+  margin-top: 0;
 }
 
 .role-group-head {
@@ -2643,15 +2658,27 @@ img.role-view-avatar {
 
 .role-group-head h3 {
   margin: 0;
-  color: var(--rv-muted);
-  font-size: 0.75rem;
+  color: var(--rv-ink);
+  font-size: 0.875rem;
   font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
 }
 
-.role-group-head .role-view-text {
+/* Edit is grey until it's pointed at, so gold stays for the active tab, your data, and adding. */
+.role-edit {
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: var(--rv-muted);
+  font: inherit;
   font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.role-edit:hover,
+.role-edit:focus-visible {
+  color: var(--rv-gold-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .role-group-add {
@@ -2757,19 +2784,22 @@ img.role-view-avatar {
   font-size: 0.625rem;
 }
 
+/* A label and its value over a bar the width of the group. */
 .role-group-meter {
   display: grid;
-  grid-template-columns: 8.5rem minmax(0, 1fr) 3.5rem;
-  gap: 10px;
-  align-items: center;
-  margin-bottom: 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 10px;
+  margin-bottom: 10px;
   font-size: 0.85rem;
 }
 
-.role-group-meter > span:last-child {
+.role-group-meter > span:nth-child(2) {
   color: var(--rv-muted);
-  text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+.role-group-meter > .role-group-bar {
+  grid-column: 1 / -1;
 }
 
 .role-group-bar {
@@ -2926,7 +2956,7 @@ img.role-view-avatar {
 
 .role-group-badge.is-mine {
   background: var(--rv-gold-soft);
-  color: var(--rv-gold-ink);
+  color: #6b5238;
 }
 
 .role-group-share {
@@ -2936,10 +2966,6 @@ img.role-view-avatar {
 }
 
 @media (max-width: 560px) {
-  .role-group-meter {
-    grid-template-columns: 6.5rem minmax(0, 1fr) 3rem;
-  }
-
   .role-group-badge {
     display: none;
   }

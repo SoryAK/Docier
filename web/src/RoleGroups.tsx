@@ -38,7 +38,7 @@ export function RoleGroup({
       <div className="role-group-head">
         <h3>{title}</h3>
         {empty ? null : (
-          <button type="button" className="role-view-text" onClick={() => onEdit(panel)} aria-label={`Edit ${title.toLowerCase()}`}>
+          <button type="button" className="role-edit" onClick={() => onEdit(panel)} aria-label={`Edit ${title.toLowerCase()}`}>
             Edit
           </button>
         )}
@@ -88,10 +88,10 @@ export function GroupMeter({ label, value, max, text }: { label: string; value: 
   return (
     <div className="role-group-meter">
       <span>{label}</span>
+      <span>{text}</span>
       <span className="role-group-bar" role="img" aria-label={`${label}: ${text}`}>
         <i style={{ width: `${share * 100}%` }} />
       </span>
-      <span>{text}</span>
     </div>
   );
 }

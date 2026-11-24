@@ -42,6 +42,8 @@ export function RolePeople({
   // The tab is the list: it reads fresh contacts and answers when it opens.
   const open = true;
   const [query, setQuery] = useState("");
+  // The name box shows once you ask to add someone.
+  const [finding, setFinding] = useState(false);
   const [contacts, setContacts] = useState<NetworkContact[] | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [ask, setAsk] = useState<Ask | null>(null);
@@ -62,6 +64,7 @@ export function RolePeople({
   useEffect(() => {
     setDraft(null);
     setAsk(null);
+    setFinding(false);
     setQuery("");
     setMessage("");
   }, [role.id]);
@@ -105,6 +108,7 @@ export function RolePeople({
       if (event.key !== "Escape") return;
       if (draft) setDraft(null);
       else if (ask) setAsk(null);
+      else setFinding(false);
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
@@ -143,7 +147,10 @@ export function RolePeople({
   }
 
   const base = `/api/work-map/roles/${encodeURIComponent(role.id)}/people`;
-  const link = (contactId: string) => run(() => send(base, "POST", { contactId, since: "" }), () => setQuery(""));
+  const link = (contactId: string) => run(() => send(base, "POST", { contactId, since: "" }), () => {
+    setQuery("");
+    setFinding(false);
+  });
   const unlink = (person: RolePerson) => {
     if (!window.confirm(`Take ${person.name} off ${name}? They stay in My Network.`)) return;
     void run(() => send(`${base}/${encodeURIComponent(person.linkId)}`, "DELETE"));
@@ -242,6 +249,7 @@ export function RolePeople({
         const added = ((await response.json()) as { person: RolePerson }).person;
         setDraft(null);
         setQuery("");
+        setFinding(false);
         if (askAfter) setAsk(askDraft(added));
         return true;
       });
@@ -355,10 +363,6 @@ export function RolePeople({
             </form>
           ) : (
             <>
-              <div className="role-people-head">
-                <h2>Colleagues</h2>
-                <small>Saved in My Network</small>
-              </div>
               {people.length > 0 ? (
                 <ul className="role-people-list">
                   {people.map((person) => (
@@ -396,8 +400,10 @@ export function RolePeople({
                     </li>
                   ))}
                 </ul>
-              ) : (
-                <p className="role-view-empty">Add the people from {name}. They join My Network, linked to this job.</p>
+              ) : finding ? null : (
+                <button type="button" className="role-group-add" onClick={() => setFinding(true)}>
+                  + Add the people you worked with at {name}
+                </button>
               )}
 
               {suggestions.length > 0 ? (
@@ -413,11 +419,13 @@ export function RolePeople({
                 </div>
               ) : null}
 
+              {finding ? (
               <div className="role-people-find">
                 <UserPlus size={15} aria-hidden="true" />
                 <input
+                  autoFocus
                   aria-label="Add someone by name"
-                  placeholder="Add someone…"
+                  placeholder="Type a name…"
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   onKeyDown={(event) => {
@@ -430,7 +438,12 @@ export function RolePeople({
                   disabled={busy}
                 />
               </div>
-              {query.trim() ? (
+              ) : people.length > 0 ? (
+                <button type="button" className="role-view-text role-inline-add" onClick={() => setFinding(true)}>
+                  <Plus size={14} aria-hidden="true" /> Add someone
+                </button>
+              ) : null}
+              {finding && query.trim() ? (
                 <ul className="role-people-matches">
                   {matches.map((contact) => (
                     <li key={contact.id}>
@@ -448,6 +461,7 @@ export function RolePeople({
                 </ul>
               ) : null}
               {message ? <p className="role-view-error" role="alert">{message}</p> : null}
+              <p className="role-group-share">Each person is saved in My Network, linked to this job.</p>
             </>
           )}
         </div>

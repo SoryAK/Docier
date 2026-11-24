@@ -42,7 +42,7 @@ export function RoleWorkSetup({ role, onEdit }: { role: WorkMapRole; onEdit: (pa
         <RoleGroup title="Schedule" panel="schedule" onEdit={onEdit} empty={hasSchedule ? null : "Add the type, hours, and where you worked"} note={schedule.shift}>
           <GroupFacts
             rows={[
-              ["Type", [schedule.type ? SCHEDULE_TYPE_LABEL[schedule.type] : "", workModeText(schedule)].filter(Boolean).join(", ")],
+              ["Type", schedule.type ? `${SCHEDULE_TYPE_LABEL[schedule.type]}, ${workModeText(schedule).toLowerCase()}` : workModeText(schedule)],
               Boolean(schedule.hoursPerWeek) && ["Hours", `${schedule.hoursPerWeek} h/week`],
             ]}
           />

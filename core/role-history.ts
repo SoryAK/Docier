@@ -1,4 +1,5 @@
 import { EMPTY_PAY, payEventText } from "./role-pay";
+import type { RoleEdit } from "./role-edits";
 import type { WorkMapMoment, WorkMapRole } from "./work-map";
 
 /**
@@ -7,7 +8,7 @@ import type { WorkMapMoment, WorkMapRole } from "./work-map";
  * role in Career History.
  */
 
-export type RoleHistoryKind = "start" | "end" | "milestone" | "event" | "note" | "achievement" | "person";
+export type RoleHistoryKind = "start" | "end" | "milestone" | "event" | "note" | "achievement" | "person" | "edit";
 
 export type RoleHistoryItem = {
   id: string;
@@ -17,11 +18,14 @@ export type RoleHistoryItem = {
   date: string;
   /** "Jun", or "" when the date is a year alone. */
   month: string;
+  /** For a change to the role: when it was made, and whether it can be undone. */
+  edit?: Pick<RoleEdit, "at" | "area" | "canUndo" | "blocked">;
 };
 
 export type RoleHistoryYear = { year: string; label: string; items: RoleHistoryItem[] };
 
-export type RoleHistoryFilter = "all" | "note" | "milestone" | "event" | "achievement" | "person";
+/** Edits show only under their own filter, not under All. */
+export type RoleHistoryFilter = "all" | "note" | "milestone" | "event" | "achievement" | "person" | "edit";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const MONTH_NAMES = [
@@ -48,6 +52,7 @@ const SAME_DAY_RANK: Record<RoleHistoryKind, number> = {
   event: 2,
   note: 2,
   end: 3,
+  edit: 2,
 };
 
 export function roleHistory(
@@ -106,9 +111,21 @@ export function roleHistory(
     if (date) push(role.achievementIds?.[index] ?? `${role.id}:achievement:${index}`, "achievement", shown, date);
   });
 
+  if (filter === "edit") {
+    for (const edit of role.edits ?? []) {
+      push(edit.id, "edit", edit.summary, edit.at);
+      const last = all.at(-1);
+      if (last?.id === edit.id) {
+        last.edit = { at: edit.at, area: edit.area, canUndo: edit.canUndo, blocked: edit.blocked };
+        // Newest first within a day, by the time it was made.
+        last.key = edit.at;
+      }
+    }
+  }
+
   const shown = all.filter(
     (item) =>
-      (filter === "all" || item.kind === filter) && (!needle || item.text.toLowerCase().includes(needle)),
+      (filter === "all" ? item.kind !== "edit" : item.kind === filter) && (!needle || item.text.toLowerCase().includes(needle)),
   );
   shown.sort((a, b) => (a.key === b.key ? SAME_DAY_RANK[b.kind] - SAME_DAY_RANK[a.kind] : a.key < b.key ? 1 : -1));
   if (options.order === "oldest") shown.reverse();
@@ -117,7 +134,8 @@ export function roleHistory(
   for (const item of shown) {
     let group = years.at(-1);
     if (!group || group.year !== item.year) {
-      group = { year: item.year, label: yearLabel(item.year, start, end, role.isCurrent, now), items: [] };
+      // Edits are dated by when they were made, not by the role's years.
+      group = { year: item.year, label: filter === "edit" ? "" : yearLabel(item.year, start, end, role.isCurrent, now), items: [] };
       years.push(group);
     }
     const { key: _key, year: _year, ...plain } = item;

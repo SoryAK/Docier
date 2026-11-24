@@ -303,6 +303,7 @@ import {
   saveCanvasAction,
   saveWorkMapDetails,
   saveWorkSetup,
+  undoRoleEdit,
   savePayAndBenefits,
   saveWorkMapSettings,
   updateWorkMapLocation,
@@ -1504,6 +1505,21 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
       );
       if (!saved.ok) return c.json({ error: saved.error }, 400);
       return c.json({ details: saved.details });
+    } catch (error) {
+      if (error instanceof WorkMapStoreError) {
+        return c.json({ error: error.code }, 404);
+      }
+      throw error;
+    }
+  });
+
+  // Undo one change to a role, if nothing has changed the same thing since.
+  app.post("/api/work-map/roles/:id/edits/:editId/undo", async (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      const undone = await undoRoleEdit(db, occupant.id, c.req.param("id"), c.req.param("editId"));
+      if (!undone.ok) return c.json({ error: undone.error }, undone.error === "edit-missing" ? 404 : 409);
+      return c.json({ ok: true });
     } catch (error) {
       if (error instanceof WorkMapStoreError) {
         return c.json({ error: error.code }, 404);

@@ -1,3 +1,4 @@
+import type { RoleEdit } from "./role-edits";
 import { EMPTY_PAY, type PayEvent, type RolePay, type TimeOffBalance } from "./role-pay";
 import { EMPTY_SCHEDULE, EMPTY_TEAM, type RolePromotion, type RoleSchedule, type RoleShift, type RoleTeam } from "./role-work-setup";
 import type { RolePerson } from "./role-people";
@@ -388,6 +389,8 @@ export type WorkMapRole = {
   canvasRevision?: number;
   /** My Network contacts linked to this role. */
   people?: RolePerson[];
+  /** Changes made to this role, newest first. Never published. */
+  edits?: RoleEdit[];
 };
 
 export type WorkMapPublishSection =

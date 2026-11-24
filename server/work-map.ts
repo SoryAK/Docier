@@ -1,5 +1,17 @@
 import { moveColleaguesToNetwork, readRolePeople } from "./role-people";
+import {
+  logRoleEvent,
+  markUndone,
+  readRoleEdits,
+  readRoleFields,
+  readStoredEdit,
+  recordDetailsEdit,
+  recordFieldsEdit,
+  removeRoleEdits,
+  type StoredEdit,
+} from "./role-edits";
 import { prepareWorkSetup, type WorkSetupError } from "../core/role-work-setup";
+import { undoBlock, type RoleEditBlock, type RoleFields } from "../core/role-edits";
 import { preparePayAndBenefits, type PayError } from "../core/role-pay";
 import { createHash, randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
@@ -116,6 +128,7 @@ export async function updateWorkMapRole(
 ) {
   requireRole(db, occupantId, roleId);
   backfillCareerMemory(db, occupantId);
+  const beforeFields = readRoleFields(db, occupantId, roleId)!;
   const existing = db
     .prepare(
       `SELECT kind, title, company, location, start_date, end_date, is_current,
@@ -164,6 +177,13 @@ export async function updateWorkMapRole(
     roleId,
     occupantId,
   );
+  recordFieldsEdit(db, occupantId, roleId, beforeFields, readRoleFields(db, occupantId, roleId)!);
+  await syncRoleFacts(db, occupantId, roleId);
+  return readWorkMap(db, occupantId).roles.find((item) => item.id === roleId);
+}
+
+/** Records the role as it now stands as evidence, and brings its facts in step. */
+async function syncRoleFacts(db: DatabaseSync, occupantId: string, roleId: string) {
   const updated = db
     .prepare(
       `SELECT id, kind, title, company, location, start_date, end_date,
@@ -200,7 +220,52 @@ export async function updateWorkMapRole(
       evidenceId: evidence.id,
     }),
   );
-  return readWorkMap(db, occupantId).roles.find((item) => item.id === roleId);
+}
+
+/**
+ * Undoes one change to a role's own fields or details: puts back what it
+ * replaced, if nothing has changed the same thing since. The undo is recorded
+ * as a change too, so it can be undone in turn.
+ */
+export async function undoRoleEdit(
+  db: DatabaseSync,
+  occupantId: string,
+  roleId: string,
+  editId: string,
+): Promise<{ ok: true } | { ok: false; error: "edit-missing" | RoleEditBlock }> {
+  requireRole(db, occupantId, roleId);
+  const edit = readStoredEdit(db, occupantId, roleId, editId);
+  if (!edit) return { ok: false, error: "edit-missing" };
+  const fields = readRoleFields(db, occupantId, roleId)!;
+  const details = readDetails(db, occupantId, roleId);
+  const blocked = undoBlock(edit, edit.area === "role" ? fields : details);
+  if (blocked) return { ok: false, error: blocked };
+  if (edit.area === "role") {
+    const next = { ...fields, ...edit.before } as RoleFields;
+    db.prepare(
+      `UPDATE work_history SET kind = ?, title = ?, company = ?, location = ?,
+         start_date = ?, end_date = ?, is_current = ?, description = ?,
+         achievements_json = ? WHERE id = ? AND occupant_id = ?`,
+    ).run(
+      next.kind,
+      next.title,
+      next.organization,
+      next.locationLabel,
+      next.startDate,
+      next.endDate,
+      Number(next.isCurrent),
+      next.description,
+      JSON.stringify(next.achievements),
+      roleId,
+      occupantId,
+    );
+    recordFieldsEdit(db, occupantId, roleId, fields, next, { of: edit });
+    await syncRoleFacts(db, occupantId, roleId);
+  } else {
+    writeDetails(db, occupantId, roleId, { ...details, ...edit.before } as WorkMapRoleDetails, { of: edit });
+  }
+  markUndone(db, occupantId, edit);
+  return { ok: true };
 }
 
 export async function createWorkMapRole(
@@ -355,14 +420,7 @@ export function saveWorkMapDetails(
         ? workMapOverviewFields(input.overviewFields)
         : current.overviewFields,
   };
-  db.prepare(
-    `INSERT INTO work_history_details
-      (work_history_id, occupant_id, details_json, updated_at)
-     VALUES (?, ?, ?, ?)
-     ON CONFLICT(work_history_id) DO UPDATE SET
-       details_json = excluded.details_json,
-       updated_at = excluded.updated_at`,
-  ).run(roleId, occupantId, JSON.stringify(details), new Date().toISOString());
+  writeDetails(db, occupantId, roleId, details);
   return details;
 }
 
@@ -383,14 +441,7 @@ export function saveWorkSetup(
     ...setup,
     share: { ...current.share, ...share },
   };
-  db.prepare(
-    `INSERT INTO work_history_details
-      (work_history_id, occupant_id, details_json, updated_at)
-     VALUES (?, ?, ?, ?)
-     ON CONFLICT(work_history_id) DO UPDATE SET
-       details_json = excluded.details_json,
-       updated_at = excluded.updated_at`,
-  ).run(roleId, occupantId, JSON.stringify(details), new Date().toISOString());
+  writeDetails(db, occupantId, roleId, details);
   return { ok: true, details };
 }
 
@@ -410,7 +461,15 @@ export function savePayAndBenefits(
   return { ok: true, details };
 }
 
-function writeDetails(db: DatabaseSync, occupantId: string, roleId: string, details: WorkMapRoleDetails) {
+/** Saves a role's details, and records what changed. */
+function writeDetails(
+  db: DatabaseSync,
+  occupantId: string,
+  roleId: string,
+  details: WorkMapRoleDetails,
+  undo?: { of: StoredEdit },
+) {
+  const before = readDetails(db, occupantId, roleId);
   db.prepare(
     `INSERT INTO work_history_details
       (work_history_id, occupant_id, details_json, updated_at)
@@ -419,6 +478,7 @@ function writeDetails(db: DatabaseSync, occupantId: string, roleId: string, deta
        details_json = excluded.details_json,
        updated_at = excluded.updated_at`,
   ).run(roleId, occupantId, JSON.stringify(details), new Date().toISOString());
+  recordDetailsEdit(db, occupantId, roleId, before, readDetails(db, occupantId, roleId), undo);
 }
 
 export function addWorkMapLocation(
@@ -428,7 +488,9 @@ export function addWorkMapLocation(
   input: JsonObject,
 ): WorkMapLocation {
   requireRole(db, occupantId, roleId);
-  return persistWorkMapLocation(db, occupantId, roleId, randomUUID(), input);
+  const location = persistWorkMapLocation(db, occupantId, roleId, randomUUID(), input);
+  logRoleEvent(db, occupantId, roleId, "places", `Added a place: ${location.label || location.address || "a site"}`);
+  return location;
 }
 
 export function updateWorkMapLocation(
@@ -440,7 +502,9 @@ export function updateWorkMapLocation(
 ): WorkMapLocation {
   requireRole(db, occupantId, roleId);
   requireLocation(db, occupantId, roleId, locationId);
-  return persistWorkMapLocation(db, occupantId, roleId, locationId, input);
+  const location = persistWorkMapLocation(db, occupantId, roleId, locationId, input);
+  logRoleEvent(db, occupantId, roleId, "places", `Changed a place: ${location.label || location.address || "a site"}`);
+  return location;
 }
 
 export function removeWorkMapRole(
@@ -480,6 +544,7 @@ export function removeWorkMapRole(
     db.prepare(
       `DELETE FROM role_contacts WHERE role_id = ? AND occupant_id = ?`,
     ).run(id, occupantId);
+    removeRoleEdits(db, occupantId, id);
     db.prepare(
       `DELETE FROM career_facts
        WHERE occupant_id = ? AND subject_id = ?`,
@@ -518,10 +583,12 @@ export function removeWorkMapLocation(
 ): void {
   requireRole(db, occupantId, roleId);
   requireLocation(db, occupantId, roleId, locationId);
+  const gone = readLocations(db, occupantId, roleId).find((item) => item.id === locationId);
   db.prepare(
     `DELETE FROM work_history_locations
      WHERE id = ? AND work_history_id = ? AND occupant_id = ?`,
   ).run(locationId, roleId, occupantId);
+  logRoleEvent(db, occupantId, roleId, "places", `Removed a place: ${gone?.label || gone?.address || "a site"}`);
 }
 
 export async function lookupNominatimPlace(
@@ -659,6 +726,7 @@ export function addWorkMapMedia(
     Number(media.isPublic),
     new Date().toISOString(),
   );
+  logRoleEvent(db, occupantId, roleId, "photos", `Added ${media.kind === "video" ? "a video" : media.kind === "attachment" ? "a file" : "a photo"}: ${media.title}`);
   return media;
 }
 
@@ -706,6 +774,7 @@ export function addWorkMapPhoto(
     storedName,
     new Date().toISOString(),
   );
+  logRoleEvent(db, occupantId, roleId, "photos", "Added a photo");
   return media;
 }
 
@@ -754,6 +823,7 @@ export function setWorkMapMediaPublic(
     )
     .run(Number(isPublic), mediaId, roleId, occupantId);
   if (updated.changes === 0) throw new WorkMapStoreError("media-missing");
+  logRoleEvent(db, occupantId, roleId, "photos", isPublic ? "Showed a photo on your page" : "Hid a photo from your page");
 }
 
 export function removeWorkMapMedia(
@@ -776,6 +846,7 @@ export function removeWorkMapMedia(
     `DELETE FROM work_history_media
      WHERE id = ? AND work_history_id = ? AND occupant_id = ?`,
   ).run(mediaId, roleId, occupantId);
+  logRoleEvent(db, occupantId, roleId, "photos", "Removed a photo");
   if (row.stored_name) {
     try {
       unlinkSync(uploadPath(uploadsDir, row.stored_name));
@@ -830,6 +901,7 @@ export async function addLinkedEvidence(
     evidenceId,
     pin: prepared.value.pin,
   });
+  logRoleEvent(db, occupantId, roleId, "evidence", `Added evidence: ${prepared.value.title}`);
   return { id, evidenceId, ...prepared.value };
 }
 
@@ -866,6 +938,7 @@ export async function updateLinkedEvidence(
     evidenceId,
     pin: prepared.value.pin,
   });
+  logRoleEvent(db, occupantId, roleId, "evidence", `Changed evidence: ${prepared.value.title}`);
   return { id: linkedId, evidenceId, ...prepared.value };
 }
 
@@ -884,6 +957,7 @@ export async function removeLinkedEvidence(
      WHERE id = ? AND work_history_id = ? AND occupant_id = ?`,
   ).run(prepared.value.id, roleId, occupantId);
   await syncLinkedEvidenceFacts(db, occupantId, roleId, existing, null);
+  logRoleEvent(db, occupantId, roleId, "evidence", `Removed evidence: ${existing.title}`);
 }
 
 async function captureLinkedPage(
@@ -1302,6 +1376,10 @@ function mapRole(
     linkedEvidence: readLinkedEvidence(db, occupantId, String(row.id), achievementFields),
     details: readDetails(db, occupantId, String(row.id)),
     people: readRolePeople(db, occupantId, String(row.id)),
+    edits: readRoleEdits(db, occupantId, String(row.id), {
+      fields: readRoleFields(db, occupantId, String(row.id))!,
+      details: readDetails(db, occupantId, String(row.id)),
+    }),
     ...canvasBoardsField(db, occupantId, String(row.id)),
   };
 }
@@ -1718,6 +1796,7 @@ export function updateRoleAchievement(
       links.value.places.some((id) => !onRole.places.includes(id));
     if (missing) throw new WorkMapStoreError("link-missing");
   }
+  const beforeFields = readRoleFields(db, occupantId, roleId)!;
   const row = db
     .prepare("SELECT achievements_json FROM work_history WHERE id = ? AND occupant_id = ?")
     .get(roleId, occupantId) as { achievements_json: string };
@@ -1741,6 +1820,7 @@ export function updateRoleAchievement(
     roleId,
     occupantId,
   );
+  recordFieldsEdit(db, occupantId, roleId, beforeFields, readRoleFields(db, occupantId, roleId)!);
   return { id: achievementId, title: nextTitle, date: nextDate, links: nextLinks ?? { people: [], moments: [], places: [], skills: [] } };
 }
 

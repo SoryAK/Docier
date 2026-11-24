@@ -2123,14 +2123,56 @@ img.role-view-avatar {
 }
 
 /* Pay & benefits: private, so the heading carries a lock. */
+.role-setup .role-view-section-head h2 {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
 .role-pay-lock {
-  margin-left: 4px;
+  flex: none;
   color: var(--rv-muted, #71717a);
-  vertical-align: -1px;
 }
 
 .role-settings-checks {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 8px 12px;
+}
+
+/* History's Edits: when each change was made, and Undo. */
+.role-history-edit {
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+  color: #6b6b70;
+  font-size: 0.75rem;
+}
+
+.role-history-edit em {
+  font-style: normal;
+}
+
+.role-history-undo {
+  padding: 1px 10px;
+  border: 1px solid #e4ddd2;
+  border-radius: 999px;
+  background: #fff;
+  color: #171717;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 550;
+  cursor: pointer;
+}
+
+.role-history-undo:hover:not(:disabled) {
+  border-color: #c9b79e;
+  background: #fffaf0;
+}
+
+.role-history-undo:disabled {
+  cursor: default;
+  opacity: 0.55;
 }

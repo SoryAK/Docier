@@ -13,7 +13,19 @@ const KIND_LABEL: Record<RoleHistoryKind, string> = {
   note: "Note",
   achievement: "Achievement",
   person: "People",
+  edit: "Edit",
 };
+
+const BLOCK_LABEL: Record<string, string> = {
+  "changed-since": "Changed again since",
+  undone: "Undone",
+};
+
+function editTime(at: string): string {
+  const date = new Date(at);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
 
 /** A role's story over time, year by year, beside the role in Career History. */
 export function RoleHistoryPanel({
@@ -108,10 +120,41 @@ export function RoleHistoryPanel({
     }
   }
 
+  async function undo(editId: string, summary: string) {
+    setBusy(true);
+    setMessage("");
+    try {
+      const response = await fetch(`/api/work-map/roles/${encodeURIComponent(role.id)}/edits/${encodeURIComponent(editId)}/undo`, { method: "POST" });
+      if (!response.ok) {
+        const body = (await response.json().catch(() => ({}))) as { error?: string };
+        setMessage(
+          body.error === "changed-since"
+            ? `“${summary}” can't be undone: it was changed again since.`
+            : "That change could not be undone. Try again.",
+        );
+        onSaved();
+        return;
+      }
+      onSaved();
+    } catch {
+      setMessage("That change could not be undone. Check your connection and try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Only notes, milestones, and events saved as such can be removed here;
+  // promotions and raises show as milestones but live elsewhere.
+  const removable = (kind: RoleHistoryKind, id: string) =>
+    (kind === "note" && (role.details.notes ?? []).some((item) => item.id === id)) ||
+    (kind === "milestone" && (role.details.milestones ?? []).some((item) => item.id === id)) ||
+    (kind === "event" && (role.details.events ?? []).some((item) => item.id === id));
+
   const cover = roleCoverPhoto(role.media);
   const name = role.organization.trim() || role.title.trim() || "Untitled";
   const span = formatHistoryPeriod(role.startDate, role.endDate, role.isCurrent).replace("Present", "now");
   const searching = query.trim().length > 0;
+  const editing = filter === "edit";
 
   return (
     <section className="role-history" aria-label={`History of ${name}`}>
@@ -145,6 +188,7 @@ export function RoleHistoryPanel({
           <option value="event">Events</option>
           <option value="achievement">Achievements</option>
           <option value="person">People</option>
+          <option value="edit">Edits</option>
         </select>
         <select aria-label="Order" value={order} onChange={(event) => setOrder(event.target.value as "newest" | "oldest")}>
           <option value="newest">Newest</option>
@@ -155,11 +199,17 @@ export function RoleHistoryPanel({
       <div className="role-history-list">
         {years.length === 0 ? (
           <p className="role-view-empty">
-            {searching ? `Nothing matches “${query.trim()}”.` : role.startDate ? "Nothing here yet." : "Add a start date to see this role year by year."}
+            {searching
+              ? `Nothing matches “${query.trim()}”.`
+              : editing
+                ? "No changes yet. Changes you make to this role show here, and most can be undone."
+                : role.startDate
+                  ? "Nothing here yet."
+                  : "Add a start date to see this role year by year."}
           </p>
         ) : (
           years.map((year) => {
-            const open = searching || openYears.has(year.year);
+            const open = searching || editing || openYears.has(year.year);
             return (
               <section key={year.year} className="role-history-year">
                 <button type="button" aria-expanded={open} onClick={() => toggleYear(year.year)}>
@@ -171,7 +221,7 @@ export function RoleHistoryPanel({
                   </i>
                 </button>
                 {open ? (
-                  <ol>
+                  <ol className={editing ? "is-edits" : undefined}>
                     {year.items.map((item) => (
                       <li key={`${item.kind}:${item.id}`}>
                         <small>{item.month}</small>
@@ -185,7 +235,19 @@ export function RoleHistoryPanel({
                             {item.text}
                           </span>
                         )}
-                        {item.kind === "note" || item.kind === "milestone" || item.kind === "event" ? (
+                        {item.edit ? (
+                          <span className="role-history-edit">
+                            <time dateTime={item.edit.at}>{editTime(item.edit.at)}</time>
+                            {item.edit.canUndo ? (
+                              <button type="button" className="role-history-undo" disabled={busy} onClick={() => void undo(item.id, item.text)}>
+                                Undo
+                              </button>
+                            ) : item.edit.blocked && BLOCK_LABEL[item.edit.blocked] ? (
+                              <em>{BLOCK_LABEL[item.edit.blocked]}</em>
+                            ) : null}
+                          </span>
+                        ) : null}
+                        {removable(item.kind, item.id) ? (
                           <button
                             type="button"
                             className="role-history-remove"

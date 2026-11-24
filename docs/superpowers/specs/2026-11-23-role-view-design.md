@@ -69,7 +69,12 @@ Three columns, as on Home.
    - A pin records the achievement's id with its current statement. Reading a role refreshes the statement from the id, so rewording an achievement keeps its evidence, and the facts and published pages, which match by statement, stay right. Older statement-only pins get their id once, by matching; a pin to a removed achievement becomes the role's general evidence.
    - Each achievement's tag ("1 proof" / "+ proof") opens a panel listing its evidence with Change and Remove, and "+ Add evidence": a link with "Fill from link" (title, site, date, kind), whether it names you or is about your work, and your part. Saving keeps a copy of the page in the vault, as before.
    - **An achievement on its own.** Clicking an achievement, in the Achievements tab or in History, opens it alone in the middle ("← All achievements" goes back): its wording with Edit (saved with the role's achievements, so facts stay in step), its month, its evidence shown in place, and **Linked to**: people on the role, events and milestones, the role's places, and skills or tools (typed, with suggestions from the role and its other achievements). Links are stored with the achievement, so rewording keeps them; links to something removed from the role drop out. Only people, moments, and places on that role can be linked.
-5. **Edits:** a record of changes to the role, shown under History's Edits filter, with undo for recent ones.
+5. **Edits:** a record of changes to the role, shown under History's Edits filter, with undo.
+   - Every save that changes something is recorded with a line saying what changed, e.g. "Changed the title to Lead technician" or "Added a note: Moved to nights". A save that changes nothing isn't recorded.
+   - The role's own fields (including each achievement's wording, title, month, and links) and its details (notes, milestones, events, work setup, pay) keep what each change replaced, so it can be undone. People, places, photos, and evidence are logged without undo for now.
+   - A change can be undone if nothing has changed the same thing since; otherwise it reads "Changed again since". Undoing is recorded as a change too ("Undid: …"), so it can be undone in turn, and the change it undid reads "Undone".
+   - Edits appear only under the Edits filter, by when they were made, with the time and an Undo button. They are never published.
+   - Undoing a change to the role's fields brings its facts back in step, as a save does.
 6. **Adds in place** for photos, events, sites, and people, and the tablet and phone layouts.
 
 Achievements without a date sit in the year the role started.

@@ -1,3 +1,4 @@
+import { logRoleEvent } from "./role-edits";
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { effectiveRequestStatus, type SentRequestStatus } from "../core/requests";
@@ -159,7 +160,9 @@ export function linkRolePerson(db: DatabaseSync, occupantId: string, roleId: str
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
     ).run(linkId, occupantId, roleId, contactId, link.note, link.since, new Date().toISOString());
     db.exec("COMMIT");
-    return readLink(db, occupantId, roleId, linkId);
+    const person = readLink(db, occupantId, roleId, linkId);
+    logRoleEvent(db, occupantId, roleId, "people", `Added ${person.name}`);
+    return person;
   } catch (error) {
     db.exec("ROLLBACK");
     throw error;
@@ -182,15 +185,25 @@ export function updateRolePersonLink(
     occupantId,
     roleId,
   );
-  return readLink(db, occupantId, roleId, linkId);
+  const person = readLink(db, occupantId, roleId, linkId);
+  logRoleEvent(db, occupantId, roleId, "people", `Changed ${person.name}'s note or start`);
+  return person;
 }
 
 /** Takes the person off this role; they stay in My Network. */
 export function unlinkRolePerson(db: DatabaseSync, occupantId: string, roleId: string, linkId: string): void {
+  const name = (() => {
+    try {
+      return readLink(db, occupantId, roleId, linkId).name;
+    } catch {
+      return "";
+    }
+  })();
   const removed = db
     .prepare("DELETE FROM role_contacts WHERE id = ? AND occupant_id = ? AND role_id = ?")
     .run(linkId, occupantId, roleId);
   if (removed.changes !== 1) throw new RolePeopleError("link-missing");
+  logRoleEvent(db, occupantId, roleId, "people", `Removed ${name || "someone"}`);
 }
 
 export type ContactRole = {

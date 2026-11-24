@@ -720,6 +720,24 @@ export function openDatabase(path: string): DatabaseSync {
       UNIQUE (occupant_id, role_id, contact_id)
     )
   `);
+  // A record of changes to a role. The role's own fields and its details keep
+  // what each change replaced, so it can be undone; the rest is only logged.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS role_edits (
+      id TEXT PRIMARY KEY,
+      occupant_id TEXT NOT NULL REFERENCES occupants(id),
+      role_id TEXT NOT NULL,
+      at TEXT NOT NULL,
+      area TEXT NOT NULL,
+      summary TEXT NOT NULL,
+      keys_json TEXT NOT NULL DEFAULT '[]',
+      before_json TEXT,
+      after_json TEXT,
+      undone_at TEXT,
+      undoes_id TEXT
+    )
+  `);
+  db.exec("CREATE INDEX IF NOT EXISTS role_edits_role ON role_edits (occupant_id, role_id, at)");
   // Confirmed from here, answering their "worked together" request from this
   // Docier: it then counts on both sides.
   addColumnIfMissing(db, "role_contacts", "confirmed_at", "TEXT");

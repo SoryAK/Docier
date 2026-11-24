@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sidebar layouts</title>
+<!-- Prototype only: never imported by the app. -->
+<style>
+  :root { --ink: #171717; --muted: #6b6b70; --line: rgba(167,139,113,.22); --navy: #0d345e; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.4 "Geist Variable", system-ui, sans-serif; color: var(--ink); background: #ececee; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 16px; background: #fff; border-bottom: 1px solid #e4e4e7; position: sticky; top: 0; z-index: 5; }
+  .bar strong { margin-right: 8px; }
+  .bar button { border: 1px solid #d4d4d8; background: #fff; border-radius: 999px; padding: 6px 12px; font: inherit; cursor: pointer; }
+  .bar button[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .bar .sep { width: 1px; height: 22px; background: #e4e4e7; margin: 0 4px; }
+  .note { padding: 10px 16px 0; color: var(--muted); max-width: 900px; }
+
+  .app { display: flex; gap: 12px; padding: 12px 16px 16px; height: calc(100vh - 130px); min-height: 520px; }
+  .panel { flex: none; width: 262px; background: #fff; border-radius: 16px; border: 1px solid #e7e5e4; display: flex; flex-direction: column; padding: 9px 7px 14px; transition: width .2s; }
+  .panel.slim { width: 56px; }
+  .content { flex: 1; background: #fff; border-radius: 16px; border: 1px solid #e7e5e4; padding: 20px; color: var(--muted); }
+  .content h1 { margin: 0 0 6px; font-size: 20px; color: var(--ink); }
+
+  .item { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 34px; padding: 6px 7px; border: 0; border-radius: 6px; background: transparent; color: var(--ink); font: 500 14px/1.3 inherit; font-family: inherit; text-align: left; cursor: pointer; }
+  .item:hover { background: #f6f6f7; }
+  .item.current { background: #f3f3f4; font-weight: 650; }
+  .item svg { flex: none; width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+  .slim .item { justify-content: center; padding: 6px 0; }
+  .slim .label, .slim .head, .slim .head-toggle span { display: none; }
+
+  .divider { height: 1px; background: #ececee; margin: 8px 7px; }
+  .head { margin: 14px 7px 4px; color: #5b5b61; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+  .head:first-child { margin-top: 4px; }
+  .head-toggle { display: flex; align-items: center; justify-content: space-between; width: 100%; margin-top: 10px; padding: 6px 7px; border: 0; border-radius: 6px; background: transparent; color: #5b5b61; font: 600 12px/1 inherit; font-family: inherit; letter-spacing: .04em; text-transform: uppercase; cursor: pointer; }
+  .head-toggle:hover { background: #f6f6f7; }
+  .head-toggle svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.4; transition: transform .15s; }
+  .head-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
+  .slim .head-toggle { display: none; }
+  .spacer { flex: 1; }
+  .foot { border-top: 1px solid #ececee; padding-top: 8px; margin-top: 8px; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+  <div class="bar">
+    <strong>Sidebar</strong>
+    <button data-layout="a" aria-pressed="true">A · Flat with a divider</button>
+    <button data-layout="b" aria-pressed="false">B · Two headed sections</button>
+    <button data-layout="c" aria-pressed="false">C · Resources open by default</button>
+    <span class="sep"></span>
+    <button id="slim" aria-pressed="false">Icons only</button>
+  </div>
+  <p class="note" id="note"></p>
+  <div class="app">
+    <nav class="panel" id="panel" aria-label="Main"></nav>
+    <main class="content"><h1 id="title">Home</h1><p>Click the rows to move around. Customizations are hidden; Canvas stays at the bottom.</p></main>
+  </div>
+
+<script>
+const ICONS = {
+  home: '<path d="M4 11.2 12 4l8 7.2V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z"/>',
+  history: '<path d="M4 11.5a8 8 0 1 0 2.3-5.7"/><path d="M4 5.5v4h4M12 8v5l3 1.5"/>',
+  network: '<circle cx="9" cy="8" r="2.4"/><circle cx="16.5" cy="8" r="2.4"/><circle cx="12.5" cy="16.5" r="2.6"/><path d="M10.6 10.1 11.4 14.1M15 10.1 13.7 14"/>',
+  // Opportunities gets its own mark: a compass, so it no longer looks like search.
+  opportunities: '<circle cx="12" cy="12" r="8"/><path d="m15.2 8.8-2 4.4-4.4 2 2-4.4z"/>',
+  studio: '<path d="M5 5.5h14v13H5z"/><path d="M5 10h14M10 5.5v13"/>',
+  docs: '<path d="M4 7.5h6l1.5 2H20v10.5H4z"/><path d="M4 7.5V5.5h6l1.2 1.6"/>',
+  gallery: '<rect x="4" y="5" width="16" height="14" rx="1.5"/><circle cx="9" cy="10" r="1.4"/><path d="m4 16 4.5-4 3 3 2.2-2.2L20 16"/>',
+  canvas: '<path d="M8 3v18M16 3v18M3 8h18M3 16h18"/>',
+};
+const PAGES = {
+  home: "Home", history: "Career History", network: "My Network", opportunities: "Opportunities",
+  studio: "Resume Studio", docs: "My Docs", gallery: "Gallery", canvas: "Canvas",
+};
+const NOTES = {
+  a: "A · Every everyday page in one list, one click away. A thin line splits your career (above) from the tools that work with it (below). No headings, nothing to open.",
+  b: "B · The same pages under two short headings that are always open. Clearer for someone new; takes more height and daily users stop reading the headings.",
+  c: "C · Today's layout, but Resources starts open and remembers if you close it. Smallest change; My Network stays one level down and can be folded away.",
+};
+let layout = "a", slim = false, current = "home", resourcesOpen = true;
+
+const row = (id) => `<button class="item${current === id ? " current" : ""}" data-go="${id}" title="${slim ? PAGES[id] : ""}"><svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[id]}</svg><span class="label">${PAGES[id]}</span></button>`;
+const caret = '<svg viewBox="0 0 12 12"><path d="M3 4.5 6 7.5 9 4.5"/></svg>';
+
+function render() {
+  const p = document.getElementById("panel");
+  p.classList.toggle("slim", slim);
+  let top = "";
+  if (layout === "a") {
+    top = row("home") + row("history") + row("network") + '<div class="divider"></div>' + row("opportunities") + row("studio") + row("docs") + row("gallery");
+  } else if (layout === "b") {
+    top = '<div class="head">Your career</div>' + row("home") + row("history") + row("network") +
+          (slim ? '<div class="divider"></div>' : '<div class="head">Tools</div>') + row("opportunities") + row("studio") + row("docs") + row("gallery");
+  } else {
+    const showGroup = slim || resourcesOpen;
+    top = row("home") + row("history") + row("opportunities") +
+      `<button class="head-toggle" id="res" aria-expanded="${resourcesOpen}"><span>Resources</span>${caret}</button>` +
+      (showGroup ? row("studio") + row("docs") + row("network") + row("gallery") : "");
+  }
+  p.innerHTML = `<div>${top}</div><div class="spacer"></div><div class="foot">${row("canvas")}</div>`;
+  document.getElementById("note").textContent = NOTES[layout];
+  document.getElementById("title").textContent = PAGES[current];
+}
+
+document.addEventListener("click", (e) => {
+  const go = e.target.closest("[data-go]");
+  if (go) { current = go.dataset.go; render(); return; }
+  if (e.target.closest("#res")) { resourcesOpen = !resourcesOpen; render(); return; }
+  const l = e.target.closest("[data-layout]");
+  if (l) {
+    layout = l.dataset.layout;
+    document.querySelectorAll("[data-layout]").forEach((b) => b.setAttribute("aria-pressed", String(b === l)));
+    render(); return;
+  }
+  if (e.target.closest("#slim")) {
+    slim = !slim;
+    document.getElementById("slim").setAttribute("aria-pressed", String(slim));
+    render();
+  }
+});
+const start = new URLSearchParams(location.search).get("layout");
+if (start && NOTES[start]) document.querySelector(`[data-layout="${start}"]`).click(); else render();
+</script>
+</body>
+</html>

@@ -46,3 +46,9 @@ next-env.d.ts
 .agents/
 .claude/
 .copilot/
+
+# Local only: research notes, scratch output, and an empty database file.
+/competitor/
+/.polish/
+/.request-mocks/
+/data/*.db

@@ -1,0 +1,762 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Welcome card prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #171717;
+    --muted: rgba(23, 23, 23, 0.66);
+    --line: rgba(23, 23, 23, 0.1);
+    --gold: #a78b71;
+    --gold-deep: #8a6d4f;
+    --manila: #f6ead3;
+    --sans: "Geist", system-ui, sans-serif;
+    --reveal: cubic-bezier(0.19, 1, 0.22, 1);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { font-family: var(--sans); color: var(--ink); background: #f4f3f1; }
+
+  /* A stand-in for Home behind the card. */
+  .home { position: fixed; inset: 0; display: grid; grid-template-rows: 52px 1fr; }
+  .home-bar { display: flex; align-items: center; gap: 12px; padding: 0 16px; background: #fff; border-bottom: 1px solid var(--line); }
+  .home-bar i { display: block; height: 12px; border-radius: 6px; background: #eee; }
+  .home-body { display: grid; grid-template-columns: 220px 1fr 340px; gap: 16px; padding: 16px; }
+  .home-col { display: grid; gap: 12px; align-content: start; }
+  .home-col i { display: block; border-radius: 12px; background: #fff; border: 1px solid var(--line); }
+
+  /* Prototype controls, outside the card. */
+  .controls {
+    position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 20;
+    display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; padding: 6px; border-radius: 999px;
+    background: rgba(255,255,255,.95); box-shadow: 0 6px 20px rgba(0,0,0,.15); max-width: calc(100vw - 24px);
+  }
+  .controls button {
+    border: 0; border-radius: 999px; padding: 7px 12px; background: transparent; font: 500 13px var(--sans); color: var(--ink); cursor: pointer;
+  }
+  .controls button[aria-pressed="true"] { background: var(--ink); color: #fff; }
+  .controls .sep { width: 1px; background: var(--line); margin: 4px 2px; }
+
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translate(-50%, 20px); opacity: 0; z-index: 30;
+    padding: 10px 16px; border-radius: 12px; background: var(--ink); color: #fff; font-size: 14px;
+    transition: opacity .25s, transform .25s var(--reveal); pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  /* The card. */
+  dialog.welcome {
+    width: min(36rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); padding: 0; border: 0; border-radius: 28px; overflow: auto;
+    background: #fff; color: var(--ink); box-shadow: 0 30px 60px rgba(0,0,0,.22); text-align: center;
+  }
+  .shade { position: fixed; inset: 0; z-index: 10; background: rgba(23,23,23,.42); display: none; }
+  .shade.on { display: block; }
+  dialog.welcome { position: fixed; inset: 0; margin: auto; height: fit-content; z-index: 11; }
+  dialog.welcome[open] { animation: card-in .45s var(--reveal) both; }
+  @keyframes card-in { from { opacity: 0; transform: translateY(10px) scale(.98); } }
+
+  .art { position: relative; padding: 1.2rem 1.4rem 0; background: linear-gradient(180deg, #fbf6ee, #f4ecdf); display: flex; flex-direction: column; align-items: center; }
+  .art::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 22px; background: linear-gradient(rgba(255,255,255,0), #fff); pointer-events: none; z-index: 3; }
+  /* The logo and name float over the middle of the sketch. */
+  .brand {
+    position: absolute; left: 50%; top: calc(50% + 12px); transform: translate(-50%, -50%); z-index: 4;
+    display: inline-flex; align-items: center; gap: 8px; padding: 30px 56px;
+    /* No edge: a glow in the banner's own cream, fading into the sketch. */
+    background: radial-gradient(closest-side, rgba(250,245,236,1) 0%, rgba(250,245,236,.92) 45%, rgba(250,245,236,0) 100%);
+  }
+  .brand img { width: 32px; height: 32px; }
+  /* Centred on the mark, caps about 60% of its height, a weight close to its strokes. */
+  .brand span { position: relative; font-size: 1.65rem; font-weight: 500; letter-spacing: -0.03em; line-height: 1; margin-top: 1px; }
+  /* Name styles, picked from the logo's own colours. */
+  .brand.navy span { color: #0d345e; }
+  .brand.gold span {
+    background: linear-gradient(180deg, #e6bf7f 0%, #cd9f5b 55%, #b8894a 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .brand.line span { color: #0d345e; padding-bottom: 5px; margin-bottom: -6px; }
+  .brand.line span::after {
+    content: ""; position: absolute; left: 1px; right: 2px; bottom: 0; height: 2px; border-radius: 2px;
+    background: linear-gradient(90deg, #f3d59c, #cd9f5b);
+  }
+
+  .sketch { position: relative; width: 531px; max-width: 100%; height: 152px; overflow: hidden; text-align: left; }
+  .sketch-home { position: absolute; inset: 0 0 -40px 0; background: #fff; border-radius: 14px 14px 0 0; box-shadow: 0 -1px 0 var(--line), 0 10px 30px rgba(138,109,79,.18); }
+  .sketch-home i { position: absolute; display: block; border-radius: 6px; background: #f2f0ed; }
+  .sketch-bar { position: absolute; top: 0; left: 0; right: 0; height: 26px; border-bottom: 1px solid var(--line); }
+
+  .pin {
+    position: absolute; width: 22px; height: 22px; border-radius: 50%; background: var(--ink); color: #fff;
+    font: 600 .72rem var(--sans); display: grid; place-items: center; box-shadow: 0 0 0 4px rgba(201,167,125,.55); z-index: 2;
+    opacity: 0; transform: scale(.4);
+  }
+  .ring { position: absolute; border: 2px solid #c9a77d; border-radius: 9px; z-index: 1; opacity: 0; }
+  .playing .pin { animation: pin-in .35s var(--reveal) forwards; }
+  .playing .pin.p1 { animation-delay: .35s; } .playing .pin.p2 { animation-delay: 1.45s; } .playing .pin.p3 { animation-delay: 2.55s; }
+  .playing .ring { animation: ring-full 3.2s cubic-bezier(.65,0,.35,1) .2s forwards; }
+  .playing.empty .ring { animation-name: ring-empty; }
+  @keyframes pin-in { to { opacity: 1; transform: scale(1); } }
+  @keyframes ring-full {
+    0%   { opacity: 0; left: 6px;   top: 54px; width: 123px; height: 24px; }
+    8%   { opacity: 1; left: 6px;   top: 54px; width: 123px; height: 24px; }
+    28%  { left: 6px;   top: 54px; width: 123px; height: 24px; }
+    42%  { left: 6px;   top: 102px; width: 123px; height: 24px; }
+    62%  { left: 6px;   top: 102px; width: 123px; height: 24px; }
+    76%  { left: 467px; top: 4px;  width: 58px;  height: 18px; }
+    100% { opacity: 1; left: 467px; top: 4px;  width: 58px;  height: 18px; }
+  }
+  @keyframes ring-empty {
+    0%   { opacity: 0; left: 139px; top: 30px; width: 236px; height: 110px; }
+    8%   { opacity: 1; left: 139px; top: 30px; width: 236px; height: 110px; }
+    28%  { left: 139px; top: 30px; width: 236px; height: 110px; }
+    42%  { left: 6px;   top: 54px; width: 123px; height: 24px; }
+    62%  { left: 6px;   top: 54px; width: 123px; height: 24px; }
+    76%  { left: 6px;   top: 102px; width: 123px; height: 24px; }
+    100% { opacity: 1; left: 6px;   top: 102px; width: 123px; height: 24px; }
+  }
+
+  .top { padding: 1.3rem 2rem 1.1rem; }
+  h2 { margin: 0; font-size: 1.9rem; font-weight: 600; letter-spacing: -0.02em; line-height: 1.2; }
+  h2 em { font-style: normal; color: var(--gold); }
+  .lede { margin: .6rem 0 0; line-height: 1.5; color: var(--muted); font-size: 0.95rem; }
+
+  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 0 2rem; margin-top: .2rem; }
+  .tile { position: relative; border: 1px solid var(--line); border-radius: 16px; padding: 1rem .8rem; transition: border-color .2s, background .2s; }
+  .tile.lit { border-color: #c9a77d; background: #fffaf2; }
+  .tile .n { position: absolute; top: 10px; left: 10px; width: 20px; height: 20px; border-radius: 50%; background: var(--ink); color: #fff; font-size: .68rem; font-weight: 600; display: grid; place-items: center; }
+  .tile .ic { width: 36px; height: 36px; margin: 0 auto .5rem; border-radius: 12px; display: grid; place-items: center; background: var(--manila); color: var(--gold-deep); }
+  .tile strong { display: block; font-size: .85rem; font-weight: 600; }
+  .tile span.d { display: block; margin-top: 2px; font-size: .76rem; color: var(--muted); line-height: 1.35; }
+  svg.i { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+
+  .foot { padding: 1.3rem 2rem 1.3rem; }
+  .actions { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; padding: 0.65rem 1.2rem; border-radius: 999px; cursor: pointer;
+    font: 500 0.9rem var(--sans); border: 1px solid var(--ink); background: var(--ink); color: #fff; transition: transform .15s, background .15s;
+  }
+  .btn:hover { background: #2b2b2b; }
+  .btn:active { transform: scale(.98); }
+  .btn .dot { opacity: .55; }
+  .btn svg { transition: transform .2s var(--reveal); }
+  .btn:hover svg { transform: translateX(3px); }
+  .link {
+    border: 0; background: none; padding: 0; cursor: pointer; font: 400 0.88rem var(--sans); color: var(--muted);
+    text-decoration: underline; text-decoration-color: rgba(23,23,23,.25); text-underline-offset: 3px;
+  }
+  .link:hover { color: var(--ink); }
+  .btn:focus-visible, .link:focus-visible { outline: 2px solid var(--gold-deep); outline-offset: 3px; }
+  .later { display: block; margin-top: 1rem; font-size: .85rem; line-height: 1.4; color: var(--muted); }
+
+  @media (max-width: 600px) {
+    .home-body { grid-template-columns: 1fr; }
+    .home-body .home-col:first-child, .home-body .home-col:last-child { display: none; }
+    .tiles { grid-template-columns: 1fr; padding: 0 1.2rem; }
+    .top { padding: 1.2rem 1.2rem 1rem; }
+    h2 { font-size: 1.6rem; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    dialog.welcome[open] { animation: none; }
+    .pin { animation: none !important; opacity: 1; transform: none; }
+    .ring { animation: none !important; opacity: 1; }
+  }
+
+  .art[hidden] { display: none; }
+  /* Banner options that don't picture Home. */
+  .art.b-path, .art.b-mark, .art.b-time { padding: 0; display: block; overflow: hidden; }
+  .art .brand.static { position: relative; left: auto; top: auto; transform: none; padding: 0; background: none; }
+
+  /* Path: the three tiles' icons on a line, aligned over the tiles. */
+  .path { position: relative; height: 150px; }
+  .path .brand.static { position: absolute; left: 50%; top: 20px; transform: translateX(-50%); }
+  .path svg.track { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; }
+  .path .base { stroke: #e2d3bc; stroke-width: 2; stroke-dasharray: 2 7; stroke-linecap: round; fill: none; }
+  .path .run { stroke: #c9a77d; stroke-width: 2.5; stroke-linecap: round; fill: none; stroke-dasharray: 1; stroke-dashoffset: 1; }
+  .path.playing .run { animation: draw 2.6s cubic-bezier(.65,0,.35,1) .25s forwards; }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+  .node { position: absolute; top: 76px; width: 48px; height: 48px; margin-left: -24px; border-radius: 16px; display: grid; place-items: center;
+    background: #fff; color: #b39a7e; box-shadow: 0 0 0 1px rgba(23,23,23,.07), 0 6px 16px rgba(138,109,79,.12); transition: background .3s, color .3s, box-shadow .3s; }
+  .node .n { position: absolute; top: -7px; right: -7px; width: 20px; height: 20px; border-radius: 50%; background: #d8cbb8; color: #fff; font-size: .68rem; font-weight: 600; display: grid; place-items: center; transition: background .3s; }
+  .node.on { background: var(--manila); color: var(--gold-deep); box-shadow: 0 0 0 2px #c9a77d, 0 8px 20px rgba(138,109,79,.22); }
+  .node.on .n { background: var(--ink); }
+
+  /* Watermark: a large faint D behind the name. */
+  .mark-band { position: relative; height: 120px; display: grid; place-items: center; }
+  .mark-band .wm { position: absolute; width: 260px; height: 260px; right: -40px; top: -60px; opacity: .14; transform: rotate(-8deg); }
+  .mark-band .wm.two { width: 180px; height: 180px; left: -50px; right: auto; top: 10px; opacity: .08; transform: rotate(10deg); }
+  .playing .wm { animation: drift 1.6s var(--reveal) both; }
+  @keyframes drift { from { opacity: 0; transform: rotate(0deg) scale(.9); } }
+  .mark-band .brand.static img { width: 40px; height: 40px; }
+  .mark-band .brand.static span { font-size: 1.95rem; }
+
+  /* Timeline: abstract career bars. */
+  .bars { position: relative; height: 140px; }
+  .bars i { position: absolute; display: block; height: 14px; border-radius: 7px; transform-origin: left center; }
+  .bars.playing i { animation: grow .9s var(--reveal) both; }
+  @keyframes grow { from { transform: scaleX(0); opacity: 0; } }
+  .bars .brand { top: 50%; }
+  .bars .axis { position: absolute; left: 28px; right: 28px; bottom: 26px; height: 1px; background: rgba(138,109,79,.18); }
+
+  /* Desk: folders and work things along the bottom of the banner. */
+  .art.b-desk { padding: 0; display: block; overflow: hidden; }
+  .desk { position: relative; height: 176px; }
+  .desk .brand.static { position: absolute; left: 50%; top: 86px; transform: translate(-50%, -50%); z-index: 2; }
+  .desk .brand.static img { width: 42px; height: 42px; }
+  .desk .brand.static span { font-size: 2.15rem; }
+  .desk svg.scene { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .desk .item { transform-box: fill-box; transform-origin: 50% 100%; }
+  .desk.playing .item { animation: rise .8s var(--reveal) both; }
+  .desk.playing .i1 { animation-delay: .10s; } .desk.playing .i2 { animation-delay: .22s; }
+  .desk.playing .i3 { animation-delay: .34s; } .desk.playing .i4 { animation-delay: .46s; }
+  .desk.playing .i5 { animation-delay: .58s; } .desk.playing .i6 { animation-delay: .70s; }
+  .desk.playing .i7 { animation-delay: .30s; } .desk.playing .i8 { animation-delay: .82s; }
+  .desk .steam path { opacity: 0; transform-box: fill-box; transform-origin: 50% 100%; animation: steam 3.2s ease-in-out infinite; }
+  .desk .steam .s2 { animation-delay: 1.05s; } .desk .steam .s3 { animation-delay: 2.1s; }
+  @keyframes steam {
+    0% { opacity: 0; transform: translateY(6px) scaleY(.7); }
+    30% { opacity: .75; }
+    100% { opacity: 0; transform: translateY(-10px) scaleY(1.05); }
+  }
+  @media (prefers-reduced-motion: reduce) { .desk .steam path { animation: none; opacity: .6; } }
+  @keyframes rise { from { opacity: 0; transform: translateY(34px); } }
+  .desk .papers { transform-box: fill-box; }
+  .desk.playing .papers { animation: papers 1s var(--reveal) .75s both; }
+  @keyframes papers { from { transform: translateY(40px); } }
+  .desk .badge { transform-box: view-box; transform-origin: 510px -16px; }
+  .desk .i5 { transform-origin: 50% 100%; }
+  .desk.playing .badge { animation: swing 2.4s ease-in-out .6s both; }
+  @keyframes swing { 0% { transform: rotate(7deg); } 35% { transform: rotate(-4deg); } 65% { transform: rotate(2deg); } 100% { transform: rotate(0deg); } }
+  @media (prefers-reduced-motion: reduce) { .desk.playing .item, .desk.playing .papers, .desk.playing .badge { animation: none; } }
+
+  /* Alternatives to the three boxes. */
+  .tiles .chk { display: none; }
+  .tiles-label { display: none; }
+  .tiles.list, .tiles.check { display: block; text-align: left; margin-top: .4rem; }
+  .tiles.list .tile, .tiles.check .tile {
+    display: grid; grid-template-columns: 32px 9.5rem 1fr; align-items: center; gap: 12px;
+    border: 0; border-radius: 10px; padding: .7rem .5rem;
+  }
+  .tiles.list .tile + .tile, .tiles.check .tile + .tile { border-top: 1px solid var(--line); border-radius: 0; }
+  .tiles.list .n, .tiles.check .n, .tiles.check .ic { display: none; }
+  .tiles.list .ic { width: 32px; height: 32px; margin: 0; border-radius: 10px; }
+  .tiles.list strong, .tiles.check strong { font-size: .9rem; }
+  .tiles.list span.d, .tiles.check span.d { margin: 0; font-size: .82rem; }
+  .tiles.check .chk { display: block; width: 20px; height: 20px; margin-left: 6px; border: 1.5px solid #c9b79e; border-radius: 50%; }
+  .tiles.check .tile.lit .chk { border-color: #c9a77d; background: radial-gradient(circle, #e6bf7f 0 4px, transparent 5px); }
+  .tiles.check .tiles-label { display: block; margin: 0 0 .2rem .5rem; font-size: .72rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--gold-deep); }
+
+  .tiles.steps { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px 10px; margin-top: .3rem; }
+  .tiles.steps .tile { display: inline-flex; align-items: center; gap: 7px; border: 0; padding: 4px 2px; background: none !important; }
+  .tiles.steps .tile + .tile::before { content: "·"; margin-right: 8px; color: #c9b79e; font-weight: 700; }
+  .tiles.steps .n { position: static; }
+  .tiles.steps .ic, .tiles.steps span.d { display: none; }
+  .tiles.steps strong { font-size: .9rem; transition: color .2s; }
+  .tiles.steps .tile.lit strong { color: var(--gold-deep); }
+
+  .tiles.pills { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: .3rem; }
+  .tiles.pills .tile { display: inline-flex; align-items: center; gap: 7px; padding: 6px 14px 6px 8px; border-radius: 999px; }
+  .tiles.pills .n, .tiles.pills span.d { display: none; }
+  .tiles.pills .ic { width: 26px; height: 26px; margin: 0; border-radius: 50%; }
+  .tiles.pills .ic svg { width: 15px; height: 15px; }
+  .tiles.pills strong { font-size: .84rem; }
+
+  .tiles.none { display: none; }
+  .covers { margin: .35rem 0 0; font-size: .88rem; color: var(--gold-deep); }
+  @media (max-width: 600px) {
+    .tiles.list .tile, .tiles.check .tile { grid-template-columns: 32px 1fr; }
+    .tiles.list span.d, .tiles.check span.d { grid-column: 2; }
+  }
+
+  /* 6 · Boxes that open a short summary in the same space. */
+  .tiles-area { position: relative; margin-top: .2rem; }
+  .tiles.explore .tile { cursor: pointer; font: inherit; color: inherit; background: #fff; text-align: center; transition: border-color .2s, background .2s, transform .15s; }
+  .tiles.explore .tile:hover { border-color: #c9a77d; background: #fffaf2; }
+  .tiles.explore .tile:active { transform: scale(.98); }
+  .tiles.explore .tile:focus-visible { outline: 2px solid var(--gold-deep); outline-offset: 2px; }
+  .tiles.explore .more { display: inline-flex; align-items: center; gap: 4px; margin-top: .45rem; font-size: .72rem; font-weight: 600; color: var(--gold-deep); }
+  .tiles.explore .badge-count { position: absolute; top: 9px; right: 10px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #f6ead3; color: var(--gold-deep); font-size: .66rem; font-weight: 600; display: grid; place-items: center; }
+  .detail { position: absolute; inset: 0 2rem; display: none; flex-direction: column; border: 1px solid #e3d8c8; border-radius: 16px; background: #fffdf9; text-align: left; overflow: hidden; }
+  .tiles-area.open .detail { display: flex; animation: detail-in .25s var(--reveal) both; }
+  .tiles-area.open .tiles { visibility: hidden; }
+  @keyframes detail-in { from { opacity: 0; transform: translateY(6px); } }
+  .detail-head { display: flex; align-items: center; gap: 8px; padding: .35rem .7rem .35rem .4rem; border-bottom: 1px solid var(--line); }
+  .detail-head .back { width: 26px; height: 26px; border: 0; background: none; padding: 0; border-radius: 8px; font: 500 1.05rem var(--sans); line-height: 1; color: var(--muted); cursor: pointer; }
+  .detail-head .back:focus-visible { outline: 2px solid var(--gold-deep); outline-offset: 1px; }
+  .detail-head small { font-size: .74rem; color: var(--muted); }
+  .detail-head .open { margin-left: auto; border: 0; background: none; font: 600 .76rem var(--sans); color: var(--gold-deep); cursor: pointer; }
+  .detail-head .back:hover { background: #f4ecdf; color: var(--ink); }
+  .detail-head strong { font-size: .88rem; }
+
+  .detail-body { flex: 1; overflow: auto; padding: 0 .8rem .3rem; }
+  .row { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: .4rem 0; border-bottom: 1px solid var(--line); align-items: center; }
+  .row:last-child { border-bottom: 0; }
+  .row b { font-size: .82rem; font-weight: 600; }
+  .row small { display: block; font-size: .72rem; color: var(--muted); }
+  .chips { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
+  .chip { border: 1px solid #e3d3bb; background: #fff; border-radius: 999px; padding: 2px 8px; font: 500 .68rem var(--sans); color: var(--gold-deep); cursor: pointer; white-space: nowrap; }
+  .chip:hover { background: #f6ead3; }
+  .chip.done { border-color: transparent; background: none; color: #7c9a72; cursor: default; }
+  .detail-foot { display: flex; justify-content: flex-end; padding: .45rem .8rem; border-top: 1px solid var(--line); }
+  .detail-foot button { border: 0; background: none; font: 600 .78rem var(--sans); color: var(--gold-deep); cursor: pointer; }
+  .detail-note { margin: .5rem 0 .2rem; font-size: .8rem; color: var(--muted); line-height: 1.45; }
+</style>
+</head>
+<body>
+
+<div class="home" aria-hidden="true">
+  <div class="home-bar"><i style="width:90px;background:#e8d5b7"></i><i style="width:300px"></i><i style="width:60px;margin-left:auto"></i><i style="width:70px;background:#171717"></i></div>
+  <div class="home-body">
+    <div class="home-col"><i style="height:34px"></i><i style="height:34px"></i><i style="height:34px"></i></div>
+    <div class="home-col"><i style="height:120px"></i><i style="height:200px"></i><i style="height:160px"></i></div>
+    <div class="home-col"><i style="height:40px"></i><i style="height:90px"></i><i style="height:90px"></i><i style="height:90px"></i></div>
+  </div>
+</div>
+
+<div class="controls" role="toolbar" aria-label="Prototype controls">
+  <button type="button" data-variant="full" aria-pressed="true">Has jobs</button>
+  <button type="button" data-variant="empty" aria-pressed="false">Nothing added yet</button>
+  <span class="sep"></span>
+  <button type="button" id="replay">Replay banner</button>
+  <button type="button" id="reopen">Show card</button>
+  <span class="sep"></span>
+  <button type="button" data-tiles="boxes" aria-pressed="true">Now: boxes</button>
+  <button type="button" data-tiles="list" aria-pressed="false">1 · List</button>
+  <button type="button" data-tiles="steps" aria-pressed="false">2 · Steps row</button>
+  <button type="button" data-tiles="check" aria-pressed="false">3 · First steps</button>
+  <button type="button" data-tiles="none" aria-pressed="false">4 · None</button>
+  <button type="button" data-tiles="pills" aria-pressed="false">5 · Pills</button>
+  <button type="button" data-tiles="explore" aria-pressed="false">6 · Boxes + details</button>
+</div>
+
+<div class="shade" id="shade"></div>
+<dialog class="welcome" id="card" aria-labelledby="welcome-title"></dialog>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+  const ICONS = {
+    history: '<svg class="i" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>',
+    find: '<svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>',
+    share: '<svg class="i" viewBox="0 0 24 24"><path d="M12 2v13"/><path d="m16 6-4-4-4 4"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/></svg>',
+    network: '<svg class="i" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+    plus: '<svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg>',
+  };
+  const ARROW = '<svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>';
+
+  const VARIANTS = {
+    full: {
+      lede: "Everything you've done, in one place you control.",
+      tiles: [
+        ["history", "Add your history", "Jobs, schools, and proof of your work"],
+        ["network", "Build your network", "People you've worked with and trust"],
+        ["share", "Share it", "Publish a page when you're ready"],
+      ],
+      pins: [[118, 44], [118, 92], [444, 2]],
+      center: `<i style="left:139px;top:34px;width:113px;height:40px"></i>
+        <i style="left:262px;top:34px;width:113px;height:40px"></i>
+        <i style="left:139px;top:82px;width:236px;height:70px"></i>`,
+      right: `<i style="left:385px;top:34px;width:134px;height:20px"></i>
+        <i style="left:385px;top:62px;width:134px;height:44px"></i>
+        <i style="left:385px;top:114px;width:134px;height:44px"></i>`,
+      tour: "The full tour would start here: 4 stops.",
+    },
+    empty: {
+      lede: "Let's build your career here, one job at a time.",
+      tiles: [
+        ["plus", "Add your first job", "Start with the role you have now"],
+        ["history", "Build your history", "Every job and school in one place"],
+        ["network", "Build your network", "Add the people you've worked with"],
+      ],
+      pins: [[364, 24], [118, 44], [118, 92]],
+      center: `<i style="left:139px;top:34px;width:236px;height:104px;background:#fbf7f0;border:1px dashed #e0d2bc"></i>
+        <i style="left:216px;top:66px;width:82px;height:9px;background:#e8dccb"></i>
+        <i style="left:196px;top:84px;width:122px;height:7px"></i>
+        <i style="left:230px;top:102px;width:54px;height:14px;background:#171717;opacity:.85;border-radius:7px"></i>`,
+      right: `<i style="left:385px;top:34px;width:134px;height:20px"></i>
+        <i style="left:385px;top:62px;width:134px;height:60px;background:#f7f5f2"></i>`,
+      tour: "The short tour would start here: 3 stops, ending on adding a job.",
+    },
+  };
+
+  const card = document.getElementById("card");
+  const toast = document.getElementById("toast");
+  let variant = "full";
+  let nameStyle = "line";
+  let banner = "desk";
+  let tileStyle = new URLSearchParams(location.search).get("tiles") || "boxes";
+  document.querySelectorAll("[data-tiles]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.tiles === tileStyle)));
+  let timers = [];
+
+  function render() {
+    const v = VARIANTS[variant];
+    const brand = (extra = "") => `<div class="brand ${nameStyle} ${extra}"><img src="./mark.svg" alt="" width="34" height="34"><span>Docier</span></div>`;
+    const icons = v.tiles.map(([icon]) => icon);
+    const banners = {
+      desk: `<div class="art b-desk"><div class="desk" id="sketch">
+          ${brand("static")}
+          <svg class="scene" viewBox="0 0 576 176" aria-hidden="true">
+            <defs>
+              <linearGradient id="manila" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#f3d59c"/><stop offset=".5" stop-color="#e2b672"/><stop offset="1" stop-color="#cd9f5b"/>
+              </linearGradient>
+              <linearGradient id="manila-front" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#f6dfb0"/><stop offset="1" stop-color="#e3b974"/>
+              </linearGradient>
+              <linearGradient id="steel" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#d3dae1"/><stop offset="1" stop-color="#97a4b2"/>
+              </linearGradient>
+              <radialGradient id="focus" cx=".5" cy=".5" r=".5">
+                <stop offset="0" stop-color="#fbf6ee"/><stop offset=".6" stop-color="#fbf6ee" stop-opacity=".85"/><stop offset="1" stop-color="#fbf6ee" stop-opacity="0"/>
+              </radialGradient>
+            </defs>
+
+            <!-- laptop, top left -->
+            <g class="item i1"><g transform="translate(34 18) rotate(-7 56 40)">
+              <rect x="4" y="0" width="104" height="70" rx="6" fill="#0d345e"/>
+              <rect x="10" y="6" width="92" height="58" rx="2" fill="#f8f4ec"/>
+              <rect x="10" y="6" width="92" height="9" fill="#efe3cf"/>
+              <circle cx="16" cy="10.5" r="2" fill="#cd9f5b"/>
+              <rect x="16" y="21" width="26" height="36" rx="2" fill="#fff" stroke="#eadfce"/>
+              <rect x="47" y="21" width="48" height="5" rx="2.5" fill="#0d345e" opacity=".8"/>
+              <rect x="47" y="30" width="40" height="3" rx="1.5" fill="#e0d4c2"/>
+              <rect x="47" y="36" width="44" height="3" rx="1.5" fill="#e0d4c2"/>
+              <rect x="47" y="45" width="22" height="8" rx="4" fill="#cd9f5b"/>
+              <path d="M-6 70h124l-7 10h-110z" fill="url(#steel)"/>
+              <rect x="42" y="70" width="28" height="3" rx="1.5" fill="#8794a2"/>
+            </g></g>
+
+            <!-- briefcase, bottom left -->
+            <g class="item i2"><g transform="translate(14 118) rotate(-9 44 35)">
+              <path d="M28 14v-9a7 7 0 0 1 7-7h18a7 7 0 0 1 7 7v9" fill="none" stroke="#0d345e" stroke-width="5"/>
+              <rect x="0" y="12" width="88" height="58" rx="9" fill="#0d345e"/>
+              <path d="M0 32h88" stroke="#244f7e" stroke-width="2"/>
+              <rect x="37" y="26" width="14" height="11" rx="2.5" fill="#e6bf7f"/>
+            </g></g>
+
+            <!-- wrench and screwdriver, crossed, left of centre -->
+            <g class="item i3"><g transform="translate(132 98)">
+              <g transform="rotate(-40 25 35)">
+                <rect x="20" y="14" width="10" height="56" rx="4" fill="url(#steel)"/>
+                <path d="M15 0a15 15 0 1 0 20 0v10a4 4 0 0 1-4 4h-12a4 4 0 0 1-4-4z" fill="url(#steel)"/>
+                <path d="M20 -4h10v12h-10z" fill="#f7f0e4"/>
+              </g>
+              <g transform="rotate(32 25 35)">
+                <rect x="23" y="2" width="4" height="40" rx="1.5" fill="url(#steel)"/>
+                <path d="M23 2l2-6 2 6z" fill="#97a4b2"/>
+                <rect x="18" y="40" width="14" height="34" rx="5" fill="#cd9f5b"/>
+                <path d="M21 46v22M25 46v22M29 46v22" stroke="#b8894a" stroke-width="1.2"/>
+                <rect x="17" y="38" width="16" height="5" rx="2" fill="#0d345e"/>
+              </g>
+            </g></g>
+
+            <!-- closed folders, under the name -->
+            <g class="item i4"><g transform="translate(226 140) rotate(-3 62 20)">
+              <path d="M6 -4h26l5 6h82a5 5 0 0 1 5 5v40h-124v-46a5 5 0 0 1 6-5z" fill="#0d345e" opacity=".9" transform="rotate(-4 62 20) translate(4 -4)"/>
+              <path d="M6 0h28l5 6h80a5 5 0 0 1 5 5v40h-124v-46a5 5 0 0 1 6-5z" fill="url(#manila)"/>
+              <path d="M0 14h124" stroke="#f6dfb0" stroke-width="1.5" opacity=".8"/>
+            </g></g>
+
+            <!-- certificate, top right -->
+            <g class="item i5"><g transform="translate(392 14) rotate(8 44 34) scale(.86)">
+              <rect x="0" y="0" width="88" height="68" rx="3" fill="#fff" stroke="#e8dccb"/>
+              <rect x="6" y="6" width="76" height="56" rx="2" fill="none" stroke="#e6bf7f" stroke-width="1.5"/>
+              <rect x="22" y="15" width="44" height="4" rx="2" fill="#0d345e" opacity=".8"/>
+              <rect x="16" y="25" width="56" height="3" rx="1.5" fill="#e6dccd"/>
+              <rect x="20" y="32" width="48" height="3" rx="1.5" fill="#e6dccd"/>
+              <path d="M62 48l-5 14 6-3 4 5 1-14z" fill="#0d345e"/>
+              <path d="M72 48l5 14-6-3-4 5-1-14z" fill="#244f7e"/>
+              <circle cx="67" cy="46" r="9" fill="#cd9f5b" stroke="#f3d59c" stroke-width="2"/>
+            </g></g>
+
+            <!-- open folder with resume pages, bottom right -->
+            <g class="item i6"><g transform="translate(360 98) rotate(4 62 50) scale(.84)">
+              <path d="M12 24h34l6 8h58a6 6 0 0 1 6 6v60h-110v-68a6 6 0 0 1 6-6z" fill="url(#manila)"/>
+              <g class="papers">
+                <g transform="rotate(-6 64 42)">
+                  <rect x="22" y="0" width="80" height="90" rx="3" fill="#f8f4ec" stroke="#e8dccb"/>
+                </g>
+                <rect x="20" y="4" width="84" height="90" rx="3" fill="#fff" stroke="#e8dccb"/>
+                <circle cx="34" cy="19" r="6" fill="#f3d59c"/>
+                <rect x="45" y="14" width="42" height="5" rx="2.5" fill="#0d345e" opacity=".85"/>
+                <rect x="45" y="22" width="28" height="3" rx="1.5" fill="#d8c9b3"/>
+                <rect x="28" y="34" width="66" height="3" rx="1.5" fill="#e6dccd"/>
+                <rect x="28" y="41" width="58" height="3" rx="1.5" fill="#e6dccd"/>
+                <rect x="28" y="48" width="62" height="3" rx="1.5" fill="#e6dccd"/>
+              </g>
+              <path d="M0 54h124l-9 44h-106z" fill="url(#manila-front)"/>
+              <path d="M0 54h124" stroke="#fbeccc" stroke-width="2"/>
+            </g></g>
+
+            <!-- ID badge, slung from the top right on a short lanyard -->
+            <g class="item i7"><g class="badge"><g transform="translate(482 -22) rotate(12 28 0)">
+              <path d="M18 -20 L25 40 M38 -20 L31 40" stroke="#0d345e" stroke-width="3.5" fill="none"/>
+              <rect x="21" y="36" width="14" height="9" rx="2" fill="#b9c2cc"/>
+              <rect x="0" y="43" width="56" height="66" rx="8" fill="#fff" stroke="#e8dccb"/>
+              <path d="M0 51a8 8 0 0 1 8-8h40a8 8 0 0 1 8 8v6h-56z" fill="#0d345e"/>
+              <circle cx="28" cy="74" r="10" fill="#f3d59c"/>
+              <rect x="12" y="89" width="32" height="4" rx="2" fill="#0d345e" opacity=".8"/>
+              <rect x="17" y="97" width="22" height="3" rx="1.5" fill="#e6dccd"/>
+            </g></g></g>
+
+            <!-- steaming to-go coffee cup, bottom right corner -->
+            <g class="item i8"><g transform="translate(508 92) rotate(-4 26 40)">
+              <g class="steam" fill="none" stroke="#c9b79e" stroke-width="2.2" stroke-linecap="round" transform="translate(4 2) scale(1 .7)">
+                <path class="s1" d="M14 4c-5-6 5-10 0-17s4-10 0-15"/>
+                <path class="s2" d="M24 2c-5-6 5-10 0-17s4-10 0-15"/>
+                <path class="s3" d="M34 4c-5-6 5-10 0-17s4-10 0-15"/>
+              </g>
+              <!-- cup: wider at the top -->
+              <path d="M4 18h44l-6 60a5 5 0 0 1-5 4h-22a5 5 0 0 1-5-4z" fill="#fff" stroke="#e3d8c8"/>
+              <!-- cardboard sleeve -->
+              <path d="M7.4 38h37.2l-2.4 26h-32.4z" fill="url(#manila)"/>
+              <path d="M7.8 42h36.4M9.6 60h32.8" stroke="#f6dfb0" stroke-width="1.2" opacity=".9"/>
+              <!-- lid -->
+              <path d="M1 14h50a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-50a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2z" fill="#f4f1ec" stroke="#ddd3c4"/>
+              <path d="M6 14l3-8a3 3 0 0 1 3-2h28a3 3 0 0 1 3 2l3 8z" fill="#fbf9f5" stroke="#ddd3c4"/>
+              <ellipse cx="17" cy="7.5" rx="4" ry="1.6" fill="#8b7f70"/>
+            </g></g>
+
+            <!-- a soft clearing so the name stays the focus -->
+            <ellipse cx="288" cy="86" rx="118" ry="52" fill="url(#focus)"/>
+          </svg>
+        </div></div>`,
+      path: `<div class="art b-path"><div class="path" id="sketch">
+          ${brand("static")}
+          <svg class="track" viewBox="0 0 576 150" preserveAspectRatio="none" aria-hidden="true">
+            <path class="base" d="M 104 100 C 200 70, 230 130, 288 100 S 400 70, 472 100"/>
+            <path class="run" pathLength="1" d="M 104 100 C 200 70, 230 130, 288 100 S 400 70, 472 100"/>
+          </svg>
+          ${icons.map((icon, i) => `<span class="node" style="left:${[18.1, 50, 81.9][i]}%">${ICONS[icon]}<span class="n">${i + 1}</span></span>`).join("")}
+        </div></div>`,
+      mark: `<div class="art b-mark"><div class="mark-band" id="sketch">
+          <img class="wm" src="./mark.svg" alt=""><img class="wm two" src="./mark.svg" alt="">
+          ${brand("static")}
+        </div></div>`,
+      time: `<div class="art b-time"><div class="bars" id="sketch">
+          <span class="axis"></span>
+          ${[[28, 22, 150, "#efe3cf"], [120, 42, 170, "#e8d5b7"], [60, 62, 120, "#f2e8d8"], [250, 52, 160, "#d9bf97"], [330, 82, 200, "#c9a77d"], [200, 96, 110, "#efe3cf"]]
+            .map(([x, y, w, c], i) => `<i style="left:${x}px;top:${y}px;width:${w}px;background:${c};animation-delay:${0.15 + i * 0.18}s"></i>`).join("")}
+          ${brand()}
+        </div></div>`,
+    };
+    card.innerHTML = (banner === "sketch" ? "" : banners[banner]) + `
+      <div class="art" ${banner === "sketch" ? "" : 'hidden'}>
+        <div class="sketch ${variant === "empty" ? "empty" : ""}" ${banner === "sketch" ? 'id="sketch"' : ""}>
+          <div class="brand ${nameStyle}"><img src="./mark.svg" alt="" width="34" height="34"><span>Docier</span></div>
+          <div class="sketch-home">
+            <div class="sketch-bar">
+              <i style="left:10px;top:8px;width:36px;height:10px;background:#e8d5b7"></i>
+              <i style="left:58px;top:7px;width:142px;height:12px;background:#faf8f5;border:1px solid #e7e1d8"></i>
+              <i style="left:420px;top:8px;width:36px;height:10px"></i>
+              <i style="left:471px;top:7px;width:50px;height:12px;background:#171717;opacity:.85"></i>
+            </div>
+            <i style="left:12px;top:34px;width:111px;height:16px"></i>
+            <i style="left:12px;top:58px;width:111px;height:16px;background:#efe3cf"></i>
+            <i style="left:12px;top:82px;width:111px;height:16px"></i>
+            <i style="left:12px;top:106px;width:111px;height:16px"></i>
+            ${v.center}
+            ${v.right}
+          </div>
+          <div class="ring"></div>
+          ${v.pins.map(([x, y], i) => `<span class="pin p${i + 1}" style="left:${x}px;top:${y}px">${i + 1}</span>`).join("")}
+        </div>
+      </div>
+      <div class="top">
+        <h2 id="welcome-title">Welcome, <em>Sory.</em></h2>
+        <p class="lede">${v.lede}</p>
+        ${tileStyle === "none" ? `<p class="covers">${variant === "empty" ? "A one-minute tour: adding your first job, your history, and your network." : "A one-minute tour: your history, your network, and sharing your page."}</p>` : ""}
+      </div>
+      ${tileStyle === "explore" ? exploreTiles(v) : `<div class="tiles ${tileStyle}">
+        <p class="tiles-label">Your first steps</p>
+        ${v.tiles.map(([icon, title, body], i) => `
+          <div class="tile" data-n="${i + 1}"><span class="n">${i + 1}</span><span class="chk"></span>
+            <div class="ic">${ICONS[icon]}</div>
+            <strong>${title}</strong><span class="d">${body}</span>
+          </div>`).join("")}
+      </div>`}
+      <div class="foot">
+        <div class="actions">
+          <button type="button" class="link" id="explore">I'll explore on my own</button>
+          <button type="button" class="btn" id="start" autofocus>Show me around <span class="dot">·</span> 1 min ${ARROW}</button>
+        </div>
+        <span class="later">You can take the tour anytime from your menu.</span>
+      </div>`;
+    card.querySelector("#start").addEventListener("click", () => close(v.tour));
+    if (tileStyle === "explore") wireExplore();
+    card.querySelector("#explore").addEventListener("click", () => close("Card closed. Use “Show card” above to see it again."));
+    play();
+  }
+
+  // Each tile lights up as the outline reaches its pin.
+  function play() {
+    timers.forEach(clearTimeout);
+    timers = [];
+    const sketch = document.getElementById("sketch");
+    const tiles = [...card.querySelectorAll(".tile")];
+    tiles.forEach((tile) => tile.classList.remove("lit"));
+    sketch.classList.remove("playing");
+    void sketch.offsetWidth;
+    sketch.classList.add("playing");
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const nodes = [...card.querySelectorAll(".node")];
+    nodes.forEach((node) => node.classList.remove("on"));
+    const at = banner === "path" ? [300, 1450, 2750] : banner === "desk" ? [1400, 2300, 3200] : [350, 1450, 2550];
+    at.forEach((ms, i) => {
+      timers.push(setTimeout(() => {
+        tiles.forEach((tile) => tile.classList.remove("lit"));
+        tiles[i]?.classList.add("lit");
+        nodes[i]?.classList.add("on");
+      }, ms));
+    });
+    timers.push(setTimeout(() => tiles.forEach((tile) => tile.classList.remove("lit")), 4200));
+  }
+
+
+  // ---- 6 · Boxes + details: reads the real career from the dev server ----
+  let career = null, contacts = [], pageSettings = null;
+  async function loadReal() {
+    try {
+      const [h, m, w] = await Promise.all([fetch("/api/history"), fetch("/api/career-management"), fetch("/api/work-map/settings")]);
+      career = h.ok ? await h.json() : null;
+      contacts = m.ok ? ((await m.json()).contacts ?? []) : [];
+      pageSettings = w.ok ? (await w.json()).settings : null;
+    } catch { career = null; }
+  }
+  const esc = (t) => String(t ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  const year = (d) => (d || "").slice(0, 4);
+  function looksLikePlace(job) {
+    const place = (job.location || "").trim();
+    return place && !/^\d+$/.test(place) && place.toLowerCase() !== (job.company || "").toLowerCase() && !(job.company || "").toLowerCase().startsWith(place.toLowerCase());
+  }
+  // What a role is still missing, as actions that open the role in Career History.
+  function gaps(job) {
+    const out = [];
+    if (!job.company || /untitled/i.test(job.company)) out.push("Name the company");
+    if (!job.startDate) out.push("Add dates");
+    if (!looksLikePlace(job)) out.push(job.location ? "Check the place" : "Add the place");
+    if (!job.description?.trim()) out.push("Describe it");
+    if (!job.achievements?.length) out.push("Add achievements");
+    out.push("Company details");
+    return out;
+  }
+  function counts() {
+    const jobs = career?.jobs ?? [];
+    return { history: jobs.reduce((n, j) => n + gaps(j).length - 1, 0), network: contacts.length ? 0 : 1, share: pageSettings ? 1 : 0 };
+  }
+  function exploreTiles(v) {
+    const n = counts();
+    const keys = ["history", "network", "share"];
+    return `<div class="tiles-area" id="tiles-area">
+      <div class="tiles explore">
+        ${v.tiles.map(([icon, title, body], i) => `
+          <button type="button" class="tile" data-detail="${keys[i]}" aria-label="${title}: see details"><span class="n">${i + 1}</span>
+            ${n[keys[i]] ? `<span class="badge-count" title="Things to do">${n[keys[i]]}</span>` : ""}
+            <div class="ic">${ICONS[icon]}</div>
+            <strong>${title}</strong><span class="d">${body}</span>
+            <span class="more">See details ›</span>
+          </button>`).join("")}
+      </div>
+      <div class="detail" id="detail" role="region" aria-live="polite"></div>
+    </div>`;
+  }
+  function detailFor(key) {
+    const jobs = career?.jobs ?? [], schools = career?.schools ?? [];
+    if (key === "history") {
+      const rows = jobs.map((j) => {
+        const g = gaps(j);
+        return `<div class="row"><div><b>${esc(j.title || "Untitled role")}</b><small>${esc(j.company)} · ${year(j.startDate) || "no dates"}${j.isCurrent ? "–now" : j.endDate ? "–" + year(j.endDate) : ""}</small></div>
+          <div class="chips">${g.map((t) => `<button type="button" class="chip" data-go="${esc(t)} · ${esc(j.title)}">${t}</button>`).join("")}</div></div>`;
+      }).join("") + schools.map((s) => `<div class="row"><div><b>${esc(s.institution)}</b><small>${esc(s.degree)}${s.field ? " · " + esc(s.field) : ""}</small></div>
+          <div class="chips">${s.startDate ? "" : `<button type="button" class="chip" data-go="Add dates · ${esc(s.institution)}">Add dates</button>`}<button type="button" class="chip" data-go="School details · ${esc(s.institution)}">School details</button></div></div>`).join("");
+      return { title: "Your roles", meta: `${jobs.length} jobs · ${schools.length} ${schools.length === 1 ? "school" : "schools"}`, body: rows || `<p class="detail-note">No roles yet.</p>`, foot: "Open Career History ›", go: "Career History" };
+    }
+    if (key === "network") {
+      const companies = [...new Set(jobs.map((j) => j.company).filter((c) => c && !/untitled/i.test(c)))].slice(0, 6);
+      const body = (contacts.length ? `<p class="detail-note">${contacts.length} people in My Network.</p>` : `<p class="detail-note">No one in My Network yet. Start with someone from a job you've had: a manager, a teammate, or someone who can vouch for your work.</p>`)
+        + companies.map((c) => `<div class="row"><div><b>${esc(c)}</b><small>${jobs.filter((j) => j.company === c).map((j) => esc(j.title)).join(", ")}</small></div><div class="chips"><button type="button" class="chip" data-go="Add someone from ${esc(c)}">Add someone</button></div></div>`).join("");
+      return { title: "Your network", meta: `${contacts.length} people`, body, foot: "Open My Network ›", go: "My Network" };
+    }
+    const s = pageSettings;
+    const body = s ? `<div class="row"><div><b>Address</b><small>/${esc(s.slug)}</small></div><div class="chips"><button type="button" class="chip" data-go="Change the address">Change</button></div></div>
+      <div class="row"><div><b>Who can see it</b><small>${s.visibility === "access-controlled" ? "Only people you let in" : esc(s.visibility)}</small></div><div class="chips"><button type="button" class="chip" data-go="Who can see it">Change</button></div></div>
+      <div class="row"><div><b>Sections</b><small>${s.sections.map(esc).join(", ")}</small></div><div class="chips"><button type="button" class="chip" data-go="Choose sections">Choose</button></div></div>
+      <div class="row"><div><b>Target role</b><small>${s.targetRole ? esc(s.targetRole) : "Not set"}</small></div><div class="chips"><button type="button" class="chip" data-go="Set a target role">${s.targetRole ? "Change" : "Set it"}</button></div></div>`
+      : `<p class="detail-note">Your page isn't set up yet.</p>`;
+    return { title: "Your page", meta: "Not published", body, foot: "Preview your page ›", go: "Preview" };
+  }
+  function wireExplore() {
+    const area = document.getElementById("tiles-area"), panel = document.getElementById("detail");
+    // The panel sits over the boxes, which keep their space while hidden, so the card never changes size.
+    area.querySelectorAll("[data-detail]").forEach((tile) => tile.addEventListener("click", () => {
+      const d = detailFor(tile.dataset.detail);
+      panel.innerHTML = `<div class="detail-head"><button type="button" class="back" aria-label="Back to the boxes">‹</button><strong>${d.title}</strong><small>${d.meta}</small><button type="button" class="open" data-go="${d.go}">${d.foot}</button></div>
+        <div class="detail-body">${d.body}</div>`;
+      area.classList.add("open");
+      panel.querySelector(".back").addEventListener("click", () => { area.classList.remove("open"); tile.focus(); });
+      panel.querySelectorAll("[data-go]").forEach((b) => b.addEventListener("click", () => say("Would open: " + b.dataset.go + " (where it's filled in)")));
+      panel.querySelector(".back").focus();
+    }));
+  }
+
+  function open() {
+    render();
+    document.getElementById("shade").classList.add("on");
+    if (!card.open) card.show();
+    card.querySelector("#start").focus();
+  }
+
+  function close(message) {
+    card.close();
+    document.getElementById("shade").classList.remove("on");
+    say(message);
+  }
+
+  function say(message) {
+    toast.textContent = message;
+    toast.classList.add("show");
+    clearTimeout(say.t);
+    say.t = setTimeout(() => toast.classList.remove("show"), 2600);
+  }
+
+  // Escape counts as "I'll explore on my own".
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || !card.open) return;
+    const area = document.getElementById("tiles-area");
+    if (area?.classList.contains("open")) { area.classList.remove("open"); return; }
+    close("Escape: same as “I'll explore on my own”.");
+  });
+
+  document.querySelectorAll("[data-variant]").forEach((button) => {
+    button.addEventListener("click", () => {
+      variant = button.dataset.variant;
+      document.querySelectorAll("[data-variant]").forEach((b) => b.setAttribute("aria-pressed", String(b === button)));
+      open();
+    });
+  });
+  document.getElementById("replay").addEventListener("click", () => (card.open ? play() : open()));
+  document.getElementById("reopen").addEventListener("click", open);
+  document.querySelectorAll("[data-tiles]").forEach((button) => {
+    button.addEventListener("click", () => {
+      tileStyle = button.dataset.tiles;
+      document.querySelectorAll("[data-tiles]").forEach((b) => b.setAttribute("aria-pressed", String(b === button)));
+      open();
+    });
+  });
+  document.querySelectorAll("[data-banner]").forEach((button) => {
+    button.addEventListener("click", () => {
+      banner = button.dataset.banner;
+      document.querySelectorAll("[data-banner]").forEach((b) => b.setAttribute("aria-pressed", String(b === button)));
+      open();
+    });
+  });
+
+  loadReal().then(() => {
+    open();
+    const show = new URLSearchParams(location.search).get("open");
+    if (show) document.querySelector(`[data-detail="${show}"]`)?.click();
+  });
+</script>
+</body>
+</html>

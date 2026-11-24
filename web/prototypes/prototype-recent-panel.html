@@ -1,0 +1,489 @@
+<!--
+  Throwaway. The Recent section beside the career story, with five changes
+  that each switch on and off from the floating bar:
+  A collapse to a rail, B one set of tabs, C grouped rows, D add/change/remove,
+  E calmer chrome. Records live in memory; only the rail choice is remembered.
+  Story cards and the records are placeholders.
+-->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Prototype · Recent panel</title>
+    <style>
+      :root {
+        --sans: "Geist Variable", system-ui, sans-serif;
+        --line: #e4e4e7;
+        --line-soft: #efeff1;
+        --soft: #f3f3f4;
+        --muted: #5b5b61;
+        --ink: #171717;
+        --gold: #a78b71;
+        --gold-hover: #8a6f57;
+        --accent: #e8502a;
+        --rail: 352px;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; background: var(--soft); color: var(--ink); font: 14px/1.4 var(--sans); }
+      button, input, select, textarea { font: inherit; color: inherit; }
+      button { cursor: pointer; }
+
+      .bar { display: flex; align-items: center; height: 48px; padding: 0 12px; gap: 8px; }
+      .brand { font-size: 19px; font-weight: 600; letter-spacing: -0.03em; }
+      .bar .search { flex: 0 1 420px; margin: 0 auto; height: 36px; padding: 0 10px; border: 1px solid #cecece; border-radius: 8px; background: #fff; color: var(--muted); display: flex; align-items: center; font-size: 13px; }
+      .bar .end { display: flex; align-items: center; gap: 6px; }
+      .icon-btn { width: 28px; height: 28px; border: 0; border-radius: 6px; background: transparent; display: grid; place-items: center; color: #3f3f46; }
+      .icon-btn:hover, .icon-btn[aria-pressed="true"] { background: rgba(0,0,0,.06); }
+      .avatar { width: 24px; height: 24px; border-radius: 50%; background: #c9a98a; }
+
+      .sheet { display: flex; height: calc(100% - 48px); padding: 0 8px 8px; gap: 8px; }
+      .nav { flex: none; width: 200px; border-radius: 10px; background: #fff; border: 1px solid var(--line); padding: 12px; color: var(--muted); font-size: 13px; }
+      .nav div { padding: 6px 8px; border-radius: 6px; }
+      .nav div.on { background: var(--soft); color: var(--ink); font-weight: 600; }
+      .center { flex: 1 1 auto; min-width: 0; display: flex; justify-content: center; }
+      .stage { position: relative; width: 100%; max-width: var(--center-max, 100%); min-width: 0; height: 100%; border-radius: 10px; background: #fff; border: 1px solid var(--line); overflow: hidden; }
+      .chat { flex: none; width: 340px; border-radius: 10px; background: #fff; border: 1px solid var(--line); padding: 12px; display: none; color: var(--muted); }
+      .chat h2 { margin: 0 0 8px; font-size: 14px; color: var(--ink); }
+      body.chat-open .chat { display: block; }
+
+      .layout { display: grid; grid-template-columns: minmax(0, 1fr) var(--rail); height: 100%; }
+      .layout.no-recent { grid-template-columns: minmax(0, 1fr); }
+      .layout.is-rail { grid-template-columns: minmax(0, 1fr) 2.85rem; }
+
+      .story { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 0.65rem; align-content: start; padding: 1rem 0.85rem; overflow: auto; }
+      .card { border: 1px solid var(--line); border-radius: 8px; background: #fff; padding: 0.7rem 0.8rem; }
+      .stat { grid-column: span 3; }
+      .stat span { color: var(--muted); font-size: 13px; }
+      .stat strong { display: block; font-size: 1.45rem; font-weight: 650; letter-spacing: -0.03em; }
+      .wide { grid-column: 1 / -1; }
+      .seven { grid-column: span 7; }
+      .five { grid-column: span 5; }
+      .card h2 { margin: 0 0 6px; font-size: 0.9rem; }
+      .ph { height: 84px; border-radius: 6px; background: repeating-linear-gradient(90deg, #ecd7a8 0 22%, transparent 22% 26%, #b93a17 26% 40%, transparent 40% 100%); opacity: .55; }
+      .ph.map { height: 150px; background: #ececee; }
+      .lines span { display: block; height: 10px; margin: 8px 0; border-radius: 4px; background: #efeff1; }
+
+      /* Recent */
+      .recent { display: flex; flex-direction: column; gap: 0.65rem; min-width: 0; min-height: 0; padding: 1rem 0.9rem 0.85rem; border-left: 1px solid var(--line); background: #fff; overflow: hidden; }
+      .recent-head { display: flex; align-items: center; gap: 6px; }
+      .seg { flex: 1 1 auto; display: flex; padding: 3px; border-radius: 8px; background: var(--soft); }
+      .seg button { flex: 1 1 0; min-width: 0; height: 26px; padding: 0 4px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-size: 13px; font-weight: 600; white-space: nowrap; }
+      .seg button[aria-pressed="true"] { background: #fff; color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+      .find { display: flex; align-items: center; gap: 4px; }
+      .find input { flex: 1 1 0; min-width: 0; height: 30px; padding: 0 10px; border: 1px solid #cecece; border-radius: 8px; font-size: 13px; }
+      .find select { flex: none; max-width: 38%; height: 30px; padding: 0 4px; border: 0; background: transparent; font-weight: 600; font-size: 13px; }
+      .ghost { height: 30px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; font-weight: 600; font-size: 13px; white-space: nowrap; }
+      .ghost:hover { background: var(--soft); }
+      .add { height: 30px; padding: 0 10px; border: 1px solid #cecece; border-radius: 8px; background: #fff; font-weight: 600; font-size: 13px; }
+      .add:hover { background: var(--soft); }
+
+      .scroll { flex: 1 1 auto; min-height: 0; overflow: auto; }
+      .scroll.boxed { border: 1px solid var(--line); border-radius: 8px; scrollbar-color: transparent transparent; }
+      .scroll.boxed::-webkit-scrollbar-thumb { background: transparent; }
+      .scroll.calm { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--gold) 45%, transparent) transparent; }
+      .scroll.calm::-webkit-scrollbar { width: 6px; }
+      .scroll.calm::-webkit-scrollbar-thumb { border-radius: 3px; background: color-mix(in srgb, var(--gold) 45%, transparent); }
+      .list { margin: 0; padding: 0 0.85rem; list-style: none; }
+      .scroll.calm .list { padding: 0 2px 0 0; }
+      .list li + li { border-top: 1px solid var(--line-soft); }
+      .row { display: flex; flex-direction: column; gap: 2px; width: 100%; padding: 0.55rem 0; border: 0; background: transparent; text-align: left; }
+      .row strong { font-size: 14px; }
+      .row .text { color: var(--muted); font-size: 13px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+      .row time { color: var(--muted); font-size: 13px; }
+      .row:hover strong, .row:hover .text { color: var(--ink); }
+
+      .group-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: baseline; justify-content: space-between; padding: 0.6rem 0 0.25rem; background: #fff; border-bottom: 1px solid var(--line-soft); }
+      .group-head strong { font-size: 13px; }
+      .group-head span { color: var(--muted); font-size: 12px; }
+      .list li.group + li { border-top: 0; }
+      .row.grouped .text { -webkit-line-clamp: 3; color: #3f3f46; }
+      .tags { display: flex; gap: 4px; margin-bottom: 2px; }
+      .tag { padding: 0 6px; border-radius: 999px; background: var(--soft); color: var(--muted); font-size: 11px; font-weight: 600; line-height: 18px; }
+      .tag.current { background: color-mix(in srgb, #22a06b 14%, #fff); color: #17744c; }
+      .empty { padding: 1rem 0.85rem; color: var(--muted); font-size: 13px; }
+
+      .collapse-btn { flex: none; width: 28px; height: 28px; border: 0; border-radius: 6px; background: transparent; display: grid; place-items: center; color: #3f3f46; }
+      .collapse-btn:hover { background: var(--soft); }
+
+      .rail { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 0.85rem 0.2rem; border: 0; border-left: 1px solid var(--line); background: #fff; color: var(--ink); }
+      .rail:hover .rail-word, .rail:focus-visible .rail-word { color: var(--gold-hover); }
+      .rail-word { writing-mode: vertical-rl; transform: rotate(180deg); font-weight: 600; letter-spacing: 0.06em; }
+      .rail-count { min-width: 20px; padding: 0 5px; border-radius: 999px; background: var(--soft); color: var(--muted); font-size: 11px; font-weight: 600; line-height: 18px; text-align: center; }
+
+      /* dialog */
+      dialog { width: 560px; max-width: calc(100vw - 32px); padding: 0; border: 0; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,.25); }
+      dialog::backdrop { background: rgba(0,0,0,.35); }
+      .dlg { padding: 20px; }
+      .dlg header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; }
+      .dlg header h2 { margin: 0; font-size: 17px; }
+      .dlg header p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+      .dlg header button { margin-left: auto; }
+      .dlg .body { font-size: 17px; line-height: 1.6; white-space: pre-wrap; margin: 0; }
+      .fields { display: grid; gap: 10px; }
+      .fields label { display: grid; gap: 4px; font-size: 13px; font-weight: 600; }
+      .fields input, .fields select, .fields textarea { height: 34px; padding: 0 10px; border: 1px solid #cecece; border-radius: 8px; font-weight: 400; }
+      .fields textarea { height: 110px; padding: 8px 10px; resize: vertical; }
+      .fields .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+      .actions { display: flex; gap: 8px; margin-top: 16px; }
+      .actions .grow { flex: 1; }
+      .btn { height: 32px; padding: 0 14px; border: 1px solid #cecece; border-radius: 8px; background: #fff; font-weight: 600; }
+      .btn.primary { border-color: #171717; background: #171717; color: #fff; }
+      .btn.danger { border-color: transparent; color: #b42318; background: transparent; }
+      .btn.danger:hover { background: #fdecea; }
+      .err { color: #b42318; font-size: 13px; margin: 8px 0 0; }
+
+      /* prototype bar */
+      .proto { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 50; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 999px; background: #111; color: #fafafa; box-shadow: 0 8px 30px rgba(0,0,0,.35); font-size: 12px; white-space: nowrap; }
+      .proto b { color: #a1a1aa; font-weight: 600; margin-right: 2px; }
+      .proto label { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px; background: #262626; cursor: pointer; }
+      .proto label:has(input:checked) { background: #fafafa; color: #111; }
+      .proto input[type="checkbox"] { display: none; }
+      .proto input[type="range"] { width: 110px; accent-color: #fafafa; }
+      .proto .sep { width: 1px; height: 18px; background: #3f3f46; }
+      .state { position: fixed; left: 14px; bottom: 14px; z-index: 50; max-width: 300px; padding: 8px 10px; border-radius: 8px; background: rgba(17,17,17,.9); color: #d4d4d8; font: 11px/1.45 ui-monospace, monospace; white-space: pre; }
+    </style>
+  </head>
+  <body>
+    <header class="bar">
+      <span class="brand">Docier</span>
+      <span class="search">Search your career…</span>
+      <div class="end">
+        <button type="button" class="icon-btn" id="chat-toggle" aria-pressed="false" aria-label="Show Proforna" title="Show Proforna">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg>
+        </button>
+        <span class="avatar"></span>
+      </div>
+    </header>
+
+    <div class="sheet">
+      <nav class="nav"><div class="on">History</div><div>Roles</div><div>Documents</div><div>Network</div></nav>
+      <div class="center">
+        <main class="stage" id="stage">
+          <div class="layout" id="layout">
+            <div class="story">
+              <article class="card stat"><span>Jobs</span><strong>4</strong></article>
+              <article class="card stat"><span>Roles</span><strong>6</strong></article>
+              <article class="card stat"><span>Tenure</span><strong>9y</strong></article>
+              <article class="card stat"><span>Places</span><strong>3</strong></article>
+              <section class="card wide"><h2>Career timeline</h2><div class="ph"></div></section>
+              <section class="card seven"><h2>Highlights</h2><div class="lines"><span></span><span></span><span style="width:70%"></span><span></span><span style="width:55%"></span></div></section>
+              <section class="card five"><h2>Map</h2><div class="ph map"></div></section>
+              <section class="card wide"><h2>Missing</h2><div class="lines"><span style="width:40%"></span><span style="width:30%"></span></div></section>
+            </div>
+            <div id="recent-slot"></div>
+          </div>
+        </main>
+      </div>
+      <aside class="chat"><h2>Proforna</h2><p>Chat panel stand-in.</p></aside>
+    </div>
+
+    <dialog id="dlg"></dialog>
+
+    <div class="proto" id="proto">
+      <b>Recent</b>
+      <label title="Collapse to a rail"><input type="checkbox" data-opt="A" checked />A Collapse</label>
+      <label title="One set of tabs, simpler sort"><input type="checkbox" data-opt="B" checked />B Filters</label>
+      <label title="Grouped rows with tags"><input type="checkbox" data-opt="C" checked />C Rows</label>
+      <label title="Add, change, remove"><input type="checkbox" data-opt="D" checked />D Edit</label>
+      <label title="Calmer chrome"><input type="checkbox" data-opt="E" checked />E Chrome</label>
+      <span class="sep"></span>
+      <span>Center</span>
+      <input type="range" id="width" min="520" max="1400" step="10" value="1400" aria-label="Center width" />
+    </div>
+    <div class="state" id="state"></div>
+
+    <script>
+      const RAIL_KEY = "prototype.recentPanel.collapsed";
+      const KINDS = ["Achievement", "Note", "Milestone", "Now"];
+      let nextId = 100;
+      const records = [
+        { id: "1", kind: "Achievement", org: "Giants Direct", when: "2024-06", text: "Performed routine preventive maintenance (PM) and predictive maintenance on robotic systems, including lubrication, belt tensioning, and sensor calibration." },
+        { id: "2", kind: "Achievement", org: "Giants Direct", when: "2024-06", text: "Replaced and configured electrical components such as relays, contactors, power supplies, and motor drives." },
+        { id: "3", kind: "Achievement", org: "Giants Direct", when: "2024-06", text: "Responded to equipment breakdowns, systematically diagnosing root causes and restoring production within shift targets." },
+        { id: "4", kind: "Achievement", org: "Giants Direct", when: "2024-06", text: "Assembled, installed, and aligned mechanical components of automated systems, including gearboxes and linear actuators." },
+        { id: "5", kind: "Note", org: "Giants Direct", when: "2024-05", text: "Ask about the controls lead opening before the August review." },
+        { id: "6", kind: "Milestone", org: "Giants Direct", when: "2024-03", text: "Certified on the robot safety program." },
+        { id: "7", kind: "Now", org: "Giants Direct", when: "2024-06", text: "Maintained pick-and-place robotics and conveyors." },
+        { id: "8", kind: "Achievement", org: "Sharp Packaging", when: "2023-11", text: "Cut changeover time on line 3 by rebuilding the infeed guides and labelling the settings." },
+        { id: "9", kind: "Milestone", org: "Sharp Packaging", when: "2023-02", text: "Promoted to maintenance technician II." },
+      ];
+
+      const ui = {
+        opts: { A: true, B: true, C: true, D: true, E: true },
+        collapsed: localStorage.getItem(RAIL_KEY) === "1",
+        chatOpen: false,
+        center: 1400,
+        lens: "recent",
+        filter: "all",
+        sort: "date",
+        newestFirst: true,
+        query: "",
+        openId: null,
+        editing: null,
+        error: "",
+      };
+
+      const $ = (id) => document.getElementById(id);
+      const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+      const stamp = (when) => {
+        const [y, m] = when.split("-").map(Number);
+        return new Date(y, (m || 1) - 1, 1).toLocaleString("en-US", { month: "short", year: "numeric" });
+      };
+      const isUpdate = (r) => r.kind !== "Note" && r.kind !== "Milestone";
+
+      function shown() {
+        let list = records.slice();
+        const lens = ui.lens;
+        if (lens === "notes") list = list.filter((r) => r.kind === "Note");
+        if (lens === "milestones") list = list.filter((r) => r.kind === "Milestone");
+        if (lens === "updates") list = list.filter(isUpdate);
+        if (!ui.opts.B) {
+          if (ui.filter === "notes") list = list.filter((r) => r.kind === "Note");
+          if (ui.filter === "milestones") list = list.filter((r) => r.kind === "Milestone");
+          if (ui.filter === "updates") list = list.filter(isUpdate);
+        }
+        const needle = ui.query.trim().toLowerCase();
+        if (needle) list = list.filter((r) => [r.kind, r.org, r.text, stamp(r.when)].join(" ").toLowerCase().includes(needle));
+        const by = (a, b, key) => a[key].localeCompare(b[key], undefined, { sensitivity: "base" });
+        list.sort((a, b) => {
+          let ranked = 0;
+          if (ui.sort === "date") ranked = ui.newestFirst || !ui.opts.B ? b.when.localeCompare(a.when) : a.when.localeCompare(b.when);
+          else if (ui.sort === "type") ranked = by(a, b, "kind");
+          else if (ui.sort === "company") ranked = by(a, b, "org");
+          else ranked = by(a, b, "text");
+          return ranked || a.id.localeCompare(b.id);
+        });
+        return list;
+      }
+
+      function railMode() {
+        if (ui.chatOpen || ui.center < 760) return ui.opts.A ? "rail" : "hidden";
+        return ui.opts.A && ui.collapsed ? "rail" : "open";
+      }
+
+      function rowsHtml(list) {
+        if (!list.length) {
+          const filtered = ui.query.trim() || (!ui.opts.B && ui.filter !== "all");
+          return `<p class="empty">${filtered ? "No matches." : "Nothing here yet."}</p>`;
+        }
+        if (!ui.opts.C) {
+          return `<ul class="list">${list.map((r) => `
+            <li><button type="button" class="row" data-open="${r.id}">
+              <strong>${esc(r.kind)} · ${esc(r.org)}</strong>
+              <span class="text">${esc(r.text)}</span>
+              <time>${stamp(r.when)}</time>
+            </button></li>`).join("")}</ul>`;
+        }
+        let html = "";
+        let key = "";
+        for (const r of list) {
+          const k = ui.sort === "date" || ui.sort === "company" ? `${r.org}|${ui.sort === "date" ? r.when : ""}` : `${r.kind}`;
+          if (k !== key) {
+            key = k;
+            const title = ui.sort === "type" ? (r.kind === "Now" ? "Current" : r.kind) : r.org;
+            const sub = ui.sort === "date" ? stamp(r.when) : "";
+            html += `<li class="group"><div class="group-head"><strong>${esc(title)}</strong><span>${sub}</span></div></li>`;
+          }
+          const tag = r.kind === "Now" ? `<span class="tag current">Current</span>` : `<span class="tag">${esc(r.kind)}</span>`;
+          const meta = ui.sort === "date" ? "" : `<time>${ui.sort === "type" ? esc(r.org) + " · " : ""}${stamp(r.when)}</time>`;
+          html += `<li><button type="button" class="row grouped" data-open="${r.id}">
+            <span class="tags">${tag}</span>
+            <span class="text">${esc(r.text)}</span>
+            ${meta}
+          </button></li>`;
+        }
+        return `<ul class="list">${html}</ul>`;
+      }
+
+      function recentHtml(list) {
+        const collapseBtn = ui.opts.A
+          ? `<button type="button" class="collapse-btn" id="collapse" aria-label="Collapse Recent" title="Collapse Recent">
+               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/><path d="M9 10l2 2-2 2"/></svg>
+             </button>`
+          : "";
+        const tabs = ui.opts.B
+          ? [["recent", "All"], ["notes", "Notes"], ["milestones", "Milestones"], ["updates", "Updates"]]
+          : [["recent", "Recent"], ["notes", "Notes"], ["milestones", "Milestones"]];
+        const seg = `<div class="seg" role="group" aria-label="Recent views">${tabs.map(([v, l]) =>
+          `<button type="button" data-lens="${v}" aria-pressed="${ui.lens === v}">${l}</button>`).join("")}</div>`;
+        const find = ui.opts.B
+          ? `<input id="q" type="search" placeholder="Search…" value="${esc(ui.query)}" aria-label="Search recent" />
+             <select id="sort" aria-label="Sort recent">
+               ${[["date", "Date"], ["type", "Type"], ["company", "Company"]].map(([v, l]) => `<option value="${v}" ${ui.sort === v ? "selected" : ""}>${l}</option>`).join("")}
+             </select>
+             ${ui.sort === "date" ? `<button type="button" class="ghost" id="order" title="Change order">${ui.newestFirst ? "Newest" : "Oldest"} ${ui.newestFirst ? "↓" : "↑"}</button>` : ""}`
+          : `<input id="q" type="search" placeholder="Search…" value="${esc(ui.query)}" aria-label="Search recent" />
+             <select id="filter" aria-label="Filter recent">
+               ${[["all", "All"], ["notes", "Notes"], ["milestones", "Milestones"], ["updates", "Updates"]].map(([v, l]) => `<option value="${v}" ${ui.filter === v ? "selected" : ""}>${l}</option>`).join("")}
+             </select>
+             <select id="sort" aria-label="Sort recent">
+               ${[["date", "Date"], ["type", "Type"], ["company", "Company"], ["achievement", "Achievement"]].map(([v, l]) => `<option value="${v}" ${ui.sort === v ? "selected" : ""}>${l}</option>`).join("")}
+             </select>`;
+        const add = ui.opts.D ? `<button type="button" class="add" id="add">Add</button>` : "";
+        const scrollClass = ui.opts.E ? "scroll calm" : "scroll boxed";
+        return `<section class="recent" aria-label="Recent events">
+          <div class="recent-head">${seg}${collapseBtn}</div>
+          <div class="find">${find}${add}</div>
+          <div class="${scrollClass}">${rowsHtml(list)}</div>
+        </section>`;
+      }
+
+      function railHtml(count) {
+        return `<button type="button" class="rail" id="expand" aria-label="Show Recent, ${count} items" title="Show Recent">
+          <span class="rail-word">Recent</span><span class="rail-count">${count}</span>
+        </button>`;
+      }
+
+      function render() {
+        const list = shown();
+        const mode = railMode();
+        const layout = $("layout");
+        layout.className = "layout" + (mode === "rail" ? " is-rail" : mode === "hidden" ? " no-recent" : "");
+        const slot = $("recent-slot");
+        const focusId = document.activeElement?.id;
+        const caret = focusId === "q" ? document.activeElement.selectionStart : null;
+        slot.style.display = mode === "hidden" ? "none" : "contents";
+        slot.innerHTML = mode === "rail" ? railHtml(records.length) : mode === "open" ? recentHtml(list) : "";
+        if (focusId && $(focusId)) {
+          $(focusId).focus();
+          if (caret != null) $(focusId).setSelectionRange(caret, caret);
+        }
+        document.body.classList.toggle("chat-open", ui.chatOpen);
+        $("chat-toggle").setAttribute("aria-pressed", String(ui.chatOpen));
+        $("stage").style.setProperty("--center-max", ui.center >= 1400 ? "100%" : ui.center + "px");
+        $("state").textContent = JSON.stringify({
+          options: Object.entries(ui.opts).filter(([, on]) => on).map(([k]) => k).join(" ") || "none (today)",
+          recent: mode,
+          rememberedCollapsed: ui.collapsed,
+          chatOpen: ui.chatOpen,
+          center: ui.center >= 1400 ? "full" : ui.center + "px",
+          lens: ui.lens,
+          ...(ui.opts.B ? {} : { filter: ui.filter }),
+          sort: ui.sort + (ui.sort === "date" && ui.opts.B ? (ui.newestFirst ? " newest" : " oldest") : ""),
+          query: ui.query,
+          shown: `${list.length} of ${records.length}`,
+          dialog: ui.editing ? (ui.editing.id ? "change " + ui.editing.id : "add") : ui.openId ? "read " + ui.openId : "closed",
+        }, null, 2);
+      }
+
+      function renderDialog() {
+        const dlg = $("dlg");
+        const r = records.find((x) => x.id === ui.openId);
+        if (ui.editing) {
+          const e = ui.editing;
+          dlg.innerHTML = `<form class="dlg" id="form">
+            <header><div><h2>${e.id ? "Change record" : "Add record"}</h2><p>${e.id ? esc(e.org) : "Note, milestone, or achievement"}</p></div>
+              <button type="button" class="icon-btn" data-close aria-label="Close">✕</button></header>
+            <div class="fields">
+              <div class="two">
+                <label>Type<select name="kind">${KINDS.map((k) => `<option ${e.kind === k ? "selected" : ""} value="${k}">${k === "Now" ? "Current" : k}</option>`).join("")}</select></label>
+                <label>Month<input name="when" type="month" value="${esc(e.when)}" required /></label>
+              </div>
+              <label>Company<input name="org" value="${esc(e.org)}" required /></label>
+              <label>Text<textarea name="text" required>${esc(e.text)}</textarea></label>
+            </div>
+            ${ui.error ? `<p class="err">${esc(ui.error)}</p>` : ""}
+            <div class="actions">
+              ${e.id ? `<button type="button" class="btn danger" id="remove">Remove</button>` : ""}
+              <span class="grow"></span>
+              <button type="button" class="btn" id="cancel">Cancel</button>
+              <button type="submit" class="btn primary">${e.id ? "Save" : "Add"}</button>
+            </div>
+          </form>`;
+        } else if (r) {
+          dlg.innerHTML = `<div class="dlg">
+            <header><div><h2>${esc(r.org)}</h2><p>${esc(r.kind === "Now" ? "Current" : r.kind)} · ${stamp(r.when)}</p></div>
+              <button type="button" class="icon-btn" data-close aria-label="Close">✕</button></header>
+            <p class="body">${esc(r.text)}</p>
+            ${ui.opts.D ? `<div class="actions"><button type="button" class="btn danger" id="remove">Remove</button><span class="grow"></span><button type="button" class="btn" id="edit">Change</button></div>` : ""}
+          </div>`;
+        }
+        if ((ui.editing || r) && !dlg.open) dlg.showModal();
+        if (!ui.editing && !r && dlg.open) dlg.close();
+      }
+
+      function closeDialog() {
+        ui.openId = null;
+        ui.editing = null;
+        ui.error = "";
+        renderDialog();
+        render();
+      }
+
+      document.addEventListener("click", (ev) => {
+        const t = ev.target.closest("button");
+        if (!t) return;
+        if (t.dataset.lens) { ui.lens = t.dataset.lens; render(); return; }
+        if (t.dataset.open) { ui.openId = t.dataset.open; renderDialog(); render(); return; }
+        if (t.hasAttribute("data-close") || t.id === "cancel") {
+          if (t.id === "cancel" && ui.editing?.id) { ui.editing = null; ui.error = ""; renderDialog(); render(); return; }
+          closeDialog(); return;
+        }
+        switch (t.id) {
+          case "collapse": ui.collapsed = true; localStorage.setItem(RAIL_KEY, "1"); break;
+          case "expand":
+            if (ui.chatOpen) ui.chatOpen = false;
+            if (ui.center < 760) ui.center = 1400, $("width").value = 1400;
+            ui.collapsed = false; localStorage.setItem(RAIL_KEY, "0"); break;
+          case "chat-toggle": ui.chatOpen = !ui.chatOpen; break;
+          case "order": ui.newestFirst = !ui.newestFirst; break;
+          case "add": ui.editing = { id: null, kind: "Note", org: "", when: new Date().toISOString().slice(0, 7), text: "" }; renderDialog(); break;
+          case "edit": ui.editing = { ...records.find((x) => x.id === ui.openId) }; renderDialog(); break;
+          case "remove": {
+            const id = ui.editing?.id ?? ui.openId;
+            const i = records.findIndex((x) => x.id === id);
+            if (i >= 0) records.splice(i, 1);
+            closeDialog(); return;
+          }
+          default: return;
+        }
+        render();
+      });
+
+      document.addEventListener("submit", (ev) => {
+        if (ev.target.id !== "form") return;
+        ev.preventDefault();
+        const f = new FormData(ev.target);
+        const next = { kind: f.get("kind"), org: String(f.get("org")).trim(), when: f.get("when"), text: String(f.get("text")).trim() };
+        if (!next.org || !next.text || !next.when) { ui.error = "Company, month, and text are needed."; renderDialog(); return; }
+        if (ui.editing.id) {
+          Object.assign(records.find((x) => x.id === ui.editing.id), next);
+          ui.openId = ui.editing.id;
+        } else {
+          const id = String(nextId++);
+          records.push({ id, ...next });
+          ui.openId = id;
+        }
+        ui.editing = null;
+        ui.error = "";
+        renderDialog();
+        render();
+      });
+
+      $("dlg").addEventListener("close", () => { if (ui.openId || ui.editing) { ui.openId = null; ui.editing = null; ui.error = ""; render(); } });
+
+      document.addEventListener("input", (ev) => {
+        const t = ev.target;
+        if (t.id === "q") { ui.query = t.value; render(); }
+        if (t.id === "width") { ui.center = Number(t.value); render(); }
+      });
+
+      document.addEventListener("change", (ev) => {
+        const t = ev.target;
+        if (t.dataset.opt) {
+          ui.opts[t.dataset.opt] = t.checked;
+          if (t.dataset.opt === "B") {
+            if (t.checked && ui.sort === "achievement") ui.sort = "date";
+            if (!t.checked && ui.lens === "updates") ui.lens = "recent";
+          }
+          render();
+        }
+        if (t.id === "filter") { ui.filter = t.value; render(); }
+        if (t.id === "sort") { ui.sort = t.value; render(); }
+      });
+
+      render();
+    </script>
+  </body>
+</html>

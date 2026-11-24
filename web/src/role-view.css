@@ -1724,3 +1724,36 @@ img.role-view-avatar {
 .achievement-row-open {
   min-width: 0;
 }
+
+/* An achievement opened from History, in a window over the page. */
+.achievement-popout {
+  --color-text-primary: #171717;
+  width: min(640px, 92vw);
+  max-height: 86vh;
+  padding: 0;
+  border: 0;
+  border-radius: 16px;
+  background: #fff;
+  color: #171717;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.22);
+}
+
+.achievement-popout::backdrop {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.achievement-popout-body {
+  position: relative;
+  padding: 22px 24px 24px;
+}
+
+.achievement-popout-body .achievement-detail-head {
+  padding-right: 40px;
+}
+
+.achievement-popout-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  box-shadow: inset 0 0 0 1px #e4e4e7;
+}

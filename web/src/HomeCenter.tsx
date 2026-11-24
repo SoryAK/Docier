@@ -15,6 +15,7 @@ import { roleCoverPhoto, type WorkMapRole } from "@core/work-map";
 import { ArrowLeft } from "lucide-react";
 import { CareerMap } from "./CareerMap";
 import type { MapFitMode } from "./map-camera";
+import { AchievementPopout } from "./AchievementPopout";
 import { RoleHistoryPanel } from "./RoleHistoryPanel";
 import { RoleView, type RoleFocusRequest } from "./RoleView";
 import "./home-center.css";
@@ -54,6 +55,9 @@ export function HomeCenter({
   const [recentSort, setRecentSort] = useState<RecentSort>("date");
   // An entry picked in a role's History, shown in the role beside it.
   const [roleFocus, setRoleFocus] = useState<RoleFocusRequest | null>(null);
+  const [popoutAchievement, setPopoutAchievement] = useState<string | null>(null);
+  // A different role closes an achievement left open.
+  useEffect(() => setPopoutAchievement(null), [focusRoleId]);
 
   useEffect(() => {
     if (!viewRequest) return;
@@ -282,8 +286,19 @@ export function HomeCenter({
                     <RoleHistoryPanel
                       role={focus}
                       onSaved={() => onRoleSaved?.()}
-                      onSelect={(target) => setRoleFocus({ ...target, nonce: Date.now() })}
+                      onSelect={(target) =>
+                        // For now an achievement opens in a popout; people and the start show in the role.
+                        target.kind === "achievement" ? setPopoutAchievement(target.id) : setRoleFocus({ ...target, nonce: Date.now() })
+                      }
                     />
+                    {popoutAchievement && focus ? (
+                      <AchievementPopout
+                        role={focus}
+                        achievementId={popoutAchievement}
+                        onClose={() => setPopoutAchievement(null)}
+                        onSaved={() => onRoleSaved?.()}
+                      />
+                    ) : null}
                   </section>
                 ) : (
                 <section className="home-story-recent" aria-label="Recent events">

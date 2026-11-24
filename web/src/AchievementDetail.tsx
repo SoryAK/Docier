@@ -20,11 +20,14 @@ export function AchievementDetail({
   achievementId,
   onBack,
   onSaved,
+  backLabel = "All achievements",
 }: {
   role: WorkMapRole;
   achievementId: string;
   onBack: () => void;
   onSaved: () => void;
+  /** The way back to the list; null when shown in a popout, which has its own close. */
+  backLabel?: string | null;
 }) {
   const index = role.achievementIds?.indexOf(achievementId) ?? -1;
   const statement = index >= 0 ? role.achievements[index] ?? "" : "";
@@ -172,9 +175,11 @@ export function AchievementDetail({
 
   return (
     <div className="achievement-detail">
-      <button type="button" className="role-view-text achievement-detail-back" onClick={onBack}>
-        <ArrowLeft size={13} aria-hidden="true" /> All achievements
-      </button>
+      {backLabel ? (
+        <button type="button" className="role-view-text achievement-detail-back" onClick={onBack}>
+          <ArrowLeft size={13} aria-hidden="true" /> {backLabel}
+        </button>
+      ) : null}
 
       {editing ? (
         <form className="achievement-detail-edit" onSubmit={saveText}>

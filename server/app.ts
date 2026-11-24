@@ -304,6 +304,7 @@ import {
   saveWorkMapDetails,
   saveWorkSetup,
   saveGear,
+  saveRoleLinks,
   saveReflection,
   undoRoleEdit,
   savePayAndBenefits,
@@ -1541,6 +1542,25 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
         (await c.req.json().catch(() => ({}))) as Record<string, unknown>,
       );
       if (!saved.ok) return c.json({ error: saved.error }, 400);
+      return c.json({ details: saved.details });
+    } catch (error) {
+      if (error instanceof WorkMapStoreError) {
+        return c.json({ error: error.code }, 404);
+      }
+      throw error;
+    }
+  });
+
+  app.put("/api/work-map/roles/:id/links", async (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      const saved = saveRoleLinks(
+        db,
+        occupant.id,
+        c.req.param("id"),
+        (await c.req.json().catch(() => ({}))) as Record<string, unknown>,
+      );
+      if (!saved.ok) return c.json({ error: saved.error, field: saved.field }, 400);
       return c.json({ details: saved.details });
     } catch (error) {
       if (error instanceof WorkMapStoreError) {

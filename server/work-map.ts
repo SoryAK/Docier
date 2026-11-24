@@ -1,4 +1,5 @@
 import { moveColleaguesToNetwork, readRolePeople } from "./role-people";
+import { prepareRoleLinks, type RoleLinkKind } from "../core/role-links";
 import {
   logRoleEvent,
   markUndone,
@@ -421,6 +422,10 @@ export function saveWorkMapDetails(
     summary: "summary" in input ? text(input.summary) : current.summary,
     website: linkOrCurrent(input.website, current.website, "website" in input),
     linkedin: linkOrCurrent(input.linkedin, current.linkedin, "linkedin" in input),
+    instagram: linkOrCurrent(input.instagram, current.instagram, "instagram" in input),
+    facebook: linkOrCurrent(input.facebook, current.facebook, "facebook" in input),
+    x: linkOrCurrent(input.x, current.x, "x" in input),
+    youtube: linkOrCurrent(input.youtube, current.youtube, "youtube" in input),
     colleagues:
       "colleagues" in input
         ? workMapColleagues(input.colleagues)
@@ -513,6 +518,21 @@ export function saveGear(
   const current = readDetails(db, occupantId, roleId);
   const { share, ...gear } = prepared.value;
   const details: WorkMapRoleDetails = { ...current, ...gear, share: { ...current.share, ...share } };
+  writeDetails(db, occupantId, roleId, details);
+  return { ok: true, details };
+}
+
+/** Saves the company's links on a role: its website and social accounts. */
+export function saveRoleLinks(
+  db: DatabaseSync,
+  occupantId: string,
+  roleId: string,
+  input: JsonObject,
+): { ok: true; details: WorkMapRoleDetails } | { ok: false; error: "url-invalid"; field: RoleLinkKind } {
+  requireRole(db, occupantId, roleId);
+  const prepared = prepareRoleLinks(input);
+  if (!prepared.ok) return prepared;
+  const details: WorkMapRoleDetails = { ...readDetails(db, occupantId, roleId), ...prepared.value };
   writeDetails(db, occupantId, roleId, details);
   return { ok: true, details };
 }

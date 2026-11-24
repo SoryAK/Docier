@@ -49,6 +49,7 @@ import {
   WrenchScrewdriverIcon,
 } from "@heroicons/react/24/outline";
 import { formatHistoryPlace } from "@core/career-history";
+import { ROLE_LINK_KINDS, ROLE_LINK_LABEL, type RoleLinkKind, type RoleLinks } from "@core/role-links";
 import {
   SCHEDULE_TYPES,
   SCHEDULE_TYPE_LABEL,
@@ -71,6 +72,7 @@ import {
   type GearPanel,
   type ReflectionPanel,
 } from "./RoleSettingsMore";
+import { socialMarkIcon } from "./SocialMark";
 import { PAY_ERROR, PAY_PANELS, PayPanels, payBody, payDraft, type PayPanel } from "./RoleSettingsPay";
 import { SettingsCard, SettingsRow, SettingsStatus } from "./SettingsRows";
 
@@ -92,7 +94,7 @@ function groupsFor(role: WorkMapRole): { label: string; panels: PanelConfig[] }[
     {
       label: school ? "School" : "Role",
       panels: [
-        { id: "basics", label: "Basics", description: school ? "School, program, place, and dates." : "Company, title, place, and dates.", icon: school ? AcademicCapIcon : BriefcaseIcon },
+        { id: "basics", label: "Basics", description: school ? "School, program, place, dates, and links." : "Company, title, place, dates, and links.", icon: school ? AcademicCapIcon : BriefcaseIcon },
         { id: "about", label: "About", description: "A few lines on what this was.", icon: DocumentTextIcon },
         { id: "achievements", label: "Achievements", description: "What you got done, one per line.", icon: TrophyIcon },
       ],
@@ -167,6 +169,28 @@ function roleDraft(role: WorkMapRole) {
   };
 }
 
+function linksDraft(role: WorkMapRole): RoleLinks {
+  return Object.fromEntries(ROLE_LINK_KINDS.map((kind) => [kind, role.details[kind] ?? ""])) as RoleLinks;
+}
+
+const LINK_PLACEHOLDER: Record<RoleLinkKind, string> = {
+  website: "company.com",
+  linkedin: "linkedin.com/company/…",
+  instagram: "instagram.com/…",
+  facebook: "facebook.com/…",
+  x: "x.com/…",
+  youtube: "youtube.com/@…",
+};
+
+const LINK_ICON: Record<RoleLinkKind, ComponentType<SVGProps<SVGSVGElement>>> = {
+  website: socialMarkIcon("site"),
+  linkedin: socialMarkIcon("linkedin"),
+  instagram: socialMarkIcon("instagram"),
+  facebook: socialMarkIcon("facebook"),
+  x: socialMarkIcon("x"),
+  youtube: socialMarkIcon("youtube"),
+};
+
 function setupDraft(role: WorkMapRole) {
   const d = role.details;
   return {
@@ -227,6 +251,8 @@ export function RoleSettings({
   const [gear, setGear] = useState(initialGear);
   const [initialReflection] = useState(() => reflectionDraft(role));
   const [reflection, setReflection] = useState(initialReflection);
+  const [initialLinks] = useState(() => linksDraft(role));
+  const [links, setLinks] = useState(initialLinks);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const config = panels.find((item) => item.id === panel) ?? panels[0]!;
@@ -236,7 +262,8 @@ export function RoleSettings({
   const payChanged = JSON.stringify(pay) !== JSON.stringify(initialPay);
   const gearChanged = JSON.stringify(gear) !== JSON.stringify(initialGear);
   const reflectionChanged = JSON.stringify(reflection) !== JSON.stringify(initialReflection);
-  const detailsChanged = setupChanged || payChanged || gearChanged || reflectionChanged;
+  const linksChanged = JSON.stringify(links) !== JSON.stringify(initialLinks);
+  const detailsChanged = setupChanged || payChanged || gearChanged || reflectionChanged || linksChanged;
   const people = [...new Set((role.people ?? []).map((person) => person.name))];
 
   const edit = (patch: Partial<typeof draft>) => setDraft((current) => ({ ...current, ...patch }));
@@ -251,6 +278,24 @@ export function RoleSettings({
         [gearChanged, "gear", gearBody(gear), GEAR_ERROR, "The gear could not be saved. Try again."],
         [reflectionChanged, "reflection", reflectionBody(reflection), REFLECTION_ERROR, "Looking back could not be saved. Try again."],
       ];
+      if (linksChanged) {
+        const response = await fetch(`/api/work-map/roles/${encodeURIComponent(role.id)}/links`, {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(links),
+        });
+        if (!response.ok) {
+          const failed = (await response.json().catch(() => ({}))) as { error?: string; field?: RoleLinkKind };
+          setPanel("basics");
+          setError(
+            failed.error === "url-invalid" && failed.field
+              ? `The ${ROLE_LINK_LABEL[failed.field]} link isn't a web address. Use one like ${LINK_PLACEHOLDER[failed.field].replace("…", "name")}.`
+              : "The links could not be saved. Try again.",
+          );
+          onSaved();
+          return;
+        }
+      }
       for (const [changed, path, body, errors, fallback] of parts) {
         if (!changed) continue;
         const response = await fetch(`/api/work-map/roles/${encodeURIComponent(role.id)}/${path}`, {
@@ -418,6 +463,30 @@ export function RoleSettings({
           {draft.current ? null : (
             <SettingsRow title="Ended" icon={CalendarDaysIcon} control={<MonthInput label="Ended" value={draft.end} onChange={(value) => edit({ end: value })} />} />
           )}
+        </SettingsCard>
+      ) : null}
+
+      {panel === "basics" ? (
+        <SettingsCard title={school ? "School links" : "Company links"}>
+          {ROLE_LINK_KINDS.map((kind) => (
+            <SettingsRow
+              key={kind}
+              title={ROLE_LINK_LABEL[kind]}
+              icon={LINK_ICON[kind]}
+              description={kind === "website" ? "Shown under the role's banner, for you only. Links never go on your page." : undefined}
+              control={
+                <TextInput
+                  label={ROLE_LINK_LABEL[kind]}
+                  isLabelHidden
+                  size="sm"
+                  width={CONTROL_WIDTH}
+                  placeholder={LINK_PLACEHOLDER[kind]}
+                  value={links[kind]}
+                  onChange={(value) => setLinks((current) => ({ ...current, [kind]: value }))}
+                />
+              }
+            />
+          ))}
         </SettingsCard>
       ) : null}
 

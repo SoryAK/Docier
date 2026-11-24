@@ -308,6 +308,10 @@ export type WorkMapRoleDetails = {
   summary: string;
   website: string;
   linkedin: string;
+  instagram: string;
+  facebook: string;
+  x: string;
+  youtube: string;
   colleagues: WorkMapColleague[];
   overviewFields: WorkMapOverviewField[] | null;
   techStack: string[];
@@ -634,6 +638,10 @@ export const EMPTY_WORK_MAP_DETAILS: WorkMapRoleDetails = {
   summary: "",
   website: "",
   linkedin: "",
+  instagram: "",
+  facebook: "",
+  x: "",
+  youtube: "",
   colleagues: [],
   overviewFields: null,
   techStack: [],
@@ -698,6 +706,10 @@ export function normalizeWorkMapDetails(
     summary: typeof details?.summary === "string" ? details.summary.trim() : "",
     website: workMapLink(details?.website),
     linkedin: workMapLink(details?.linkedin),
+    instagram: workMapLink(details?.instagram),
+    facebook: workMapLink(details?.facebook),
+    x: workMapLink(details?.x),
+    youtube: workMapLink(details?.youtube),
     colleagues: workMapColleagues(details?.colleagues),
     overviewFields: workMapOverviewFields(details?.overviewFields),
   };

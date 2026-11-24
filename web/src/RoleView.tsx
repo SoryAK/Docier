@@ -5,6 +5,7 @@ import {
   formatTenureMonths,
   tenureMonths,
 } from "@core/career-history";
+import { roleLinkList } from "@core/role-links";
 import { roleCoverPhoto, type WorkMapRole } from "@core/work-map";
 import { ArrowLeft, CalendarDays, ChevronRight, ImagePlus, Images, MapPin, Pencil, Plus, Trash2, UserRound, X } from "lucide-react";
 import { AchievementDate } from "./AchievementDate";
@@ -125,6 +126,7 @@ export function RoleView({
   const details = role.details;
   const summary = details.summary.trim();
   const description = role.description.trim();
+  const links = roleLinkList(details);
 
   return (
     <article className="role-view" aria-label={name}>
@@ -170,20 +172,14 @@ export function RoleView({
         <RolePeople role={role} roles={roles} onSaved={onSaved} openRequest={peopleRequest} />
       </div>
 
-      {details.website || details.linkedin ? (
-        <nav className="role-view-links" aria-label="Links">
-          {details.website ? (
-            <a href={details.website} target="_blank" rel="noreferrer">
-              <SocialMark kind="site" />
-              {linkHost(details.website)}
+      {links.length > 0 ? (
+        <nav className="role-view-links" aria-label="Company links">
+          {links.map((link) => (
+            <a key={link.kind} href={link.url} target="_blank" rel="noreferrer" title={link.url}>
+              <SocialMark kind={link.kind === "website" ? "site" : link.kind} />
+              {link.label}
             </a>
-          ) : null}
-          {details.linkedin ? (
-            <a href={details.linkedin} target="_blank" rel="noreferrer">
-              <SocialMark kind="linkedin" />
-              LinkedIn
-            </a>
-          ) : null}
+          ))}
         </nav>
       ) : null}
 
@@ -370,11 +366,3 @@ export function RoleView({
   );
 }
 
-/** "giantdirect.com" from "https://www.giantdirect.com/about". */
-function linkHost(url: string): string {
-  try {
-    return new URL(url).hostname.replace(/^www\./, "");
-  } catch {
-    return url;
-  }
-}

@@ -1840,3 +1840,98 @@ img.role-view-avatar {
   font-size: 0.8125rem;
   -webkit-line-clamp: 1;
 }
+
+/* Proof and links: a line of copy and two buttons; what's added shows under them. */
+.achievement-backing-copy {
+  margin: 0;
+  color: #52525b;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.achievement-backing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.achievement-backing-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.achievement-link-menu-wrap {
+  display: contents;
+}
+
+/* The kinds of link, as a row of choices in the flow, so a scrolling popout can't clip them. */
+.achievement-link-menu {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex-basis: 100%;
+  padding: 6px;
+  border: 1px solid #ebe8e4;
+  border-radius: 12px;
+  background: #faf9f7;
+}
+
+.achievement-link-menu button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid #ebe8e4;
+  border-radius: 999px;
+  background: #fff;
+  color: #171717;
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.achievement-link-menu button:hover,
+.achievement-link-menu button:focus-visible {
+  background: #f6f5f3;
+}
+
+.achievement-link-picker {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #faf9f7;
+}
+
+.achievement-link-choose {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.achievement-link-choose select {
+  padding: 5px 8px;
+  border: 1px solid #d4d4d8;
+  border-radius: 8px;
+  background: #fff;
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.achievement-linked {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.achievement-linked .achievement-chip {
+  gap: 5px;
+  padding-left: 8px;
+}
+
+.achievement-backing .role-proof.is-inline:empty {
+  display: none;
+}

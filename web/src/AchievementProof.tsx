@@ -42,6 +42,8 @@ export function AchievementProof({
   statement,
   onSaved,
   inline = false,
+  bare = false,
+  addRequest = 0,
 }: {
   role: WorkMapRole;
   achievementId: string;
@@ -49,6 +51,10 @@ export function AchievementProof({
   onSaved: () => void;
   /** Shown in place, as on an achievement's own page, instead of behind its tag. */
   inline?: boolean;
+  /** Only the evidence itself: no empty copy and no add button, which live outside. */
+  bare?: boolean;
+  /** Changes to open the form for new evidence, from an add button outside. */
+  addRequest?: number;
 }) {
   const [openState, setOpen] = useState(false);
   const open = inline || openState;
@@ -77,6 +83,12 @@ export function AchievementProof({
   }, [open, draft, inline]);
 
   const base = `/api/work-map/roles/${encodeURIComponent(role.id)}/linked-evidence`;
+
+  useEffect(() => {
+    if (!addRequest) return;
+    setMessage("");
+    setDraft({ id: null, url: "", title: "", outlet: "", publishedOn: "", kind: "article", credit: "about-my-work", contribution: "", isPublic: false });
+  }, [addRequest]);
 
   async function call(path: string, method: string, body?: unknown): Promise<Record<string, unknown> | null> {
     const response = await fetch(path, {
@@ -151,6 +163,9 @@ export function AchievementProof({
       setBusy(false);
     }
   }
+
+  // Shown bare, with nothing yet and no form open: nothing to show.
+  if (bare && !draft && items.length === 0 && !message) return null;
 
   const blank: Draft = { id: null, url: "", title: "", outlet: "", publishedOn: "", kind: "article", credit: "about-my-work", contribution: "", isPublic: false };
 
@@ -283,13 +298,15 @@ export function AchievementProof({
                     </li>
                   ))}
                 </ul>
-              ) : (
+              ) : bare ? null : (
                 <span className="role-view-empty">Link an article, a review, a talk, or an award that shows this happened.</span>
               )}
               {message ? <span className="role-view-error" role="alert">{message}</span> : null}
-              <button type="button" className="role-view-text" onClick={() => setDraft(blank)}>
-                + Add evidence
-              </button>
+              {bare ? null : (
+                <button type="button" className="role-view-text" onClick={() => setDraft(blank)}>
+                  + Add evidence
+                </button>
+              )}
             </>
           )}
         </span>

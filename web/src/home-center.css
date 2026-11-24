@@ -923,3 +923,39 @@
   font-size: 0.8rem;
   font-weight: 450;
 }
+
+/*
+ * The right-hand column (Recent on the story, History on a role) stands as its own
+ * card beside the main one, as the Docier panel does when it's open, so the main
+ * card is only as wide as what's in it.
+ */
+@media (min-width: 801px) {
+  .home-sheet:not(.is-right-open) .home-center.is-split {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
+
+  .home-sheet:not(.is-right-open) .home-center.is-split > .home-stage {
+    padding: 0;
+    background: transparent;
+  }
+
+  .home-sheet:not(.is-right-open) .home-center.is-split .home-story-layout {
+    gap: 0.4rem;
+    margin-top: 0;
+  }
+
+  .home-sheet:not(.is-right-open) .home-center.is-split .home-story-layout > :first-child {
+    padding: 0.2rem 0.85rem 1rem 1.05rem;
+    border: 1px solid #e4e4e7;
+    border-radius: 8px;
+    background: #fff;
+  }
+
+  .home-sheet:not(.is-right-open) .home-center.is-split .home-story-layout > .home-story-recent {
+    margin: 0;
+    border: 1px solid #e4e4e7;
+    border-radius: 8px;
+  }
+}

@@ -143,8 +143,12 @@ export function HomeCenter({
     setUpdateId(id);
   }
 
+  // The story and a role keep a column at the right (Recent, or the role's History);
+  // it stands as its own card beside the main one.
+  const split = !pageContent && (view !== "map" || Boolean(showRole && focus));
+
   return (
-    <div className="home-center">
+    <div className={split ? "home-center is-split" : "home-center"}>
       <main
         className="home-stage home-center-live"
         aria-label={pageContent ? "Page" : view === "map" ? "Map" : "Career story"}

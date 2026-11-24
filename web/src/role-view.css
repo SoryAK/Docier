@@ -2140,108 +2140,6 @@ img.role-view-avatar {
   font-size: 0.8125rem;
 }
 
-/* A role's work setup: schedule, shifts, team, and growth. */
-.role-setup-actions {
-  display: inline-flex;
-  gap: 14px;
-}
-
-.role-setup-actions .role-view-text {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.role-setup-facts {
-  margin-top: 12px;
-  font-size: 0.875rem;
-}
-
-.role-setup-list {
-  display: grid;
-  gap: 2px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.role-setup-list b {
-  font-weight: 600;
-  margin-right: 4px;
-}
-
-.role-setup-form h3 {
-  margin: 10px 0 -2px;
-  padding-top: 12px;
-  border-top: 1px solid var(--rv-line, #ebe8e4);
-  font-size: 0.875rem;
-  font-weight: 650;
-}
-
-.role-setup-form fieldset > h3:first-child {
-  margin-top: 0;
-  padding-top: 0;
-  border-top: 0;
-}
-
-.role-setup-note {
-  margin: -6px 0 14px;
-  color: var(--rv-muted, #71717a);
-  font-size: 0.8125rem;
-}
-
-.role-setup-hint {
-  margin: 0;
-  color: var(--rv-muted, #71717a);
-  font-size: 0.75rem;
-}
-
-.role-setup-label {
-  color: #3f3f46;
-  font-size: 0.8125rem;
-}
-
-.role-setup-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) auto;
-  align-items: end;
-  gap: 8px;
-}
-
-.role-setup-row.is-promotion {
-  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) auto;
-}
-
-.role-setup-row-note {
-  grid-column: 1 / -1;
-  margin-top: -4px;
-  color: var(--rv-muted, #71717a);
-  font-size: 0.75rem;
-}
-
-.role-setup-remove {
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 34px;
-  border: 1px solid #e4e4e7;
-  border-radius: 8px;
-  background: #fff;
-  color: #71717a;
-  cursor: pointer;
-}
-
-.role-setup-remove:hover {
-  color: #b42318;
-}
-
-.role-setup-add {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  justify-self: start;
-}
-
 /* A role's settings: a month field next to the design system's inputs. */
 .role-settings-month {
   box-sizing: border-box;
@@ -2265,13 +2163,6 @@ img.role-view-avatar {
 
 .role-settings-month-label .role-settings-month {
   width: 170px;
-}
-
-/* Pay & benefits: private, so the heading carries a lock. */
-.role-setup .role-view-section-head h2 {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
 }
 
 .role-pay-lock {
@@ -2715,5 +2606,341 @@ img.role-view-avatar {
   .role-switch,
   .role-switch::after {
     transition: none;
+  }
+}
+
+/*
+ * A role's detail tabs: groups two across where there's room, each with its own
+ * Edit; a grey note under a group; a dashed line saying what to add when empty.
+ */
+.role-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 26px 32px;
+}
+
+.role-group {
+  min-width: 0;
+}
+
+.role-group.is-wide {
+  grid-column: 1 / -1;
+}
+
+.role-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--rv-line);
+}
+
+.role-group.is-empty .role-group-head {
+  border-bottom-color: transparent;
+}
+
+.role-group-head h3 {
+  margin: 0;
+  color: var(--rv-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.role-group-head .role-view-text {
+  font-size: 0.8125rem;
+}
+
+.role-group-add {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px dashed #d9d4cc;
+  border-radius: 10px;
+  background: none;
+  color: var(--rv-gold-ink);
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.role-group-add:hover {
+  border-color: #ecd9b6;
+  background: var(--rv-gold-soft);
+}
+
+.role-group-note {
+  margin: 10px 0 0;
+  color: var(--rv-muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.role-group-facts {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.role-group-facts > div {
+  display: grid;
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+  gap: 14px;
+}
+
+.role-group-facts dt {
+  color: var(--rv-muted);
+}
+
+.role-group-facts dd {
+  min-width: 0;
+  margin: 0;
+}
+
+.role-group-big {
+  font-size: 1.05rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.role-group-muted,
+.role-group-label {
+  color: var(--rv-muted);
+}
+
+.role-group-label {
+  margin: 0 0 6px;
+  font-size: 0.8125rem;
+}
+
+.role-group-tags + .role-group-label {
+  margin-top: 12px;
+}
+
+.role-group-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.role-group-tags li {
+  padding: 3px 10px;
+  border: 1px solid var(--rv-line);
+  border-radius: 999px;
+  background: var(--rv-soft);
+  font-size: 0.8125rem;
+}
+
+.role-group-tags.is-new li {
+  border-color: #cfe6d7;
+  background: #e7f4ec;
+  color: #2f7d4f;
+}
+
+.role-group-person {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.role-group-person .role-view-avatar {
+  width: 24px;
+  height: 24px;
+  border: 0;
+  font-size: 0.625rem;
+}
+
+.role-group-meter {
+  display: grid;
+  grid-template-columns: 8.5rem minmax(0, 1fr) 3.5rem;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+}
+
+.role-group-meter > span:last-child {
+  color: var(--rv-muted);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.role-group-bar {
+  height: 8px;
+  overflow: hidden;
+  border: 1px solid var(--rv-line);
+  border-radius: 999px;
+  background: var(--rv-soft);
+}
+
+.role-group-bar i {
+  display: block;
+  height: 100%;
+  background: var(--rv-gold);
+}
+
+.role-group-timeline {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0 0 0 14px;
+  border-left: 2px solid var(--rv-line);
+  list-style: none;
+  font-size: 0.875rem;
+}
+
+.role-group-timeline li {
+  position: relative;
+}
+
+.role-group-timeline li::before {
+  content: "";
+  position: absolute;
+  top: 5px;
+  left: -20px;
+  width: 10px;
+  height: 10px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: var(--rv-gold);
+}
+
+.role-group-timeline b {
+  font-weight: 600;
+}
+
+.role-group-timeline small {
+  display: block;
+  color: var(--rv-muted);
+  font-size: 0.78rem;
+}
+
+.role-group-shifts {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+}
+
+.role-group-shifts li > span:first-child {
+  color: var(--rv-muted);
+}
+
+.role-group-shifts b {
+  color: var(--rv-ink);
+  font-weight: 600;
+}
+
+.role-group-day {
+  position: relative;
+  display: block;
+  height: 18px;
+  margin-top: 4px;
+  border: 1px solid var(--rv-line);
+  border-radius: 6px;
+  background: var(--rv-soft);
+}
+
+.role-group-day i {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  border-radius: 4px;
+  background: var(--rv-gold);
+}
+
+.role-group-scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  color: var(--rv-muted);
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.role-group-rows {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.role-group-rows li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--rv-line);
+}
+
+.role-group-rows li:last-child {
+  border-bottom: 0;
+}
+
+.role-group-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: var(--rv-soft);
+  color: var(--rv-muted);
+}
+
+.role-group-row-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.role-group-row-text b {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.role-group-row-text small {
+  color: var(--rv-muted);
+  font-size: 0.8rem;
+}
+
+.role-group-badge {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--rv-soft);
+  color: var(--rv-muted);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.role-group-badge.is-mine {
+  background: var(--rv-gold-soft);
+  color: var(--rv-gold-ink);
+}
+
+.role-group-share {
+  margin: 22px 0 0;
+  color: var(--rv-muted);
+  font-size: 0.8125rem;
+}
+
+@media (max-width: 560px) {
+  .role-group-meter {
+    grid-template-columns: 6.5rem minmax(0, 1fr) 3rem;
+  }
+
+  .role-group-badge {
+    display: none;
   }
 }

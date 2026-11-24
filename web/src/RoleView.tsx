@@ -15,7 +15,7 @@ import { AchievementProof } from "./AchievementProof";
 import { RolePeople } from "./RolePeople";
 import { RoleSettings, type RoleSettingsPanel } from "./RoleSettings";
 import { RoleEvents } from "./RoleEvents";
-import { RoleGearSection, RoleReflectionSection } from "./RoleMoreSections";
+import { RoleReflectionSection } from "./RoleMoreSections";
 import { RolePaySection } from "./RolePaySection";
 import { RolePlaces } from "./RolePlaces";
 import { RoleWorkSetup } from "./RoleWorkSetup";
@@ -310,7 +310,6 @@ export function RoleView({
           ) : tab === "setup" ? (
             <div className="role-view-pane" role="tabpanel">
               <RoleWorkSetup role={role} onEdit={setSettings} />
-              <RoleGearSection role={role} onEdit={setSettings} />
             </div>
           ) : tab === "pay" ? (
             <div className="role-view-pane" role="tabpanel">

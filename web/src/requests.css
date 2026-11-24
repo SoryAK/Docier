@@ -202,3 +202,158 @@ button.req-menu-row:focus-visible { background: var(--color-background-secondary
 }
 .req-menu-status.is-waiting::before { background: #005fb8; }
 .req-history-month .req-menu-heading { padding-left: 0; }
+
+/* Answering a request someone sent you, from this Docier. */
+.answer-request {
+  /* The design system colours plain text by this; the box is always on white. */
+  --color-text-primary: #171717;
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+  color: #171717;
+}
+
+.answer-request-find {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 4px 0 10px;
+  border: 1px dashed #d6d0c6;
+  border-radius: 10px;
+  color: #6b6b70;
+}
+
+.answer-request-find:focus-within {
+  border-style: solid;
+  border-color: #a1a1aa;
+}
+
+.answer-request-find input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  color: #171717;
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.answer-request-ghost,
+.answer-request-primary {
+  padding: 5px 12px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.answer-request-ghost {
+  border: 1px solid #e4e4e7;
+  background: #fff;
+  color: #171717;
+}
+
+.answer-request-primary {
+  border: 0;
+  background: #171717;
+  color: #fff;
+}
+
+.answer-request-ghost:disabled,
+.answer-request-primary:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.answer-request-error {
+  margin: 0;
+  color: #b42318;
+  font-size: 0.8125rem;
+}
+
+.answer-request-done {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: #1f7a3d;
+  font-size: 0.8125rem;
+}
+
+.answer-request-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid #ebe8e4;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.answer-request-kicker {
+  margin: 0;
+  color: #8a6d4f;
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.answer-request-card h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.answer-request-card h3 small {
+  color: #6b6b70;
+  font-weight: 400;
+}
+
+.answer-request-role {
+  display: grid;
+  gap: 1px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f6f5f3;
+}
+
+.answer-request-role span {
+  font-size: 0.875rem;
+}
+
+.answer-request-role small {
+  color: #6b6b70;
+}
+
+.answer-request-body {
+  margin: 0;
+  color: #3f3f46;
+  font-size: 0.875rem;
+  white-space: pre-wrap;
+}
+
+.answer-request-card label {
+  display: grid;
+  gap: 4px;
+  color: #3f3f46;
+  font-size: 0.8125rem;
+}
+
+.answer-request-card select,
+.answer-request-card input,
+.answer-request-card textarea {
+  padding: 7px 9px;
+  border: 1px solid #d4d4d8;
+  border-radius: 8px;
+  background: #fff;
+  color: #171717;
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.answer-request-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

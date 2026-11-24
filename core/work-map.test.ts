@@ -299,6 +299,8 @@ describe("Work Map publication snapshots", () => {
             benefits: ["Shift premium"],
             equipment: ["Fluke 87"],
             schedule: {
+              type: "",
+              daysOnSite: null,
               shift: "Nights",
               hoursPerWeek: 40,
               workMode: "onsite",
@@ -308,6 +310,7 @@ describe("Work Map publication snapshots", () => {
               period: "annual",
               amount: 150_000,
               visibility: "public",
+              payType: "", frequency: "", overtimeRate: null, differentials: [], bonusNotes: "", equityNotes: "",
             },
             share: {
               growth: true,
@@ -319,6 +322,7 @@ describe("Work Map publication snapshots", () => {
               workplaceRating: false,
               equipment: true,
               uniform: false,
+              team: false,
             },
           },
         }),
@@ -1285,8 +1289,11 @@ function sampleRole(overrides: Partial<WorkMapRole> = {}): WorkMapRole {
         period: "annual",
         amount: 150_000,
         visibility: "private",
+        payType: "", frequency: "", overtimeRate: null, differentials: [], bonusNotes: "", equityNotes: "",
       },
       schedule: {
+        type: "",
+        daysOnSite: null,
         shift: "SECRET_NIGHT_SHIFT",
         hoursPerWeek: 60,
         workMode: "onsite",

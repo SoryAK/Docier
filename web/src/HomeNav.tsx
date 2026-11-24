@@ -1,26 +1,20 @@
-import { useState, useEffect, useRef, type ReactNode } from "react";
-import { TOUR_REVEAL, type TourReveal } from "./tour-reveal";
+import { useState, useEffect, type ReactNode } from "react";
 import { Button } from "@astryxdesign/core/Button";
 import { Thumbnail } from "@astryxdesign/core/Thumbnail";
 import { roleCoverPhoto, type WorkMapRole } from "@core/work-map";
-import { ChevronDown, Frame, House, Plug, Puzzle, Wrench } from "lucide-react";
 
 const NAV_ID = "home-nav";
-const RESOURCE_PAGES = new Set<HomePage>(["resumes", "documents", "network"]);
-
+/**
+ * Customizations. Only the ready ones are shown, at the bottom of the panel; the
+ * rest come back one by one as they are built, so nothing in the panel is a dead end.
+ */
 const CUSTOMIZATIONS = [
-  { id: "overview", label: "Overview", icon: "home" },
-  { id: "canvas", label: "Canvas", icon: "canvas" },
-  { id: "plugins", label: "Plugins", icon: "plug" },
-  { id: "extensions", label: "Extensions", icon: "extensions" },
-  { id: "tools", label: "Tools", icon: "tools" },
+  { id: "overview", label: "Overview", ready: false },
+  { id: "canvas", label: "Canvas", ready: true },
+  { id: "plugins", label: "Plugins", ready: false },
+  { id: "extensions", label: "Extensions", ready: false },
+  { id: "tools", label: "Tools", ready: false },
 ] as const;
-
-function CustomMark({ kind }: { kind: (typeof CUSTOMIZATIONS)[number]["icon"] }) {
-  const IconMark =
-    kind === "home" ? House : kind === "canvas" ? Frame : kind === "plug" ? Plug : kind === "extensions" ? Puzzle : Wrench;
-  return <IconMark className="home-custom-mark" size={16} aria-hidden="true" />;
-}
 
 export type HomePage =
   | "home"
@@ -57,39 +51,11 @@ export function HomeNav({
   history?: ReactNode;
 }) {
   const slim = collapsed && !mobileOpen;
-  const [resourcesOpen, setResourcesOpen] = useState(() =>
-    RESOURCE_PAGES.has(page),
-  );
-  const [customOpen, setCustomOpen] = useState(true);
   const [customId, setCustomId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!canvasOpen && customId === "canvas") setCustomId(null);
   }, [canvasOpen, customId]);
-
-  useEffect(() => {
-    if (RESOURCE_PAGES.has(page)) setResourcesOpen(true);
-  }, [page]);
-
-  // The tour opens Resources to point at My Network, then puts it back as it was.
-  const openedForTour = useRef(false);
-  useEffect(() => {
-    function onReveal(event: Event) {
-      const detail = (event as CustomEvent<TourReveal>).detail;
-      if (detail?.target !== "resources") return;
-      if (detail.open) {
-        setResourcesOpen((open) => {
-          openedForTour.current = !open;
-          return true;
-        });
-      } else if (openedForTour.current) {
-        openedForTour.current = false;
-        setResourcesOpen(false);
-      }
-    }
-    window.addEventListener(TOUR_REVEAL, onReveal);
-    return () => window.removeEventListener(TOUR_REVEAL, onReveal);
-  }, []);
 
   useEffect(() => {
     if (!mobileOpen) return;
@@ -114,6 +80,7 @@ export function HomeNav({
     onCloseMobile();
   }
 
+  // Only Canvas is ready today; the other branch serves Customizations as they come back.
   function chooseCustom(id: string) {
     if (id === "canvas") {
       const next = customId !== "canvas";
@@ -154,6 +121,7 @@ export function HomeNav({
           history
         ) : (
         <>
+        <NavHeading label="Your career" slim={slim} />
         <NavRow
           icon="home"
           label="Home"
@@ -180,129 +148,50 @@ export function HomeNav({
           }}
         />
         <NavRow
-          icon="search"
+          icon="network"
+          label="My Network"
+          current={customId ? false : page === "network"}
+          slim={slim}
+          tour="network"
+          onSelect={() => go("network")}
+        />
+        <NavHeading label="Tools" slim={slim} />
+        <NavRow
+          icon="compass"
           label="Opportunities"
           current={customId ? false : page === "opportunities"}
           slim={slim}
           onSelect={() => go("opportunities")}
         />
-
-        {slim ? (
-          <>
-            <NavRow
-              icon="studio"
-              label="Resume Studio"
-              current={customId ? false : page === "resumes"}
-              slim={slim}
-              onSelect={() => go("resumes")}
-            />
-            <NavRow
-              icon="docs"
-              label="My Docs"
-              current={customId ? false : page === "documents"}
-              slim={slim}
-              onSelect={() => go("documents")}
-            />
-            <NavRow
-              icon="network"
-              label="My Network"
-              current={customId ? false : page === "network"}
-              slim={slim}
-              tour="network"
-              onSelect={() => go("network")}
-            />
-            <GalleryResource slim onOpenRole={openGalleryRole} />
-          </>
-        ) : (
-          <div className="home-nav-group">
-            <button
-              type="button"
-              className="home-nav-group-toggle"
-              aria-expanded={resourcesOpen}
-              data-tour="resources"
-              onClick={() => setResourcesOpen((open) => !open)}
-            >
-              Resources
-              <svg
-                className={
-                  resourcesOpen
-                    ? "home-nav-group-caret is-open"
-                    : "home-nav-group-caret"
-                }
-                width="12"
-                height="12"
-                viewBox="0 0 12 12"
-                aria-hidden="true"
-              >
-                <path
-                  d="M3 4.5 L6 7.5 L9 4.5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.25"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-            {resourcesOpen ? (
-              <div className="home-nav-group-body">
-                <NavRow
-                  icon="studio"
-                  label="Resume Studio"
-                  current={customId ? false : page === "resumes"}
-                  slim={false}
-                  onSelect={() => go("resumes")}
-                />
-                <NavRow
-                  icon="docs"
-                  label="My Docs"
-                  current={customId ? false : page === "documents"}
-                  slim={false}
-                  onSelect={() => go("documents")}
-                />
-                <NavRow
-                  icon="network"
-                  label="My Network"
-                  current={customId ? false : page === "network"}
-                  slim={false}
-                  tour="network"
-                  onSelect={() => go("network")}
-                />
-                <GalleryResource slim={false} onOpenRole={openGalleryRole} />
-              </div>
-            ) : null}
-          </div>
-        )}
+        <NavRow
+          icon="studio"
+          label="Resume Studio"
+          current={customId ? false : page === "resumes"}
+          slim={slim}
+          onSelect={() => go("resumes")}
+        />
+        <NavRow
+          icon="docs"
+          label="My Docs"
+          current={customId ? false : page === "documents"}
+          slim={slim}
+          onSelect={() => go("documents")}
+        />
+        <GalleryResource slim={slim} onOpenRole={openGalleryRole} />
         </>
         )}
         </div>
-        <div className={customOpen ? "home-custom" : "home-custom is-collapsed"}>
-          <button
-            type="button"
-            className="home-custom-head"
-            aria-expanded={customOpen}
-            onClick={() => setCustomOpen((open) => !open)}
-          >
-            {slim ? <span className="sr-only">Customizations</span> : "Customizations"}
-            <ChevronDown className="home-custom-chevron" size={16} aria-hidden="true" />
-          </button>
-          {customOpen ? (
-            <div className="home-custom-list">
-              {CUSTOMIZATIONS.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  className="home-custom-item"
-                  aria-current={customId === item.id ? "page" : undefined}
-                  title={slim ? item.label : undefined}
-                  onClick={() => chooseCustom(item.id)}
-                >
-                  <CustomMark kind={item.icon} />
-                  {slim ? <span className="sr-only">{item.label}</span> : item.label}
-                </button>
-              ))}
-            </div>
-          ) : null}
+        <div className="home-nav-foot">
+          {CUSTOMIZATIONS.filter((item) => item.ready).map((item) => (
+            <NavRow
+              key={item.id}
+              icon={item.id}
+              label={item.label}
+              current={customId === item.id}
+              slim={slim}
+              onSelect={() => chooseCustom(item.id)}
+            />
+          ))}
         </div>
       </nav>
     </>
@@ -310,6 +199,17 @@ export function HomeNav({
 }
 
 export const HOME_NAV_ID = NAV_ID;
+
+/** A section heading that never folds; a thin line when the panel is icons only. */
+function NavHeading({ label, slim }: { label: string; slim: boolean }) {
+  return slim ? (
+    <h2 className="home-nav-divider">
+      <span className="sr-only">{label}</span>
+    </h2>
+  ) : (
+    <h2 className="home-nav-heading">{label}</h2>
+  );
+}
 
 function NavRow({
   icon,
@@ -469,6 +369,8 @@ type IconName =
   | "network"
   | "gallery"
   | "search"
+  | "compass"
+  | "canvas"
   | "notice"
   | "menu"
   | "rail"
@@ -523,6 +425,13 @@ export function Icon({ name }: { name: IconName }) {
           <path d="m20 20-3.6-3.6" />
         </>
       ) : null}
+      {name === "compass" ? (
+        <>
+          <circle cx="12" cy="12" r="8" />
+          <path d="m15.2 8.8-2 4.4-4.4 2 2-4.4z" />
+        </>
+      ) : null}
+      {name === "canvas" ? <path d="M8 3v18M16 3v18M3 8h18M3 16h18" /> : null}
       {name === "notice" ? (
         <>
           <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />

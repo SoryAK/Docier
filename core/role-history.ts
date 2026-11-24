@@ -1,0 +1,159 @@
+import { EMPTY_PAY, payEventText } from "./role-pay";
+import type { RoleEdit } from "./role-edits";
+import type { WorkMapMoment, WorkMapRole } from "./work-map";
+
+/**
+ * A role's own history, year by year: when it started and ended, and the
+ * milestones, events, notes, and achievements in between. Shown beside the
+ * role in Career History.
+ */
+
+export type RoleHistoryKind = "start" | "end" | "milestone" | "event" | "note" | "achievement" | "person" | "edit";
+
+export type RoleHistoryItem = {
+  id: string;
+  kind: RoleHistoryKind;
+  text: string;
+  /** As saved: YYYY, YYYY-MM, or YYYY-MM-DD. */
+  date: string;
+  /** "Jun", or "" when the date is a year alone. */
+  month: string;
+  /** For a change to the role: when it was made, and whether it can be undone. */
+  edit?: Pick<RoleEdit, "at" | "area" | "canUndo" | "blocked">;
+};
+
+export type RoleHistoryYear = { year: string; label: string; items: RoleHistoryItem[] };
+
+/** Edits show only under their own filter, not under All. */
+export type RoleHistoryFilter = "all" | "note" | "milestone" | "event" | "achievement" | "person" | "edit";
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+/** Year and month from a saved date, or null when there is no usable year. */
+function readDate(value: string): { year: string; month: number | null; key: string } | null {
+  const match = value.trim().match(/^(\d{4})(?:-(\d{2}))?(?:-(\d{2}))?/);
+  if (!match) return null;
+  const month = match[2] ? Number(match[2]) : null;
+  if (month !== null && (month < 1 || month > 12)) return null;
+  const day = match[3] ?? "00";
+  return { year: match[1]!, month, key: `${match[1]}-${match[2] ?? "00"}-${day}` };
+}
+
+// Within one date: an ending comes after everything else that day, a start before it.
+const SAME_DAY_RANK: Record<RoleHistoryKind, number> = {
+  start: 0,
+  achievement: 1,
+  person: 1,
+  milestone: 2,
+  event: 2,
+  note: 2,
+  end: 3,
+  edit: 2,
+};
+
+export function roleHistory(
+  role: WorkMapRole,
+  options: { filter?: RoleHistoryFilter; query?: string; order?: "newest" | "oldest"; now?: Date } = {},
+): RoleHistoryYear[] {
+  const filter = options.filter ?? "all";
+  const needle = (options.query ?? "").trim().toLowerCase();
+  const now = options.now ?? new Date();
+  const start = readDate(role.startDate);
+  const end = role.isCurrent ? null : readDate(role.endDate);
+  const details = role.details as Partial<WorkMapRole["details"]> | undefined;
+
+  type Dated = RoleHistoryItem & { key: string; year: string };
+  const all: Dated[] = [];
+  const push = (id: string, kind: RoleHistoryKind, text: string, date: string) => {
+    const read = readDate(date);
+    if (!read || !text.trim()) return;
+    all.push({ id, kind, text: text.trim(), date, month: read.month ? MONTHS[read.month - 1]! : "", key: read.key, year: read.year });
+  };
+
+  const name = role.organization.trim() || role.title.trim();
+  if (start) push(`${role.id}:start`, "start", role.title.trim() ? `Started as ${role.title.trim()}` : `Started at ${name}`, role.startDate);
+  if (end) push(`${role.id}:end`, "end", `Left ${name}`, role.endDate);
+  const moments = (kind: "milestone" | "event" | "note", list: WorkMapMoment[] | undefined) => {
+    for (const item of list ?? []) push(item.id, kind, item.title || item.detail, item.date);
+  };
+  moments("milestone", details?.milestones);
+  moments("event", details?.events);
+  moments("note", details?.notes);
+  // Raises and bonuses are milestones too: "Raise to $26/hr".
+  for (const item of details?.payHistory ?? []) {
+    if (item.kind === "adjustment") continue;
+    push(item.id, "milestone", payEventText(item, details?.compensation ?? EMPTY_PAY), item.date);
+  }
+  // Promotions are milestones: "Promoted to Lead technician".
+  for (const item of details?.promotions ?? []) push(item.id, "milestone", `Promoted to ${item.title}`, item.date);
+  // People join the year you started working together, or the role's start.
+  for (const item of role.people ?? []) {
+    const date = item.since || role.startDate;
+    const text = `Started working with ${item.name}${item.note ? ` · ${item.note}` : ""}`;
+    push(item.linkId, "person", text, date);
+    if (item.confirmation?.status === "approved" && item.confirmation.answeredAt) {
+      const text =
+        item.confirmation.direction === "received"
+          ? `You confirmed working with ${item.name}`
+          : `${item.name} confirmed you worked together${item.confirmation.answeredFrom === "docier" ? ", both ways" : ""}`;
+      push(`${item.linkId}:confirmed`, "person", text, item.confirmation.answeredAt.slice(0, 10));
+    }
+  }
+  // An achievement goes in the month it happened; without a date it sits in the
+  // role's first year, with no month, so it reads as not yet dated.
+  role.achievements.forEach((text, index) => {
+    const date = role.achievementDates?.[index] || (start ? start.year : "");
+    const shown = role.achievementTitles?.[index] || text;
+    if (date) push(role.achievementIds?.[index] ?? `${role.id}:achievement:${index}`, "achievement", shown, date);
+  });
+
+  if (filter === "edit") {
+    for (const edit of role.edits ?? []) {
+      push(edit.id, "edit", edit.summary, edit.at);
+      const last = all.at(-1);
+      if (last?.id === edit.id) {
+        last.edit = { at: edit.at, area: edit.area, canUndo: edit.canUndo, blocked: edit.blocked };
+        // Newest first within a day, by the time it was made.
+        last.key = edit.at;
+      }
+    }
+  }
+
+  const shown = all.filter(
+    (item) =>
+      (filter === "all" ? item.kind !== "edit" : item.kind === filter) && (!needle || item.text.toLowerCase().includes(needle)),
+  );
+  shown.sort((a, b) => (a.key === b.key ? SAME_DAY_RANK[b.kind] - SAME_DAY_RANK[a.kind] : a.key < b.key ? 1 : -1));
+  if (options.order === "oldest") shown.reverse();
+
+  const years: RoleHistoryYear[] = [];
+  for (const item of shown) {
+    let group = years.at(-1);
+    if (!group || group.year !== item.year) {
+      // Edits are dated by when they were made, not by the role's years.
+      group = { year: item.year, label: filter === "edit" ? "" : yearLabel(item.year, start, end, role.isCurrent, now), items: [] };
+      years.push(group);
+    }
+    const { key: _key, year: _year, ...plain } = item;
+    group.items.push(plain);
+  }
+  return years;
+}
+
+function yearLabel(
+  year: string,
+  start: ReturnType<typeof readDate>,
+  end: ReturnType<typeof readDate>,
+  isCurrent: boolean,
+  now: Date,
+): string {
+  if (start && year === start.year) return start.month ? `Started in ${MONTH_NAMES[start.month - 1]}` : "Started";
+  if (end && year === end.year) return end.month ? `Left in ${MONTH_NAMES[end.month - 1]}` : "Left";
+  if (isCurrent && year === String(now.getFullYear())) return "So far";
+  if (start) return `Year ${Number(year) - Number(start.year) + 1}`;
+  return "";
+}

@@ -18,6 +18,7 @@ import { TextInput } from "@astryxdesign/core/TextInput";
 import { VStack } from "@astryxdesign/core/VStack";
 import {
   REQUEST_BODY_MAX,
+  COMPOSABLE_REQUEST_KINDS,
   REQUEST_KINDS,
   REQUEST_KIND_LABEL,
   REQUEST_NOTE_MAX,
@@ -38,6 +39,7 @@ import {
   type AccessChoiceValue,
 } from "./Access";
 import { PersonAvatar, Quote, growRows, matches, nearLimit, relativeTime, shortDate } from "./list-parts";
+import { AnswerRequest } from "./AnswerRequest";
 import "./requests.css";
 
 export type RequestsTab = "new" | "sent" | "received" | "history";
@@ -412,7 +414,8 @@ export function RequestsDialog({
               </TabList>
             </div>
             {error ? <Banner status="error" title={error} container="section" collapsible={false} role="alert" /> : null}
-            {listed && !listed.relayConfigured ? (
+            {/* Sending needs your Relay; answering someone else's request from here doesn't. */}
+            {listed && !listed.relayConfigured && tab !== "received" ? (
               <Banner
                 status="warning"
                 title="Requests need your Relay"
@@ -456,7 +459,10 @@ export function RequestsDialog({
             ) : tab === "history" ? (
               <HistoryList listed={listed} onChanged={refresh} />
             ) : tab === "received" ? (
-              <ReceivedList listed={listed} focusId={focusId} onChanged={refresh} />
+              <>
+                <AnswerRequest onAnswered={() => void refresh()} />
+                <ReceivedList listed={listed} focusId={focusId} onChanged={refresh} />
+              </>
             ) : (
               <SentList
                 listed={listed}
@@ -568,9 +574,10 @@ function RequestForm({
         label="Kind"
         size="sm"
         value={kind}
-        onChange={(value) => setKind((REQUEST_KINDS as readonly string[]).includes(value) ? (value as RequestKind) : "general")}
+        onChange={(value) => setKind((COMPOSABLE_REQUEST_KINDS as readonly string[]).includes(value) ? (value as RequestKind) : "general")}
       >
-        {REQUEST_KINDS.map((option) => (
+        {/* "Worked together" is sent from a person on a role, not from here. */}
+        {COMPOSABLE_REQUEST_KINDS.map((option) => (
           <SegmentedControlItem key={option} value={option} label={REQUEST_KIND_LABEL[option]} />
         ))}
       </SegmentedControl>

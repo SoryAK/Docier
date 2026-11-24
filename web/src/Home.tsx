@@ -84,7 +84,7 @@ export function Home({
     updateId: string | null;
   } | null>(null);
   const [page, setPage] = useState<HomePage>(readPage);
-  const [focusJobId, setFocusJobId] = useState<string | null>(initialFocusJobId);
+  const [focusJobId, setFocusJobId] = useState<string | null>(() => initialFocusJobId ?? readRoleId());
   const [photoTick, setPhotoTick] = useState(0);
   const [mapRevision, setMapRevision] = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -119,7 +119,10 @@ export function Home({
   useEffect(() => {
     function onRoute() {
       setEditing(false);
-      setPage(readPage());
+      const next = readPage();
+      setPage(next);
+      // Each role has its own address in Career History, so back and forward move between roles.
+      if (next === "history") setFocusJobId(readRoleId());
       if (isCareerPreview()) setBioMode("preview");
     }
     window.addEventListener("hashchange", onRoute);
@@ -234,10 +237,16 @@ export function Home({
     return () => window.removeEventListener(OPEN_ACCESS, onOpen);
   }, []);
 
-  function goPage(next: HomePage) {
+  function goPage(next: HomePage, roleId: string | null = null) {
     setPage(next);
     const hash =
-      next === "home" ? "" : next === "historyReserve" ? "#/history-reserve" : `#/${next}`;
+      next === "home"
+        ? ""
+        : next === "historyReserve"
+          ? "#/history-reserve"
+          : next === "history" && roleId
+            ? `#/history/${encodeURIComponent(roleId)}`
+            : `#/${next}`;
     if (window.location.hash !== hash) {
       window.location.hash = hash;
     }
@@ -274,7 +283,7 @@ export function Home({
       showLeft();
       setEditing(false);
       setFocusJobId(null);
-      goPage("history");
+      goPage("history", null);
       return;
     }
     if (id === "map") {
@@ -300,7 +309,7 @@ export function Home({
     showLeft();
     setEditing(false);
     setFocusJobId(id);
-    goPage("history");
+    goPage("history", id);
   }
 
   function openSearchUpdate(id: string, roleId: string) {
@@ -315,7 +324,7 @@ export function Home({
     if (mode === "preview") {
       setEditing(false);
       setFocusJobId(null);
-      if (readPage() !== "history") goPage("history");
+      goPage("history", null);
       return;
     }
     if (!isCareerPreview()) return;
@@ -491,8 +500,8 @@ export function Home({
                 }}
                 onGoHistory={(jobId) => {
                   setEditing(false);
-                  goPage("history");
                   setFocusJobId(jobId ?? null);
+                  goPage("history", jobId ?? null);
                 }}
                 onGoPage={(next) => {
                   setEditing(false);
@@ -506,6 +515,11 @@ export function Home({
                     <CareerHistoryCard
                       revision={careerRevision}
                       focusRoleId={focusJobId}
+                      onOpenRole={(id) => {
+                        setEditing(false);
+                        setFocusJobId(id);
+                        goPage("history", id);
+                      }}
                       onBack={() => {
                         setFocusJobId(null);
                         goHome();
@@ -518,7 +532,10 @@ export function Home({
                       onAdded={() => setCareerRevision((n) => n + 1)}
                       onRemoved={(ids) => {
                         setCareerRevision((n) => n + 1);
-                        setFocusJobId((current) => (current && ids.includes(current) ? null : current));
+                        if (focusJobId && ids.includes(focusJobId)) {
+                          setFocusJobId(null);
+                          goPage("history", null);
+                        }
                       }}
                       onSelectionChange={setChatRoles}
                       release={chatRelease}
@@ -555,6 +572,8 @@ export function Home({
           <HomeCenter
             revision={careerRevision}
             focusRoleId={focusJobId}
+            roleView={page === "history"}
+            onRoleSaved={() => setCareerRevision((n) => n + 1)}
             viewRequest={centerView}
             pageContent={
               page !== "home" && page !== "history" ? <CareerWorkspace page={page} /> : null
@@ -562,7 +581,11 @@ export function Home({
             onSelectRole={(id) => {
               setEditing(false);
               setFocusJobId(id);
-              goPage("history");
+              goPage("history", id);
+            }}
+            onCloseRole={() => {
+              setFocusJobId(null);
+              goPage("history", null);
             }}
             onStart={(action) => {
               if (action === "import") {
@@ -1082,6 +1105,7 @@ function HomeCanvas({ onClose }: { onClose: () => void }) {
 function readPage(): HomePage {
   const value = window.location.hash.replace(/^#\/?/, "").split("?")[0];
   if (value === "history-reserve") return "historyReserve";
+  if (value.startsWith("history/")) return "history";
   return value === "history" ||
     value === "resumes" ||
     value === "documents" ||
@@ -1089,6 +1113,17 @@ function readPage(): HomePage {
     value === "opportunities"
     ? value
     : "home";
+}
+
+/** The open role in Career History's address, `#/history/<role id>`. */
+function readRoleId(): string | null {
+  const match = window.location.hash.replace(/^#\/?/, "").split("?")[0].match(/^history\/(.+)$/);
+  if (!match) return null;
+  try {
+    return decodeURIComponent(match[1]!);
+  } catch {
+    return null;
+  }
 }
 
 function readDesktop(): boolean {

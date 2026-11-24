@@ -15,23 +15,34 @@ import { roleCoverPhoto, type WorkMapRole } from "@core/work-map";
 import { ArrowLeft } from "lucide-react";
 import { CareerMap } from "./CareerMap";
 import type { MapFitMode } from "./map-camera";
+import { AchievementPopout } from "./AchievementPopout";
+import { RoleHistoryPanel } from "./RoleHistoryPanel";
+import { RoleView, type RoleFocusRequest } from "./RoleView";
 import "./home-center.css";
 
 export function HomeCenter({
   revision = 0,
   focusRoleId,
   onSelectRole,
+  onCloseRole,
   viewRequest = null,
   pageContent = null,
   onStart,
+  roleView = false,
+  onRoleSaved,
 }: {
   revision?: number;
   focusRoleId: string | null;
   onSelectRole: (id: string) => void;
+  /** Closes the open role, back to the Career History list. */
+  onCloseRole?: () => void;
   /** A first step when the story is empty: add a job or school, or import a resume. */
   onStart?: (action: "job" | "school" | "import") => void;
   viewRequest?: { id: number; updates: boolean; updateId: string | null } | null;
   pageContent?: ReactNode;
+  /** On Career History, a focused role is shown here, with its History in place of Recent. */
+  roleView?: boolean;
+  onRoleSaved?: () => void;
 }) {
   const [roles, setRoles] = useState<WorkMapRole[]>([]);
   const [settings, setSettings] = useState<MapSettings | null>(null);
@@ -45,6 +56,11 @@ export function HomeCenter({
   const [recentQuery, setRecentQuery] = useState("");
   const [recentFilter, setRecentFilter] = useState<RecentFilter>("all");
   const [recentSort, setRecentSort] = useState<RecentSort>("date");
+  // An entry picked in a role's History, shown in the role beside it.
+  const [roleFocus, setRoleFocus] = useState<RoleFocusRequest | null>(null);
+  const [popoutAchievement, setPopoutAchievement] = useState<string | null>(null);
+  // A different role closes an achievement left open.
+  useEffect(() => setPopoutAchievement(null), [focusRoleId]);
 
   useEffect(() => {
     if (!viewRequest) return;
@@ -90,6 +106,7 @@ export function HomeCenter({
   }, [revision]);
 
   const focus = roles.find((role) => role.id === focusRoleId) ?? null;
+  const showRole = roleView && Boolean(focus) && !pageContent;
   const updates = useMemo(
     () => liveUpdates(focus ? [focus] : roles.filter((role) => role.isCurrent), now),
     [focus, roles, now],
@@ -147,6 +164,10 @@ export function HomeCenter({
           <div className="home-story-layout">
             {pageContent ? (
               <div className="home-story-page">{pageContent}</div>
+            ) : showRole && focus ? (
+              <div className="home-role">
+                <RoleView role={focus} roles={roles} onSaved={() => onRoleSaved?.()} focusRequest={roleFocus} onClose={onCloseRole} />
+              </div>
             ) : view === "map" ? (
               <div className="home-center-map">
                 {error ? <p className="home-center-empty">{error}</p> : null}
@@ -263,6 +284,26 @@ export function HomeCenter({
                   </section>
                 )
               )}
+                {showRole && focus ? (
+                  <section className="home-story-recent home-role-history">
+                    <RoleHistoryPanel
+                      role={focus}
+                      onSaved={() => onRoleSaved?.()}
+                      onSelect={(target) =>
+                        // For now an achievement opens in a popout; people and the start show in the role.
+                        target.kind === "achievement" ? setPopoutAchievement(target.id) : setRoleFocus({ ...target, nonce: Date.now() })
+                      }
+                    />
+                    {popoutAchievement && focus ? (
+                      <AchievementPopout
+                        role={focus}
+                        achievementId={popoutAchievement}
+                        onClose={() => setPopoutAchievement(null)}
+                        onSaved={() => onRoleSaved?.()}
+                      />
+                    ) : null}
+                  </section>
+                ) : (
                 <section className="home-story-recent" aria-label="Recent events">
                   <div className="home-story-recent-switch">
                     <SegmentedControl
@@ -356,6 +397,7 @@ export function HomeCenter({
                     </div>
                   </ScrollableArea>
                 </section>
+                )}
           </div>
         </div>
       </main>

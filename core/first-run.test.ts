@@ -59,17 +59,17 @@ describe("first run", () => {
     expect(full.at(-1)?.body).toBe("Preview your page, then publish it. Your page stays private until you publish.");
     for (const steps of [full, short]) {
       const network = steps.find((step) => step.id === "network");
-      expect(network).toMatchObject({ anchors: ["network"], reveal: "resources", fallback: ["menu"] });
+      expect(network).toMatchObject({ anchors: ["network"], fallback: ["menu"] });
+      expect(network).not.toHaveProperty("reveal");
       expect(steps.find((step) => step.id === "history")?.fallback).toEqual(["menu"]);
     }
   });
 
-  it("points a step at what is on screen, opening Resources or falling back to the menu", () => {
+  it("points a step at what is on screen, or falls back to the menu", () => {
     const network = tourSteps({ empty: false }).find((step) => step.id === "network")!;
     const history = tourSteps({ empty: false }).find((step) => step.id === "history")!;
     const on = (...anchors: TourAnchor[]) => new Set<TourAnchor>(anchors);
-    expect(pickAnchors(network, on("network", "resources", "menu"))).toEqual(["network"]);
-    expect(pickAnchors(network, on("resources", "menu"))).toEqual(["network"]);
+    expect(pickAnchors(network, on("network", "menu"))).toEqual(["network"]);
     expect(pickAnchors(network, on("menu"))).toEqual(["menu"]);
     expect(pickAnchors(network, on())).toBeNull();
     expect(pickAnchors(history, on("map", "menu"))).toEqual(["map"]);

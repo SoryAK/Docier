@@ -1,4 +1,5 @@
 import { contactPhotoUrl } from "./contact-photos";
+import { rolesByContact } from "./role-people";
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import {
@@ -56,10 +57,15 @@ export function readCareerManagement(db: DatabaseSync, occupantId: string) {
     applications: rows(db, "applications", occupantId),
     interviews: rows(db, "interviews", occupantId),
     offers: rows(db, "offers", occupantId),
-    contacts: rows(db, "contacts", occupantId).map((contact) => ({
-      ...contact,
-      photo_url: contactPhotoUrl(String(contact.id), (contact.photo_stored_name as string | null) ?? null),
-    })),
+    contacts: (() => {
+      const linked = rolesByContact(db, occupantId);
+      return rows(db, "contacts", occupantId).map((contact) => ({
+        ...contact,
+        photo_url: contactPhotoUrl(String(contact.id), (contact.photo_stored_name as string | null) ?? null),
+        // The roles this person is linked to, as people worked with.
+        roles: linked.get(String(contact.id)) ?? [],
+      }));
+    })(),
     plans: rows(db, "career_plans", occupantId).map((plan) => ({
       ...plan,
       tasks: db
@@ -489,6 +495,9 @@ export function removeContact(
     ).run(contactId, occupantId);
     db.prepare(
       "UPDATE opportunities SET contact_id = NULL WHERE contact_id = ? AND occupant_id = ?",
+    ).run(contactId, occupantId);
+    db.prepare(
+      "DELETE FROM role_contacts WHERE contact_id = ? AND occupant_id = ?",
     ).run(contactId, occupantId);
     db.prepare("DELETE FROM contacts WHERE id = ? AND occupant_id = ?").run(
       contactId,

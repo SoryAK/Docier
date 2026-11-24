@@ -215,6 +215,8 @@
   color: #8a6d4f;
   font-size: max(0.66em, 10px);
   font-weight: 600;
+  /* As with the step numbers: keep the text box inside the pill so the count sits centred. */
+  line-height: 1;
 }
 
 .welcome-card-tile-more {
@@ -546,6 +548,8 @@
   color: #fff;
   font-size: 0.68em;
   font-weight: 600;
+  /* The inherited line height is taller than the circle and pushes the digit off centre. */
+  line-height: 1;
 }
 
 .welcome-card-tile-icon {

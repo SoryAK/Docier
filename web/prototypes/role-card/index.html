@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Role view</title>
+<!-- Prototype only: never imported by the app. People and extra photos are samples. -->
+<style>
+  :root { --ink: #171717; --muted: #6b6b70; --line: #e7e5e4; --soft: #f6f5f3; --gold: #cd9f5b; --gold-soft: #f6ead3; --navy: #0d345e; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.45 "Geist Variable", system-ui, sans-serif; color: var(--ink); background: #ececee; }
+  button { font: inherit; color: inherit; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 16px; background: #fff; border-bottom: 1px solid #e4e4e7; }
+  .bar strong { margin-right: 6px; }
+  .bar button { border: 1px solid #d4d4d8; background: #fff; border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+  .bar button[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .note { margin: 0; padding: 8px 16px 0; color: var(--muted); }
+
+  .app { display: flex; gap: 12px; padding: 10px 16px 16px; height: calc(100vh - 92px); min-height: 560px; }
+  .panel { flex: none; width: 270px; background: #fff; border: 1px solid var(--line); border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; }
+  .panel-head { padding: 12px 14px; border-bottom: 1px solid #f0efed; font-weight: 600; }
+  .list { overflow: auto; padding: 6px; }
+  .list .group { margin: 8px 8px 4px; color: #5b5b61; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+  .role-row { display: block; width: 100%; text-align: left; border: 0; background: none; border-radius: 8px; padding: 8px 10px; cursor: pointer; }
+  .role-row:hover { background: var(--soft); }
+  .role-row.on { background: var(--gold-soft); }
+  .role-row b { display: block; }
+  .role-row span { color: var(--muted); font-size: 12.5px; }
+  .main { flex: 1; min-width: 0; background: #fff; border: 1px solid var(--line); border-radius: 16px; overflow: auto; }
+
+  .ghost { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 5px 12px; cursor: pointer; font-size: 13px; }
+  .ghost:hover { background: var(--soft); }
+  .current { background: #e7f6ec; color: #1f7a3d; border-radius: 999px; padding: 0 7px; font-size: 12px; font-weight: 600; }
+  .link { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 5px 11px; font-size: 13px; cursor: pointer; text-decoration: none; color: var(--ink); }
+  .link:hover { background: var(--soft); }
+  .link svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; }
+  .meta { color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+
+  /* A: hero + tabs */
+  .hero { height: 170px; background: #d8d2c8 center/cover no-repeat; position: relative; }
+  .hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,.45)); }
+  .hero-copy { position: absolute; left: 24px; right: 24px; bottom: 16px; color: #fff; z-index: 1; display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+  .hero-copy h1 { margin: 0; font-size: 26px; letter-spacing: -.02em; }
+  .hero-copy p { margin: 2px 0 0; opacity: .92; }
+  .hero-copy .ghost { background: rgba(255,255,255,.92); color: var(--ink); }
+  .strip { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 24px; border-bottom: 1px solid #f0efed; }
+  .strip .meta { margin-right: auto; }
+  .tabs { display: flex; gap: 2px; padding: 0 20px; border-bottom: 1px solid #f0efed; overflow-x: auto; }
+  .tabs button { border: 0; background: none; padding: 11px 10px; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; white-space: nowrap; }
+  .tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--gold); font-weight: 600; }
+  .tabs .n { color: #8a6d4f; font-weight: 600; margin-left: 4px; }
+  .pane { padding: 18px 24px 28px; max-width: 860px; }
+
+  /* B: header + tiles */
+  .head { display: flex; gap: 16px; align-items: center; padding: 20px 24px 16px; }
+  .thumb { width: 84px; height: 84px; border-radius: 14px; background: #d8d2c8 center/cover no-repeat; flex: none; }
+  .head h1 { margin: 0; font-size: 22px; letter-spacing: -.02em; }
+  .head p { margin: 2px 0 0; }
+  .head .spacer { margin-left: auto; align-self: flex-start; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; padding: 0 24px 16px; }
+  .tile { text-align: left; border: 1px solid var(--line); background: #fff; border-radius: 14px; padding: 12px 14px; cursor: pointer; display: grid; gap: 4px; min-height: 92px; }
+  .tile:hover { border-color: #ead5ad; background: #fffcf6; }
+  .tile.on { border-color: var(--gold); background: #fffaf0; box-shadow: 0 0 0 1px var(--gold) inset; }
+  .tile b { font-size: 22px; }
+  .tile span { color: var(--muted); font-size: 13px; }
+  .tile small { color: #3f3f46; }
+  .detail { margin: 0 24px 24px; border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
+
+  /* C: two columns */
+  .cols { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr); gap: 18px; padding: 20px 24px 28px; align-items: start; }
+  .story-card { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  .story-card .cover { height: 150px; background: #d8d2c8 center/cover no-repeat; }
+  .story-card .copy { padding: 14px 16px 16px; }
+  .story-card h1 { margin: 0; font-size: 22px; letter-spacing: -.02em; }
+  .side { display: grid; gap: 10px; }
+  .side-box { border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+  .side-box h3 { margin: 0 0 8px; font-size: 14px; display: flex; justify-content: space-between; }
+  .side-box h3 button { border: 0; background: none; color: #8a6d4f; cursor: pointer; font-size: 13px; }
+
+  /* Recommended: compact banner, section tiles, and the Recent panel on the right */
+  .recent { display: none; flex: none; width: 300px; background: #fff; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; flex-direction: column; }
+  .with-recent .recent { display: flex; }
+  .with-recent .panel { width: 240px; }
+  .seg { display: flex; gap: 2px; margin: 10px; padding: 3px; background: var(--soft); border-radius: 10px; }
+  .seg button { flex: 1; border: 0; background: none; border-radius: 8px; padding: 6px; cursor: pointer; color: var(--muted); }
+  .seg button[aria-selected="true"] { background: #fff; color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+  .recent-scope { margin: 0 12px 6px; color: var(--muted); font-size: 12.5px; }
+  .recent-list { overflow: auto; padding: 0 12px 12px; display: grid; gap: 8px; align-content: start; }
+  .recent-list { gap: 0; }
+  .entry { padding: 10px 2px; border-bottom: 1px solid #f0efed; }
+  .entry:last-child { border-bottom: 0; }
+  .entry b { display: block; font-size: 13px; }
+  .entry p { margin: 2px 0; color: #3f3f46; font-size: 13px; }
+  .entry small { color: var(--muted); }
+  .compose { margin: 0 12px 12px; display: flex; gap: 6px; }
+  .seg button { padding: 6px 4px; font-size: 13px; }
+  .log { list-style: none; margin: 0; padding: 0 12px 12px; overflow: auto; }
+  .log li { position: relative; padding: 0 0 14px 18px; }
+  .log li::before { content: ""; position: absolute; left: 4px; top: 6px; width: 7px; height: 7px; border-radius: 50%; background: var(--gold); }
+  .log li::after { content: ""; position: absolute; left: 7px; top: 15px; bottom: 0; width: 1px; background: #ebe7e1; }
+  .log li:last-child::after { display: none; }
+  .log b { display: block; font-size: 13px; }
+  .log p { margin: 2px 0; color: #3f3f46; font-size: 12.5px; }
+  .log small { color: var(--muted); }
+  .hist-switch { display: flex; gap: 6px; margin: 0 12px 8px; }
+  .hist-switch button { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 3px 10px; font-size: 12.5px; cursor: pointer; }
+  .hist-switch button[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .years { overflow: auto; padding: 0 12px 12px; display: grid; gap: 8px; align-content: start; }
+  .year { border: 1px solid var(--line); border-radius: 12px; }
+  .year > button { width: 100%; display: flex; align-items: baseline; gap: 8px; border: 0; background: none; padding: 10px 12px; cursor: pointer; text-align: left; }
+  .year > button b { font-size: 16px; }
+  .year > button span { color: var(--muted); font-size: 12.5px; margin-right: auto; }
+  .year > button i { font-style: normal; color: #8a6d4f; font-size: 12.5px; font-weight: 600; }
+  .year ol { list-style: none; margin: 0; padding: 0 12px 10px; display: grid; gap: 8px; }
+  .year li { display: grid; grid-template-columns: 30px 1fr; gap: 2px 8px; font-size: 13px; }
+  .year li small { color: var(--muted); }
+  .year li .k { grid-column: 2; color: #8a6d4f; font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+  .year li .t { grid-column: 2; }
+  .year li small { grid-row: 1 / span 2; padding-top: 2px; }
+  .log .undo { border: 0; background: none; color: #8a6d4f; cursor: pointer; padding: 0; font-size: 12.5px; margin-left: 6px; }
+  .compose input { flex: 1; font: inherit; padding: 7px 9px; border: 1px solid #d4d4d8; border-radius: 8px; }
+  .hero.slim { height: 128px; }
+  .chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; padding: 14px 24px 4px; }
+  .chip { text-align: left; border: 1px solid var(--line); background: #fff; border-radius: 12px; padding: 8px 11px; cursor: pointer; display: grid; gap: 1px; }
+  .chip:hover { border-color: #ead5ad; background: #fffcf6; }
+  .chip.on { border-color: var(--gold); background: #fffaf0; box-shadow: 0 0 0 1px var(--gold) inset; }
+  .chip span { color: var(--muted); font-size: 12.5px; }
+  .chip b { font-size: 18px; }
+  .jump { position: sticky; top: 0; z-index: 2; display: flex; gap: 16px; padding: 10px 24px; background: rgba(255,255,255,.96); border-bottom: 1px solid #f0efed; overflow-x: auto; }
+  .jump a { color: var(--muted); text-decoration: none; white-space: nowrap; font-size: 13.5px; }
+  .jump a:hover { color: var(--ink); }
+  .jump .n { color: #8a6d4f; font-weight: 600; }
+  .onepage { padding-bottom: 8px; border-bottom: 1px solid #f3f1ee; margin-bottom: 14px; scroll-margin-top: 48px; }
+  .onepage:last-child { border-bottom: 0; }
+  .hero.d { height: 168px; }
+  .hero.d .hero-copy > div:first-child { min-width: 0; }
+  .hero.d h1 { font-size: clamp(19px, 2.2vw, 26px); line-height: 1.15; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .hero.d .hero-copy p { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hero.d .hero-btns { flex: none; }
+  .hero.cream { background: linear-gradient(180deg, #fbf6ee, #f4ecdf); }
+  .hero.cream::after { display: none; }
+  .hero.cream .hero-copy { color: var(--ink); }
+  .hero.cream .glass, .hero.cream .round { background: #fff; box-shadow: 0 0 0 1px #eadfcd inset; }
+  .hp-head { display: flex; gap: 10px; align-items: center; padding: 14px 14px 10px; border-bottom: 1px solid #f0efed; background: linear-gradient(180deg, #fdfaf4, #fff); }
+  .hp-head b { display: block; font-size: 15px; }
+  .hp-head small { color: var(--muted); }
+  .hp-mark span { display: block; width: 34px; height: 34px; border-radius: 10px; background: #d8d2c8 center/cover no-repeat; }
+  .hp-mark .cream-dot { background: linear-gradient(180deg, #fbf6ee, #f1e6d4); color: #8a6d4f; display: grid; place-items: center; font-weight: 700; box-shadow: 0 0 0 1px #eadfcd inset; }
+  .hp-tools { display: grid; grid-template-columns: 1fr auto auto; gap: 6px; align-items: center; padding: 10px 12px; }
+  .hp-search { display: flex; align-items: center; gap: 6px; border: 1px solid #d9d9de; border-radius: 10px; padding: 0 8px; height: 32px; min-width: 0; }
+  .hp-search svg { width: 15px; height: 15px; fill: none; stroke: var(--muted); stroke-width: 1.6; stroke-linecap: round; flex: none; }
+  .hp-search input { border: 0; outline: 0; font: inherit; min-width: 0; width: 100%; background: none; }
+  .hp-tools select { font: inherit; border: 0; background: none; padding: 4px 2px; cursor: pointer; color: var(--ink); field-sizing: content; }
+  .hp-list { overflow: auto; flex: 1; }
+  .hp-empty { margin: 0 12px; }
+  .hist-title { display: flex; align-items: baseline; gap: 8px; padding: 14px 12px 8px; }
+  .hist-title span { color: var(--muted); font-size: 12.5px; }
+  .hist-switch.wrap { flex-wrap: wrap; }
+  .compose.stack { display: grid; gap: 6px; margin-top: auto; padding-top: 10px; border-top: 1px solid #f0efed; margin-left: 0; margin-right: 0; padding-left: 12px; padding-right: 12px; }
+  .compose .kind { display: flex; gap: 4px; }
+  .compose .kind button { border: 0; background: none; color: var(--muted); padding: 2px 8px; border-radius: 999px; cursor: pointer; font-size: 12.5px; }
+  .compose .kind button[aria-pressed="true"] { background: var(--soft); color: var(--ink); font-weight: 600; }
+  .hero-icons { position: absolute; top: 12px; right: 14px; z-index: 1; display: flex; gap: 6px; }
+  .round { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: rgba(255,255,255,.9); color: var(--ink); }
+  .round svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.3; }
+  .hero-btns { display: flex; gap: 6px; }
+  .glass { white-space: nowrap; border: 0; background: rgba(255,255,255,.92); color: var(--ink); border-radius: 999px; padding: 6px 12px; cursor: pointer; font-size: 13px; }
+  .glass:hover { background: #fff; }
+  .pop-wrap { position: relative; margin-left: auto; }
+  .faces { display: flex; align-items: center; border: 0; background: none; cursor: pointer; padding: 2px 4px; border-radius: 999px; }
+  .faces:hover { background: var(--soft); }
+  .face { width: 28px; height: 28px; border-radius: 50%; background: var(--gold-soft); color: #8a6d4f; display: grid; place-items: center; font-size: 11px; font-weight: 600; border: 2px solid #fff; margin-left: -8px; }
+  .face:first-child { margin-left: 0; }
+  .faces > span:last-child { margin-left: 8px; color: #3f3f46; font-size: 13px; }
+  .pop { position: absolute; right: 0; top: calc(100% + 6px); width: 300px; background: #fff; border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 12px 32px rgba(0,0,0,.14); padding: 12px; z-index: 5; }
+  .tabs.two { gap: 10px; }
+  .d-sec { margin-top: 22px; padding-top: 16px; border-top: 1px solid #f0efed; }
+  .d-sec-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px; }
+  .d-sec-head h3 { margin: 0; font-size: 15px; }
+  .textbtn { border: 0; background: none; color: #8a6d4f; cursor: pointer; font-size: 13px; padding: 0; }
+  .strip-photos { display: flex; gap: 8px; overflow-x: auto; }
+  .ph { flex: none; width: 128px; aspect-ratio: 4/3; border-radius: 10px; border: 0; background: #d8d2c8 center/cover no-repeat; cursor: pointer; }
+  .ph.add { background: var(--soft); color: var(--muted); font-size: 22px; border: 1px dashed #d6d0c6; }
+  .events { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
+  .events b { color: #8a6d4f; font-size: 12.5px; margin-right: 6px; }
+  .tag { font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 0 6px; }
+  .place-row { display: grid; grid-template-columns: 200px 1fr; gap: 14px; align-items: start; }
+  .map.mini { height: 110px; }
+  .ach-list { margin: 0 0 12px; padding-left: 20px; display: grid; gap: 10px; }
+  .ach-list li span { margin-right: 8px; }
+  .proof { border: 1px dashed #d6d0c6; background: none; color: var(--muted); border-radius: 999px; padding: 1px 8px; font-size: 12px; cursor: pointer; white-space: nowrap; }
+  .proof.has { border-style: solid; border-color: #ead5ad; background: var(--gold-soft); color: #8a6d4f; }
+  .gallery { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: grid; place-items: center; z-index: 20; }
+  .gallery-inner { width: min(900px, 92vw); max-height: 86vh; overflow: auto; background: #fff; border-radius: 16px; padding: 16px; }
+  .gallery-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .photos.big { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+  .summary-line { margin: 0; padding: 12px 24px 0; }
+
+  /* shared content */
+  h3.sec { margin: 18px 0 8px; font-size: 15px; }
+  h3.sec:first-child { margin-top: 0; }
+  ul.ach { margin: 0; padding-left: 18px; display: grid; gap: 7px; }
+  .people { display: grid; gap: 8px; }
+  .person { display: flex; gap: 10px; align-items: center; padding: 8px; border: 1px solid var(--line); border-radius: 10px; }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--gold-soft); color: #8a6d4f; display: grid; place-items: center; font-weight: 600; font-size: 12px; flex: none; }
+  .person small { color: var(--muted); display: block; }
+  .photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+  .photos div { aspect-ratio: 4/3; border-radius: 10px; background: #d8d2c8 center/cover no-repeat; }
+  dl.facts { display: grid; grid-template-columns: 130px 1fr; gap: 6px 12px; margin: 0; }
+  dl.facts dt { color: var(--muted); }
+  dl.facts dd { margin: 0; }
+  .empty { color: var(--muted); }
+  .map { height: 160px; border-radius: 10px; background: linear-gradient(135deg, #e8eef0, #dfe7df); position: relative; }
+  .map b { position: absolute; left: 55%; top: 45%; width: 14px; height: 14px; border-radius: 50%; background: var(--navy); border: 3px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+  form.edit { display: grid; gap: 10px; max-width: 620px; }
+  form.edit label { display: grid; gap: 4px; font-size: 13px; color: #3f3f46; }
+  form.edit input, form.edit textarea { font: inherit; padding: 7px 9px; border: 1px solid #d4d4d8; border-radius: 8px; }
+  form.edit .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .actions { display: flex; justify-content: flex-end; gap: 8px; }
+  .primary { background: var(--ink); color: #fff; border: 0; border-radius: 999px; padding: 7px 14px; cursor: pointer; }
+</style>
+</head>
+<body>
+  <div class="bar">
+    <strong>Layout</strong>
+    <button data-layout="d" aria-pressed="true">D · Banner, buttons, two tabs</button>
+    <button data-layout="r" aria-pressed="false">R1 · Text tabs</button>
+    <button data-layout="s" aria-pressed="false">R2 · One page</button>
+    <button data-layout="a" aria-pressed="false">A · Banner and tabs</button>
+    <button data-layout="b" aria-pressed="false">B · Header and tiles</button>
+    <button data-layout="c" aria-pressed="false">C · Story and side boxes</button>
+  </div>
+  <p class="note" id="note"></p>
+  <div class="app">
+    <aside class="panel"><div class="panel-head">Career history</div><div class="list" id="list"></div></aside>
+    <main class="main" id="main"></main>
+    <aside class="recent" id="recent"></aside>
+  </div>
+
+<script>
+const COVER = "/api/work-map/media/c656800b-bb76-4779-99d6-9a0ebc251f28";
+const ROLES = [
+  ["Giants Direct", "Mechatronics and Robotics Technician", "Jun 2024 – Present"],
+  ["Sharp Packaging", "Systems and Automation Technician", "Jan 2023 – Present"],
+  ["Waters Corp. TA Instruments", "Manufacturing Engineering Technician", "Mar 2022 – Sep 2022"],
+  ["Temple University", "Researcher, Temple Material Institute", "May 2021 – Aug 2021"],
+  ["Rowa Group LLC", "Technical Support Engineer", "Aug 2020 – Dec 2021"],
+  ["Amazon", "Package Handler", "Oct 2017 – Feb 2018"],
+];
+const GIANTS = {
+  cover: COVER, story: true, years: true,
+  company: "Giants Direct", title: "Mechatronics and Robotics Technician", place: "Lancaster, PA",
+  dates: "Jun 2024 – Present", current: true, tenure: "2y 5m",
+  summary: "Maintained Swisslog pick-and-place robotics and conveyors.",
+  website: "https://www.giantdirect.com", linkedin: "https://www.linkedin.com/showcase/giantdirect/",
+  achievements: [
+    "Performed routine preventive and predictive maintenance on robotic systems, reducing downtime.",
+    "Replaced and configured relays, contactors, power supplies, and circuit breakers.",
+    "Diagnosed equipment breakdowns and put corrective actions in place to keep production running.",
+    "Assembled, installed, and aligned conveyors, actuators, and fixtures.",
+    "Repaired robots and automated machinery: gearboxes, belts, and bearings.",
+    "Maintained robot safety systems: light curtains, safety gates, and emergency stops.",
+  ],
+  people: [["MR", "Maria R. (sample)", "Swisslog robotics technician · trained you"], ["DK", "Dan K. (sample)", "Integrated systems technician"]],
+  photos: [COVER, COVER, COVER],
+};
+let ROLE = GIANTS, roleIndex = 0;
+// Every other role in the list: what the list knows, nothing else saved yet, so empty states show.
+function bareRole([company, title, dates]) {
+  const current = /Present/.test(dates);
+  const places = { "Sharp Packaging": "Allentown, PA", "Waters Corp. TA Instruments": "New Castle, DE", "Temple University": "Philadelphia, PA", "Rowa Group LLC": "Croydon, PA", "Amazon": "Philadelphia, PA" };
+  return { cover: null, story: false, years: false, company, title, place: places[company] || "", dates, current, tenure: "", summary: "", website: "", linkedin: "", achievements: [], people: [], photos: [] };
+}
+const slug = (t) => t.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+const SECTIONS = [
+  ["achievements", "Achievements", () => ROLE.achievements.length, "6 things you did here"],
+  ["people", "Worked with", () => ROLE.people.length, "Who can vouch for it"],
+  ["photos", "Photos & events", () => ROLE.photos.length, "Your shots from the floor"],
+  ["places", "Places", () => 1, "Lancaster, PA"],
+  ["story", "Story", null, "Shift, team, and focus"],
+  ["conditions", "Work conditions", null, "On-site · day shift"],
+  ["evidence", "Evidence", () => 0, "Nothing linked yet"],
+];
+const NOTES = {
+  d: "D · Click any role on the left. Photos open a gallery from the banner (a cream banner when there is no photo). People are a face stack by the dates. Two tabs; small + buttons add things where they show. On the right: one History for the role, by year, with filters and a box to add a note or milestone.",
+  s: "R2 · Same three columns. The middle is one page that scrolls: overview, achievements, people, photos, places, evidence, under plain headings. The thin row at the top jumps to each.",
+  r: "R1 · Left: your roles, to switch quickly. Middle: the role, with its photo as a short banner and plain text tabs; it opens on Overview, the job in words. Right: the Recent panel, narrowed to this role, for notes and milestones as you go.",
+  a: "A · The role fills the right side like a page: your photo as a banner, then tabs. Achievements open first. Most room for reading; one section at a time.",
+  b: "B · A compact header, then a grid of tiles with counts. Click a tile to open it below. You see everything the role has at a glance, then dig in.",
+  c: "C · The role's story and achievements on the left of the space, with small boxes on the right (people, photos, places) that each open in full.",
+};
+let layout = "d", open = "overview", overlay = null, recentTab = "recent";
+const RECENT = {
+  recent: ROLE.achievements.slice(0, 4).map((a) => ["Achievement", a, "Jun 2024"]),
+  notes: [["Note (sample)", "Ask Maria for a reference before the review in March.", "Nov 2026"]],
+  milestones: [["Milestone (sample)", "Certified on the Swisslog pick-and-place cell.", "Feb 2025"]],
+};
+// What happened in the role, year by year (samples, except the start).
+const YEARS = [
+  ["2026", "So far", [
+    ["milestone", "Led the summer shutdown on the conveyor line", "Jul"],
+    ["achievement", "Cut robot downtime with a new preventive maintenance schedule", "Apr"],
+    ["note", "Asked Maria for a reference", "Mar"],
+  ]],
+  ["2025", "Year 2", [
+    ["event", "Peak season: covered weekend shifts for six weeks", "Nov"],
+    ["photo", "3 photos from the robotics floor", "Aug"],
+    ["person", "Started working with Dan K.", "May"],
+    ["milestone", "Certified on the Swisslog pick-and-place cell", "Feb"],
+  ]],
+  ["2024", "Started in June", [
+    ["achievement", "Took over preventive maintenance on the robotic systems", "Sep"],
+    ["person", "Trained by Maria R., Swisslog robotics technician", "Jun"],
+    ["start", "Started as Mechatronics and Robotics Technician", "Jun"],
+  ]],
+];
+const KIND = { milestone: "Milestone", achievement: "Achievement", note: "Note", event: "Event", photo: "Photos", person: "People", start: "Start" };
+let historyView = "years", openYears = new Set(["2026"]);
+// The role's change log, newest first. Samples, shaped like what Docier records.
+const HISTORY = [
+  ["Nov 22, 2026", "You", "Changed the summary", "Before: “Maintained robotics.”"],
+  ["Nov 20, 2026", "You", "Added a cover photo", null],
+  ["Nov 18, 2026", "You", "Set the place to Lancaster, PA", "Before: no place"],
+  ["Oct 3, 2026", "Resume import", "Added 6 achievements", "From your resume, after you checked them on Verify"],
+  ["Oct 3, 2026", "Resume import", "Created this role", "Giants Direct · Mechatronics and Robotics Technician · Jun 2024 – Present"],
+];
+const icon = {
+  web: '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.25"/><ellipse cx="8" cy="8" rx="2.35" ry="5.25"/><path d="M3 8h10"/></svg>',
+  person: '<svg viewBox="0 0 16 16"><circle cx="8" cy="5.75" r="2.15"/><path d="M3.6 13c.7-2.15 2.3-3.2 4.4-3.2s3.7 1.05 4.4 3.2"/></svg>',
+};
+const extLinks = () => `<a class="link" href="${ROLE.website}" target="_blank" rel="noreferrer">${icon.web}Website</a><a class="link" href="${ROLE.linkedin}" target="_blank" rel="noreferrer">${icon.person}LinkedIn</a>`;
+const metaLine = () => `<span>${ROLE.title}</span><span>·</span><span>${ROLE.place}</span><span>·</span><span>${ROLE.dates}</span>${ROLE.current ? '<span class="current">current</span>' : ""}<span>(${ROLE.tenure})</span>`;
+
+function content(id) {
+  switch (id) {
+    case "achievements": return `<ul class="ach">${ROLE.achievements.map((a) => `<li>${a}</li>`).join("")}</ul><p><button class="ghost">Add an achievement</button></p>`;
+    case "people": return `<div class="people">${ROLE.people.map(([i, n, r]) => `<div class="person"><span class="avatar">${i}</span><div>${n}<small>${r}</small></div></div>`).join("")}</div><p><button class="ghost">Add someone</button></p>`;
+    case "photos": return `<div class="photos">${ROLE.photos.map((p) => `<div style="background-image:url(${p})"></div>`).join("")}</div><p class="empty">No events yet.</p>`;
+    case "places": return `<div class="map"><b></b></div><dl class="facts" style="margin-top:10px"><dt>Main site</dt><dd>Lancaster, PA</dd></dl>`;
+    case "story": return `<p style="margin-top:0">${ROLE.summary}</p><p>On-site at an industrial food distribution facility, day shift. Trained by Swisslog robotics technicians and integrated-system technicians. Main focus: the pick-and-place robotics and conveyor systems.</p>`;
+    case "conditions": return `<dl class="facts"><dt>Where</dt><dd>On-site</dd><dt>Shift</dt><dd>Day</dd><dt>Industry</dt><dd>Food distribution</dd><dt>Pay</dt><dd class="empty">Not added (private)</dd></dl>`;
+    case "evidence": return `<p class="empty" style="margin-top:0">No evidence linked yet. Add an article, a credit, or a document.</p><button class="ghost">Add evidence</button>`;
+    case "edit": return `<form class="edit" onsubmit="return false"><label>Company<input value="${ROLE.company}"></label><label>Title<input value="${ROLE.title}"></label><label>Place<input value="${ROLE.place}"></label><div class="two"><label>Start<input value="2024-06"></label><label>End<input placeholder="Current" disabled></label></div><label><span><input type="checkbox" checked> I work here now</span></label><label>Summary<textarea rows="2">${ROLE.summary}</textarea></label><label>Achievements (one per line)<textarea rows="6">${ROLE.achievements.join("\n")}</textarea></label><div class="actions"><button class="ghost" data-open="achievements">Cancel</button><button class="primary" data-open="achievements">Save</button></div></form>`;
+  }
+  return "";
+}
+const label = (id) => id === "edit" ? "Edit role" : SECTIONS.find((s) => s[0] === id)[1];
+
+function layoutA() {
+  return `<div class="hero" style="background-image:url(${COVER})"><div class="hero-copy"><div><h1>${ROLE.company}</h1><p>${ROLE.title}</p></div><button class="ghost" data-open="edit">Edit</button></div></div>
+  <div class="strip"><span class="meta">${ROLE.place} · ${ROLE.dates} ${ROLE.current ? '<span class="current">current</span>' : ""} (${ROLE.tenure})</span>${extLinks()}</div>
+  <div class="tabs" role="tablist">${SECTIONS.map(([id, l, c]) => `<button role="tab" data-open="${id}" aria-selected="${open === id}">${l}${c ? `<span class="n">${c()}</span>` : ""}</button>`).join("")}</div>
+  <div class="pane">${open === "edit" ? `<h3 class="sec">Edit role</h3>` : ""}${content(open)}</div>`;
+}
+function layoutB() {
+  return `<div class="head"><div class="thumb" style="background-image:url(${COVER})"></div><div><h1>${ROLE.company}</h1><p class="meta">${metaLine()}</p><p style="margin-top:6px">${ROLE.summary}</p><div style="display:flex;gap:6px;margin-top:8px">${extLinks()}</div></div><button class="ghost spacer" data-open="edit">Edit</button></div>
+  <div class="tiles">${SECTIONS.map(([id, l, c, hint]) => `<button class="tile${open === id ? " on" : ""}" data-open="${id}"><span>${l}</span><b>${c ? c() : "›"}</b><small>${hint}</small></button>`).join("")}</div>
+  <div class="detail"><h3 class="sec">${label(open)}</h3>${content(open)}</div>`;
+}
+function layoutC() {
+  const box = (id, body) => `<div class="side-box"><h3>${label(id)}<button data-open="${id}">Open</button></h3>${body}</div>`;
+  const main = open === "achievements" || open === "story"
+    ? `<h3 class="sec">Achievements</h3>${content("achievements")}`
+    : `<h3 class="sec">${label(open)} <button class="ghost" data-open="achievements" style="float:right">Back</button></h3>${content(open)}`;
+  return `<div class="cols">
+    <div><article class="story-card"><div class="cover" style="background-image:url(${COVER})"></div><div class="copy"><div style="display:flex;justify-content:space-between;align-items:center"><h1>${ROLE.company}</h1><button class="ghost" data-open="edit">Edit</button></div><p class="meta" style="margin:4px 0 0">${metaLine()}</p><p>${ROLE.summary}</p><div style="display:flex;gap:6px">${extLinks()}</div></div></article>
+    <div style="margin-top:16px">${main}</div></div>
+    <div class="side">
+      ${box("people", ROLE.people.map(([i, n]) => `<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><span class="avatar">${i}</span>${n}</div>`).join(""))}
+      ${box("photos", `<div class="photos" style="grid-template-columns:repeat(3,1fr)">${ROLE.photos.map((p) => `<div style="background-image:url(${p})"></div>`).join("")}</div>`)}
+      ${box("places", `<div class="map" style="height:110px"><b></b></div>`)}
+      ${box("conditions", `<span class="empty">On-site · day shift</span>`)}
+      ${box("evidence", `<span class="empty">Nothing linked yet</span>`)}
+    </div></div>`;
+}
+
+const R_TABS = [["overview", "Overview"], ["achievements", "Achievements", () => ROLE.achievements.length], ["people", "People", () => ROLE.people.length], ["photos", "Photos", () => ROLE.photos.length], ["places", "Places"], ["evidence", "Evidence"]];
+function overviewText() {
+  if (!ROLE.story) return `<p class="empty" style="margin-top:0">${ROLE.summary || "No summary yet."} <button class="textbtn" data-open="edit">+ Add a few lines about the job</button></p>
+  <dl class="facts" style="margin-top:14px"><dt>Where</dt><dd>${ROLE.place || '<span class="empty">Not set</span>'}</dd><dt>Shift</dt><dd class="empty">Not set</dd><dt>Tools</dt><dd class="empty">Add the systems you worked on</dd></dl>`;
+  return `<p style="margin-top:0">${ROLE.summary}</p>
+  <p>On-site at an industrial food distribution facility, day shift. Trained by Swisslog robotics technicians and integrated-system technicians. Main focus: the pick-and-place robotics and conveyor systems.</p>
+  <dl class="facts" style="margin-top:14px"><dt>Where</dt><dd>On-site · Lancaster, PA</dd><dt>Shift</dt><dd>Day</dd><dt>Industry</dt><dd>Food distribution</dd><dt>Tools</dt><dd class="empty">Add the systems you worked on</dd></dl>`;
+}
+function roleHead() {
+  return `<div class="hero slim" style="background-image:url(${COVER})"><div class="hero-copy"><div><h1>${ROLE.company}</h1><p>${ROLE.title}</p></div><button class="ghost" data-open="edit">Edit</button></div></div>
+  <div class="strip"><span class="meta">${ROLE.place} · ${ROLE.dates} ${ROLE.current ? '<span class="current">current</span>' : ""} (${ROLE.tenure})</span>${extLinks()}</div>`;
+}
+function layoutR() {
+  if (!R_TABS.some(([id]) => id === open) && open !== "edit") open = "overview";
+  const body = open === "overview" ? overviewText() : content(open);
+  return `${roleHead()}
+  <div class="tabs" role="tablist">${R_TABS.map(([id, l, c]) => `<button role="tab" data-open="${id}" aria-selected="${open === id}">${l}${c ? `<span class="n">${c()}</span>` : ""}</button>`).join("")}</div>
+  <div class="pane">${open === "edit" ? `<h3 class="sec">Edit role</h3>` : ""}${body}</div>`;
+}
+function layoutS() {
+  const part = (id, title, body) => `<section id="sec-${id}" class="onepage"><h3 class="sec">${title}</h3>${body}</section>`;
+  return `${roleHead()}
+  <nav class="jump">${R_TABS.map(([id, l, c]) => `<a href="#sec-${id}">${l}${c ? ` <span class="n">${c()}</span>` : ""}</a>`).join("")}</nav>
+  <div class="pane">${open === "edit" ? `<h3 class="sec">Edit role</h3>${content("edit")}` :
+    part("overview", "Overview", overviewText()) + part("achievements", "Achievements", content("achievements")) + part("people", "People", content("people")) + part("photos", "Photos", content("photos")) + part("places", "Places", content("places")) + part("evidence", "Evidence", content("evidence"))}</div>`;
+}
+function recentPanel() {
+  return `<div class="seg" role="tablist">${[["recent", "Recent"], ["notes", "Notes"], ["milestones", "Milestones"], ["history", "History"]].map(([k, l]) => `<button role="tab" data-recent="${k}" aria-selected="${recentTab === k}">${l}</button>`).join("")}</div>
+  <p class="recent-scope">Only ${ROLE.company} · <a href="#" onclick="return false">show all</a></p>
+  ${recentTab === "history" ? `<div class="hist-switch"><button data-hview="years" aria-pressed="${historyView === "years"}">By year</button><button data-hview="edits" aria-pressed="${historyView === "edits"}">Edits</button></div>` : ""}
+  ${recentTab === "history" && historyView === "years"
+    ? `<div class="years">${YEARS.map(([y, sub, items]) => `<section class="year"><button data-year="${y}" aria-expanded="${openYears.has(y)}"><b>${y}</b><span>${sub}</span><i>${items.length} ${openYears.has(y) ? "▴" : "▾"}</i></button>${openYears.has(y) ? `<ol>${items.map(([k, t, m]) => `<li><small>${m}</small><span class="k">${KIND[k]}</span><span class="t">${t}</span></li>`).join("")}</ol>` : ""}</section>`).join("")}</div>`
+    : recentTab === "history"
+    ? `<ol class="log">${HISTORY.map(([d, who, what, more], i) => `<li><b>${what}</b>${more ? `<p>${more}</p>` : ""}<small>${d} · ${who}</small>${i < 3 ? '<button class="undo">Undo</button>' : ""}</li>`).join("")}</ol>`
+    : `<div class="recent-list">${RECENT[recentTab].map(([k, t, d]) => `<div class="entry"><b>${k}</b><p>${t}</p><small>${d}</small></div>`).join("")}</div>`}
+  ${recentTab === "recent" || recentTab === "history" ? "" : `<div class="compose"><input placeholder="Add a ${recentTab === "notes" ? "note" : "milestone"}…"><button class="ghost">Add</button></div>`}`;
+}
+
+const PROOF = [1, 0, 0, 2, 0, 0]; // sample evidence counts per achievement
+function layoutD() {
+  if (open !== "overview" && open !== "achievements" && open !== "edit") open = "overview";
+  const n = ROLE.photos.length;
+  const faces = ROLE.people.map(([i]) => `<span class="face">${i}</span>`).join("");
+  const peopleBtn = ROLE.people.length
+    ? `<button class="faces" data-overlay="people" aria-expanded="${overlay === "people"}">${faces}<span>Worked with ${ROLE.people.length}</span></button>`
+    : `<button class="textbtn" data-overlay="people">+ Who you worked with</button>`;
+  const pop = overlay === "people" ? `<div class="pop">${ROLE.people.length ? content("people") : `<p class="empty" style="margin-top:0">Add the people from this job. They join My Network, linked to ${ROLE.company}.</p><button class="ghost">Add someone</button>`}</div>` : "";
+  const overviewBody = `${overviewText()}
+    <section class="d-sec"><div class="d-sec-head"><h3>Photos &amp; events</h3>${n ? '<button class="textbtn" data-overlay="gallery">See all</button>' : ""}</div>
+      <div class="strip-photos">${ROLE.photos.map((p, i) => `<button class="ph" data-overlay="gallery" style="background-image:url(${p})" aria-label="Photo ${i + 1}"></button>`).join("")}<button class="ph add" aria-label="Add a photo">+</button></div>
+      <ul class="events">${ROLE.years ? '<li><b>Nov 2025</b> Peak season: covered weekend shifts for six weeks <span class="tag">sample</span></li>' : ""}<li><button class="textbtn">+ Add an event</button> <span class="empty">such as a launch, a shutdown, or an award</span></li></ul></section>
+    <section class="d-sec"><div class="d-sec-head"><h3>Places</h3><button class="textbtn">+ Add a site</button></div>
+      <div class="place-row"><div class="map mini"><b></b></div><dl class="facts"><dt>Main site</dt><dd>${ROLE.place || '<span class="empty">Not set</span>'}</dd><dt>Client sites</dt><dd class="empty">None yet</dd><dt>Travel</dt><dd class="empty">None yet</dd></dl></div></section>`;
+  const achBody = ROLE.achievements.length
+    ? `<ol class="ach-list">${ROLE.achievements.map((a, i) => `<li><span>${a}</span><button class="proof${PROOF[i] ? " has" : ""}" title="Evidence for this achievement">${PROOF[i] ? `${PROOF[i]} proof` : "+ proof"}</button></li>`).join("")}</ol><button class="textbtn">+ Add an achievement</button>`
+    : `<p class="empty" style="margin-top:0">No achievements yet. What are you proud of from ${ROLE.company}?</p><button class="textbtn">+ Add an achievement</button>`;
+  const body = open === "edit" ? `<h3 class="sec">Edit role</h3>${content("edit")}` : open === "achievements" ? achBody : overviewBody;
+  const icons = [ROLE.website && `<a class="round" href="${ROLE.website}" target="_blank" rel="noreferrer" title="Website">${icon.web}</a>`, ROLE.linkedin && `<a class="round" href="${ROLE.linkedin}" target="_blank" rel="noreferrer" title="LinkedIn">${icon.person}</a>`].filter(Boolean).join("");
+  const heroStyle = ROLE.cover ? `style="background-image:url(${ROLE.cover})"` : "";
+  return `<div class="hero d${ROLE.cover ? "" : " cream"}" ${heroStyle}>
+      ${icons ? `<div class="hero-icons">${icons}</div>` : ""}
+      <div class="hero-copy"><div><h1>${ROLE.company}</h1><p>${ROLE.title}</p></div>
+        <div class="hero-btns">${n ? `<button class="glass" data-overlay="gallery">▦ ${n} photos</button>` : `<button class="glass">+ Add photos</button>`}<button class="glass" data-open="edit">Edit</button></div></div></div>
+    <div class="strip"><span class="meta">${[ROLE.place, ROLE.dates].filter(Boolean).join(" · ")} ${ROLE.current ? '<span class="current">current</span>' : ""} ${ROLE.tenure ? `(${ROLE.tenure})` : ""}</span>
+      <span class="pop-wrap">${peopleBtn}${pop}</span></div>
+    <div class="tabs two" role="tablist"><button role="tab" data-open="overview" aria-selected="${open === "overview"}">Overview</button><button role="tab" data-open="achievements" aria-selected="${open === "achievements"}">Achievements${ROLE.achievements.length ? `<span class="n">${ROLE.achievements.length}</span>` : ""}</button></div>
+    <div class="pane">${body}</div>
+    ${overlay === "gallery" && n ? `<div class="gallery" data-overlay-close><div class="gallery-inner"><div class="gallery-head"><b>${ROLE.company} · Photos</b><button class="ghost" data-overlay-close>Close</button></div><div class="photos big">${ROLE.photos.map((p) => `<div style="background-image:url(${p})"></div>`).join("")}</div></div></div>` : ""}`;
+}
+
+// D's right panel: one History, with a header, search, filter, and sort, and a box to add.
+let histFilter = "all", composeKind = "note", histSearch = "", histSort = "newest";
+function histList() {
+  const q = histSearch.trim().toLowerCase();
+  if (histFilter === "edits") {
+    if (!ROLE.years) return `<p class="empty hp-empty">Created from your resume. No edits since.</p>`;
+    let edits = HISTORY.filter(([d, who, what, more]) => !q || `${what} ${more || ""} ${who}`.toLowerCase().includes(q));
+    if (histSort === "oldest") edits = [...edits].reverse();
+    return edits.length ? `<ol class="log">${edits.map(([d, who, what, more], i) => `<li><b>${what}</b>${more ? `<p>${more}</p>` : ""}<small>${d} · ${who}</small>${histSort === "newest" && i < 3 ? '<button class="undo">Undo</button>' : ""}</li>`).join("")}</ol>` : `<p class="empty hp-empty">No edits match “${histSearch}”.</p>`;
+  }
+  const base = ROLE.years ? YEARS : [[(ROLE.dates.match(/\d{4}/) || ["—"])[0], "Started", [["start", `Started as ${ROLE.title}`, ROLE.dates.split(" ")[0] || ""]]]];
+  let years = base.map(([y, sub, items]) => [y, sub, items.filter(([k, t]) => (histFilter === "all" || k === histFilter) && (!q || t.toLowerCase().includes(q)))]).filter(([, , items]) => items.length);
+  if (histSort === "oldest") years = [...years].reverse().map(([y, sub, items]) => [y, sub, [...items].reverse()]);
+  if (!years.length) return `<p class="empty hp-empty">${q ? `Nothing matches “${histSearch}”.` : "Nothing here yet."}</p>`;
+  const forceOpen = Boolean(q);
+  return `<div class="years">${years.map(([y, sub, items]) => { const isOpen = forceOpen || openYears.has(y); return `<section class="year"><button data-year="${y}" aria-expanded="${isOpen}"><b>${y}</b><span>${sub}</span><i>${items.length} ${isOpen ? "▴" : "▾"}</i></button>${isOpen ? `<ol>${items.map(([k, t, m]) => `<li><small>${m}</small><span class="k">${KIND[k]}</span><span class="t">${t}</span></li>`).join("")}</ol>` : ""}</section>`; }).join("")}</div>`;
+}
+function historyPanel() {
+  const span = (ROLE.dates || "").replace("Present", "now");
+  const opt = (v, l, cur) => `<option value="${v}"${cur === v ? " selected" : ""}>${l}</option>`;
+  return `<header class="hp-head">
+      <div class="hp-mark" aria-hidden="true">${ROLE.cover ? `<span style="background-image:url(${ROLE.cover})"></span>` : `<span class="cream-dot">${ROLE.company[0]}</span>`}</div>
+      <div><b>History</b><small>${ROLE.company} · ${span}</small></div>
+    </header>
+    <div class="hp-tools">
+      <label class="hp-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="m20 20-3.6-3.6"/></svg><input id="hp-q" type="search" placeholder="Search…" value="${histSearch.replace(/"/g, "&quot;")}" aria-label="Search this role's history"></label>
+      <select id="hp-filter" aria-label="Show">${opt("all", "All", histFilter)}${opt("note", "Notes", histFilter)}${opt("milestone", "Milestones", histFilter)}${opt("achievement", "Achievements", histFilter)}${opt("edits", "Edits", histFilter)}</select>
+      <select id="hp-sort" aria-label="Order">${opt("newest", "Newest", histSort)}${opt("oldest", "Oldest", histSort)}</select>
+    </div>
+    <div id="hp-list" class="hp-list">${histList()}</div>
+    <div class="compose stack"><div class="kind">${[["note", "Note"], ["milestone", "Milestone"]].map(([k, l]) => `<button data-ckind="${k}" aria-pressed="${composeKind === k}">${l}</button>`).join("")}</div><div style="display:flex;gap:6px"><input placeholder="Add a ${composeKind}…"><button class="ghost">Add</button></div></div>`;
+}
+document.addEventListener("input", (e) => {
+  if (e.target.id === "hp-q") { histSearch = e.target.value; document.getElementById("hp-list").innerHTML = histList(); }
+});
+document.addEventListener("change", (e) => {
+  if (e.target.id === "hp-filter") { histFilter = e.target.value; document.getElementById("hp-list").innerHTML = histList(); }
+  if (e.target.id === "hp-sort") { histSort = e.target.value; document.getElementById("hp-list").innerHTML = histList(); }
+});
+
+function render() {
+  document.getElementById("note").textContent = NOTES[layout];
+  const groups = `<div class="group">Jobs (9)</div>` + ROLES.map(([c, t, d], i) => `<button class="role-row${i === roleIndex ? " on" : ""}" data-role="${i}"><b>${c}${i < 2 ? ' <span class="current">current</span>' : ""}</b><span>${t}</span><br><span>${d}</span></button>`).join("");
+  document.getElementById("list").innerHTML = groups;
+  const three = layout === "r" || layout === "s" || layout === "d";
+  document.querySelector(".app").classList.toggle("with-recent", three);
+  document.getElementById("recent").innerHTML = layout === "d" ? historyPanel() : three ? recentPanel() : "";
+  document.getElementById("main").innerHTML = layout === "d" ? layoutD() : layout === "r" ? layoutR() : layout === "s" ? layoutS() : layout === "a" ? layoutA() : layout === "b" ? layoutB() : layoutC();
+}
+document.addEventListener("click", (e) => {
+  const l = e.target.closest("[data-layout]");
+  if (l) { layout = l.dataset.layout; overlay = null; open = layout === "r" || layout === "s" || layout === "d" ? "overview" : "achievements"; document.querySelectorAll("[data-layout]").forEach((b) => b.setAttribute("aria-pressed", String(b === l))); return render(); }
+  const rr = e.target.closest("[data-role]");
+  if (rr) {
+    roleIndex = Number(rr.dataset.role);
+    ROLE = roleIndex === 0 ? GIANTS : bareRole(ROLES[roleIndex]);
+    overlay = null;
+    if (open === "edit") open = "overview";
+    openYears = new Set(ROLE.years ? ["2026"] : [(ROLE.dates.match(/\d{4}/) || [""])[0]]);
+    history.replaceState(null, "", `#role=${slug(ROLE.company)}`);
+    return render();
+  }
+  const hf = e.target.closest("[data-hfilter]");
+  if (hf) { histFilter = hf.dataset.hfilter; return render(); }
+  const ck = e.target.closest("[data-ckind]");
+  if (ck) { composeKind = ck.dataset.ckind; return render(); }
+  const ov = e.target.closest("[data-overlay]");
+  if (ov) { overlay = overlay === ov.dataset.overlay ? null : ov.dataset.overlay; return render(); }
+  if (e.target.matches("[data-overlay-close]") || e.target.closest("button[data-overlay-close]")) { overlay = null; return render(); }
+  if (overlay === "people" && !e.target.closest(".pop")) { overlay = null; render(); }
+  const hv = e.target.closest("[data-hview]");
+  if (hv) { historyView = hv.dataset.hview; return render(); }
+  const yr = e.target.closest("[data-year]");
+  if (yr) { const y = yr.dataset.year; openYears.has(y) ? openYears.delete(y) : openYears.add(y); return render(); }
+  const rt = e.target.closest("[data-recent]");
+  if (rt) { recentTab = rt.dataset.recent; return render(); }
+  const o = e.target.closest("[data-open]");
+  if (o) { open = o.dataset.open; render(); }
+});
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && overlay) { overlay = null; render(); } });
+const start = new URLSearchParams(location.search).get("layout");
+if (start && NOTES[start]) document.querySelector(`[data-layout="${start}"]`).click(); else render();
+</script>
+</body>
+</html>

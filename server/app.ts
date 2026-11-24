@@ -1,3 +1,5 @@
+import { answerReceivedAsk, readReceivedAsk, ReceivedAskError } from "./received-asks";
+import { linkRolePerson, RolePeopleError, unlinkRolePerson, updateRolePersonLink } from "./role-people";
 import { Hono, type Context } from "hono";
 import type { DatabaseSync } from "node:sqlite";
 import { isFrameTarget, pageAllowsFrame, PRODUCT, type ApplicationStage } from "../core/index";
@@ -300,9 +302,15 @@ import {
   saveSharedCanvas,
   saveCanvasAction,
   saveWorkMapDetails,
+  saveWorkSetup,
+  saveGear,
+  saveReflection,
+  undoRoleEdit,
+  savePayAndBenefits,
   saveWorkMapSettings,
   updateWorkMapLocation,
   updateWorkMapRole,
+  updateRoleAchievement,
   addLinkedEvidence,
   lookupLinkedPage,
   removeLinkedEvidence,
@@ -317,6 +325,8 @@ import {
 } from "./page-capture";
 
 export type AppOptions = {
+  /** Reads a request link someone sent, to answer it from here; defaults to fetch. */
+  askFetch?: typeof fetch;
   uploadsDir?: string;
   extract?: ResumeExtractDeps;
   relay?: ProjectionRelay;
@@ -1424,6 +1434,29 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
     }
   });
 
+  // The month one achievement happened, so it lands in the right year of the role's history.
+  app.put("/api/work-map/roles/:id/achievements/:achievementId", async (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      const achievement = updateRoleAchievement(
+        db,
+        occupant.id,
+        c.req.param("id"),
+        c.req.param("achievementId"),
+        (await c.req.json()) as Record<string, unknown>,
+      );
+      return c.json({ achievement });
+    } catch (error) {
+      if (error instanceof WorkMapStoreError) {
+        return c.json(
+          { error: error.code },
+          error.code === "role-missing" || error.code === "achievement-missing" ? 404 : 400,
+        );
+      }
+      throw error;
+    }
+  });
+
   app.put("/api/work-map/roles/:id/details", async (c) => {
     const occupant = ensureOccupant(db);
     try {
@@ -1438,6 +1471,171 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
       if (error instanceof WorkMapStoreError) {
         return c.json({ error: error.code }, 400);
       }
+      throw error;
+    }
+  });
+
+  // A role's work setup: schedule, shifts, team, and growth, saved together.
+  app.put("/api/work-map/roles/:id/work-setup", async (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      const saved = saveWorkSetup(
+        db,
+        occupant.id,
+        c.req.param("id"),
+        (await c.req.json().catch(() => ({}))) as Record<string, unknown>,
+      );
+      if (!saved.ok) return c.json({ error: saved.error }, 400);
+      return c.json({ details: saved.details });
+    } catch (error) {
+      if (error instanceof WorkMapStoreError) {
+        return c.json({ error: error.code }, 404);
+      }
+      throw error;
+    }
+  });
+
+  // A role's pay and benefits, saved together. Never published from here.
+  app.put("/api/work-map/roles/:id/pay", async (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      const saved = savePayAndBenefits(
+        db,
+        occupant.id,
+        c.req.param("id"),
+        (await c.req.json().catch(() => ({}))) as Record<string, unknown>,
+      );
+      if (!saved.ok) return c.json({ error: saved.error }, 400);
+      return c.json({ details: saved.details });
+    } catch (error) {
+      if (error instanceof WorkMapStoreError) {
+        return c.json({ error: error.code }, 404);
+      }
+      throw error;
+    }
+  });
+
+  // Undo one change to a role, if nothing has changed the same thing since.
+  app.post("/api/work-map/roles/:id/edits/:editId/undo", async (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      const undone = await undoRoleEdit(db, occupant.id, c.req.param("id"), c.req.param("editId"));
+      if (!undone.ok) return c.json({ error: undone.error }, undone.error === "edit-missing" ? 404 : 409);
+      return c.json({ ok: true });
+    } catch (error) {
+      if (error instanceof WorkMapStoreError) {
+        return c.json({ error: error.code }, 404);
+      }
+      throw error;
+    }
+  });
+
+  // A role's equipment and uniform.
+  app.put("/api/work-map/roles/:id/gear", async (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      const saved = saveGear(
+        db,
+        occupant.id,
+        c.req.param("id"),
+        (await c.req.json().catch(() => ({}))) as Record<string, unknown>,
+      );
+      if (!saved.ok) return c.json({ error: saved.error }, 400);
+      return c.json({ details: saved.details });
+    } catch (error) {
+      if (error instanceof WorkMapStoreError) {
+        return c.json({ error: error.code }, 404);
+      }
+      throw error;
+    }
+  });
+
+  // How a role looks in hindsight.
+  app.put("/api/work-map/roles/:id/reflection", async (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      const saved = saveReflection(
+        db,
+        occupant.id,
+        c.req.param("id"),
+        (await c.req.json().catch(() => ({}))) as Record<string, unknown>,
+      );
+      if (!saved.ok) return c.json({ error: saved.error }, 400);
+      return c.json({ details: saved.details });
+    } catch (error) {
+      if (error instanceof WorkMapStoreError) {
+        return c.json({ error: error.code }, 404);
+      }
+      throw error;
+    }
+  });
+
+  // People worked with on a role: link someone in My Network or add someone new.
+  const rolePeopleStatus = (code: RolePeopleError["code"]) =>
+    code === "role-missing" || code === "contact-missing" || code === "link-missing"
+      ? 404
+      : code === "already-linked"
+        ? 409
+        : 400;
+  app.post("/api/work-map/roles/:id/people", async (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      const person = linkRolePerson(db, occupant.id, c.req.param("id"), (await c.req.json()) as Record<string, unknown>);
+      return c.json({ person }, 201);
+    } catch (error) {
+      if (error instanceof RolePeopleError) return c.json({ error: error.code }, rolePeopleStatus(error.code));
+      throw error;
+    }
+  });
+
+  app.put("/api/work-map/roles/:id/people/:linkId", async (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      const person = updateRolePersonLink(
+        db,
+        occupant.id,
+        c.req.param("id"),
+        c.req.param("linkId"),
+        (await c.req.json()) as Record<string, unknown>,
+      );
+      return c.json({ person });
+    } catch (error) {
+      if (error instanceof RolePeopleError) return c.json({ error: error.code }, rolePeopleStatus(error.code));
+      throw error;
+    }
+  });
+
+  app.delete("/api/work-map/roles/:id/people/:linkId", (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      unlinkRolePerson(db, occupant.id, c.req.param("id"), c.req.param("linkId"));
+      return c.json({ ok: true });
+    } catch (error) {
+      if (error instanceof RolePeopleError) return c.json({ error: error.code }, rolePeopleStatus(error.code));
+      throw error;
+    }
+  });
+
+  // A request someone sent you, answered from this Docier by pasting its link (#169).
+  const askFetch = options.askFetch ?? fetch;
+  const receivedAskStatus = (code: ReceivedAskError["code"]) =>
+    code === "role-missing" ? 404 : code === "request-closed" ? 409 : code === "link-unreachable" ? 502 : 400;
+  app.post("/api/received-asks/read", async (c) => {
+    try {
+      const body = (await c.req.json()) as Record<string, unknown>;
+      return c.json(await readReceivedAsk(db, ensureOccupant(db).id, askFetch, body.link));
+    } catch (error) {
+      if (error instanceof ReceivedAskError) return c.json({ error: error.code }, receivedAskStatus(error.code));
+      throw error;
+    }
+  });
+
+  app.post("/api/received-asks/answer", async (c) => {
+    try {
+      const body = (await c.req.json()) as Record<string, unknown>;
+      return c.json(await answerReceivedAsk(db, ensureOccupant(db).id, askFetch, body));
+    } catch (error) {
+      if (error instanceof ReceivedAskError) return c.json({ error: error.code }, receivedAskStatus(error.code));
       throw error;
     }
   });
@@ -2859,7 +3057,7 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
   const requestError = (c: Context, error: unknown) => {
     if (error instanceof RequestStoreError) {
       const status =
-        error.code === "not-found" || error.code === "contact-missing"
+        error.code === "not-found" || error.code === "contact-missing" || error.code === "role-link-missing"
           ? 404
           : error.code === "relay-not-configured" || error.code === "request-closed" || error.code === "request-open"
             ? 409

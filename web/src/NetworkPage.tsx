@@ -1,3 +1,4 @@
+import { formatHistoryPeriod } from "@core/career-history";
 import { useEffect, useRef, useState } from "react";
 import { AlertDialog } from "@astryxdesign/core/AlertDialog";
 import { Badge } from "@astryxdesign/core/Badge";
@@ -24,6 +25,8 @@ type NetworkContact = {
   email: string;
   unread_inbound?: number;
   photo_url?: string | null;
+  /** Roles this person is linked to, as someone worked with there. */
+  roles?: Array<{ roleId: string; organization: string; title: string; startDate: string; endDate: string; isCurrent: boolean }>;
 };
 
 /** Same limits as the profile photo. */
@@ -418,6 +421,18 @@ export function NetworkPage() {
                     {[selected.role, selected.organization, selected.email].filter(Boolean).join(" · ") ||
                       "No details yet"}
                   </p>
+                  {selected.roles && selected.roles.length > 0 ? (
+                    <p className="network-roles">
+                      <span>Worked with you at</span>
+                      {selected.roles.map((item) => (
+                        <a key={item.roleId} href={`#/history/${encodeURIComponent(item.roleId)}`}>
+                          {[item.organization || item.title || "A role", formatHistoryPeriod(item.startDate, item.endDate, item.isCurrent).replace("Present", "now")]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </a>
+                      ))}
+                    </p>
+                  ) : null}
                 </div>
                 <HStack gap={2}>
                   <Button label="Edit" variant="secondary" size="sm" onClick={() => openEdit(selected)} />

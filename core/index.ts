@@ -192,6 +192,7 @@ export {
   identicalRoleReviews,
   formatHistoryGist,
   formatHistoryPlace,
+  formatHistoryPeriod,
   groupCareerHistory,
   presentCareerHistoryStats,
   searchCareerHistory,
@@ -426,6 +427,7 @@ export {
   attachFactsToWorkMapRole,
   buildWorkMapSnapshot,
   groupLinkedEvidence,
+  resolveAchievementPin,
   isLinkedEvidenceUrl,
   linkedEvidenceFromPage,
   normalizeSlug,
@@ -491,6 +493,11 @@ export {
 } from "./canvas-board";
 export {
   achievementStatement,
+  prepareAchievementDate,
+  prepareAchievementLinks,
+  prepareAchievementTitle,
+  liveAchievementLinks,
+  type AchievementLinks,
   readRoleAchievements,
   reconcileRoleAchievements,
   roleAchievementStatements,
@@ -556,6 +563,9 @@ export {
   type RequestDecision,
   type RequestError,
   type RequestKind,
+  type RequestRoleContext,
+  type RequestAnsweredFrom,
+  COMPOSABLE_REQUEST_KINDS,
   type RequestRecipient,
   type SentRequestStatus,
 } from "./requests";
@@ -608,3 +618,17 @@ export {
   type TourStep,
   type WelcomeTile,
 } from "./first-run";
+export {
+  roleHistory,
+  type RoleHistoryFilter,
+  type RoleHistoryItem,
+  type RoleHistoryKind,
+  type RoleHistoryYear,
+} from "./role-history";
+export {
+  colleagueToContact,
+  matchContacts,
+  prepareRolePersonLink,
+  suggestRolePeople,
+  type RolePerson,
+} from "./role-people";

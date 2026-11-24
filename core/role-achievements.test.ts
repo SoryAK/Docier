@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   achievementStatement,
+  prepareAchievementDate,
+  prepareAchievementLinks,
+  prepareAchievementTitle,
   readRoleAchievements,
   reconcileRoleAchievements,
   roleAchievementStatements,
@@ -69,5 +72,76 @@ describe("role achievements", () => {
   it("returns the current statement for an achievement id", () => {
     expect(achievementStatement(["Old", "Current"], ["a", "b"], "b")).toBe("Current");
     expect(achievementStatement(["Old"], ["a"], "missing")).toBeNull();
+  });
+
+  it("keeps an achievement's month through reading, rewording, and reordering", () => {
+    const stored = JSON.stringify([
+      { id: "a", statement: "Cut downtime", date: "2025-04" },
+      { id: "b", statement: "Trained two technicians", date: "2025-13" },
+      { id: "c", statement: "Rebuilt the conveyor", date: "  " },
+    ]);
+    const read = readRoleAchievements(stored, () => "new");
+    expect(read.items).toEqual([
+      { id: "a", statement: "Cut downtime", date: "2025-04" },
+      { id: "b", statement: "Trained two technicians" },
+      { id: "c", statement: "Rebuilt the conveyor" },
+    ]);
+    // A bad month is dropped on read, and that counts as a change to save.
+    expect(read.changed).toBe(true);
+    const next = reconcileRoleAchievements(read.items, ["Rebuilt the conveyor", "Cut robot downtime by a third"], () => "new");
+    expect(next).toEqual([
+      { id: "c", statement: "Rebuilt the conveyor" },
+      { id: "a", statement: "Cut robot downtime by a third", date: "2025-04" },
+    ]);
+  });
+
+  it("reads a month for an achievement, or clears it", () => {
+    expect(prepareAchievementDate("2025-04")).toEqual({ ok: true, value: "2025-04" });
+    expect(prepareAchievementDate("2025-04-17")).toEqual({ ok: true, value: "2025-04" });
+    expect(prepareAchievementDate("")).toEqual({ ok: true, value: "" });
+    expect(prepareAchievementDate(null)).toEqual({ ok: true, value: "" });
+    expect(prepareAchievementDate("April")).toEqual({ ok: false, error: "date-invalid" });
+    expect(prepareAchievementDate("2025-00")).toEqual({ ok: false, error: "date-invalid" });
+  });
+
+  it("keeps an achievement's links through reading and rewording, dropping what isn't a link", () => {
+    const stored = JSON.stringify([
+      {
+        id: "a",
+        statement: "Cut downtime",
+        links: { people: ["p1", 7], moments: ["m1"], places: ["s1"], skills: [" PLC troubleshooting ", "plc troubleshooting", ""] },
+      },
+    ]);
+    const read = readRoleAchievements(stored, () => "new");
+    expect(read.items[0]).toEqual({
+      id: "a",
+      statement: "Cut downtime",
+      links: { people: ["p1"], moments: ["m1"], places: ["s1"], skills: ["PLC troubleshooting"] },
+    });
+    const next = reconcileRoleAchievements(read.items, ["Cut downtime by a third"], () => "new");
+    expect(next[0]!.links).toEqual({ people: ["p1"], moments: ["m1"], places: ["s1"], skills: ["PLC troubleshooting"] });
+  });
+
+  it("reads links for an achievement", () => {
+    expect(prepareAchievementLinks({ people: ["p1", "p1"], skills: ["Swisslog robotics", " swisslog robotics "] })).toEqual({
+      ok: true,
+      value: { people: ["p1"], moments: [], places: [], skills: ["Swisslog robotics"] },
+    });
+    expect(prepareAchievementLinks({ skills: ["x".repeat(61)] })).toEqual({ ok: false, error: "links-invalid" });
+    expect(prepareAchievementLinks({ people: "p1" })).toEqual({ ok: false, error: "links-invalid" });
+    expect(prepareAchievementLinks(null)).toEqual({ ok: false, error: "links-invalid" });
+  });
+
+  it("keeps a short title on an achievement through reading and rewording", () => {
+    const read = readRoleAchievements(JSON.stringify([{ id: "a", statement: "Cut downtime across the line", title: "  Cut downtime  " }]), () => "new");
+    expect(read.items[0]).toEqual({ id: "a", statement: "Cut downtime across the line", title: "Cut downtime" });
+    expect(reconcileRoleAchievements(read.items, ["Cut downtime across both lines"], () => "new")[0]).toEqual({
+      id: "a",
+      statement: "Cut downtime across both lines",
+      title: "Cut downtime",
+    });
+    expect(prepareAchievementTitle("  Cut downtime ")).toEqual({ ok: true, value: "Cut downtime" });
+    expect(prepareAchievementTitle("")).toEqual({ ok: true, value: "" });
+    expect(prepareAchievementTitle("x".repeat(81))).toEqual({ ok: false, error: "title-too-long" });
   });
 });

@@ -1,3 +1,20 @@
+import { moveColleaguesToNetwork, readRolePeople } from "./role-people";
+import {
+  logRoleEvent,
+  markUndone,
+  readRoleEdits,
+  readRoleFields,
+  readStoredEdit,
+  recordDetailsEdit,
+  recordFieldsEdit,
+  removeRoleEdits,
+  type StoredEdit,
+} from "./role-edits";
+import { prepareWorkSetup, type WorkSetupError } from "../core/role-work-setup";
+import { undoBlock, type RoleEditBlock, type RoleFields } from "../core/role-edits";
+import { preparePayAndBenefits, type PayError } from "../core/role-pay";
+import { equipmentFromNames, prepareGear, type EquipmentItem, type GearError } from "../core/role-gear";
+import { prepareReflection, type ReflectionError } from "../core/role-reflection";
 import { createHash, randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -30,8 +47,14 @@ import {
   prepareWorkMapRoleDraft,
   prepareWorkMapRoleDelete,
   readCanvasBoards,
+  prepareAchievementDate,
+  prepareAchievementLinks,
+  prepareAchievementTitle,
+  liveAchievementLinks,
+  type AchievementLinks,
   readRoleAchievements,
   reconcileRoleAchievements,
+  resolveAchievementPin,
   nominatimAddressLine,
   presentWorkMapPlace,
   type WorkMapLocation,
@@ -69,6 +92,7 @@ type JsonObject = Record<string, unknown>;
 
 export function readWorkMap(db: DatabaseSync, occupantId: string) {
   backfillCareerMemory(db, occupantId);
+  moveColleaguesToNetwork(db, occupantId);
   const career = loadCareerFile(db, occupantId);
   const facts = readCareerMemory(db, occupantId).facts;
   const records = db
@@ -106,6 +130,7 @@ export async function updateWorkMapRole(
 ) {
   requireRole(db, occupantId, roleId);
   backfillCareerMemory(db, occupantId);
+  const beforeFields = readRoleFields(db, occupantId, roleId)!;
   const existing = db
     .prepare(
       `SELECT kind, title, company, location, start_date, end_date, is_current,
@@ -154,6 +179,13 @@ export async function updateWorkMapRole(
     roleId,
     occupantId,
   );
+  recordFieldsEdit(db, occupantId, roleId, beforeFields, readRoleFields(db, occupantId, roleId)!);
+  await syncRoleFacts(db, occupantId, roleId);
+  return readWorkMap(db, occupantId).roles.find((item) => item.id === roleId);
+}
+
+/** Records the role as it now stands as evidence, and brings its facts in step. */
+async function syncRoleFacts(db: DatabaseSync, occupantId: string, roleId: string) {
   const updated = db
     .prepare(
       `SELECT id, kind, title, company, location, start_date, end_date,
@@ -190,7 +222,52 @@ export async function updateWorkMapRole(
       evidenceId: evidence.id,
     }),
   );
-  return readWorkMap(db, occupantId).roles.find((item) => item.id === roleId);
+}
+
+/**
+ * Undoes one change to a role's own fields or details: puts back what it
+ * replaced, if nothing has changed the same thing since. The undo is recorded
+ * as a change too, so it can be undone in turn.
+ */
+export async function undoRoleEdit(
+  db: DatabaseSync,
+  occupantId: string,
+  roleId: string,
+  editId: string,
+): Promise<{ ok: true } | { ok: false; error: "edit-missing" | RoleEditBlock }> {
+  requireRole(db, occupantId, roleId);
+  const edit = readStoredEdit(db, occupantId, roleId, editId);
+  if (!edit) return { ok: false, error: "edit-missing" };
+  const fields = readRoleFields(db, occupantId, roleId)!;
+  const details = readDetails(db, occupantId, roleId);
+  const blocked = undoBlock(edit, edit.area === "role" ? fields : details);
+  if (blocked) return { ok: false, error: blocked };
+  if (edit.area === "role") {
+    const next = { ...fields, ...edit.before } as RoleFields;
+    db.prepare(
+      `UPDATE work_history SET kind = ?, title = ?, company = ?, location = ?,
+         start_date = ?, end_date = ?, is_current = ?, description = ?,
+         achievements_json = ? WHERE id = ? AND occupant_id = ?`,
+    ).run(
+      next.kind,
+      next.title,
+      next.organization,
+      next.locationLabel,
+      next.startDate,
+      next.endDate,
+      Number(next.isCurrent),
+      next.description,
+      JSON.stringify(next.achievements),
+      roleId,
+      occupantId,
+    );
+    recordFieldsEdit(db, occupantId, roleId, fields, next, { of: edit });
+    await syncRoleFacts(db, occupantId, roleId);
+  } else {
+    writeDetails(db, occupantId, roleId, { ...details, ...edit.before } as WorkMapRoleDetails, { of: edit });
+  }
+  markUndone(db, occupantId, edit);
+  return { ok: true };
 }
 
 export async function createWorkMapRole(
@@ -269,8 +346,10 @@ export function saveWorkMapDetails(
     milestones: momentsOrCurrent(input.milestones, current.milestones),
     events: momentsOrCurrent(input.events, current.events),
     notes: momentsOrCurrent(input.notes, current.notes),
+    // Merged into what's saved, so this older form keeps the newer pay fields.
     compensation: isObject(input.compensation)
       ? {
+          ...current.compensation,
           currency: text(input.compensation.currency) || current.compensation.currency,
           period:
             input.compensation.period === "hourly" ? "hourly" : "annual",
@@ -285,20 +364,45 @@ export function saveWorkMapDetails(
               : "private",
         }
       : current.compensation,
+    payHistory: current.payHistory,
+    benefitNotes: current.benefitNotes,
+    timeOff: current.timeOff,
+    ratings: current.ratings,
+    leaving: current.leaving,
+    commute: current.commute,
+    uniformItems: current.uniformItems,
+    // Names typed here become items; items already saved keep their details.
+    equipmentItems: Array.isArray(input.equipment)
+      ? syncEquipmentItems(current.equipmentItems, stringArray(input.equipment))
+      : current.equipmentItems,
+    // Merged into what's saved, so a form that only knows some fields keeps the rest.
     schedule: isObject(input.schedule)
       ? {
-          shift: text(input.schedule.shift),
-          hoursPerWeek:
-            typeof input.schedule.hoursPerWeek === "number"
-              ? input.schedule.hoursPerWeek
-              : null,
-          workMode:
-            input.schedule.workMode === "remote" ||
-            input.schedule.workMode === "hybrid"
-              ? input.schedule.workMode
-              : "onsite",
+          ...current.schedule,
+          ...("shift" in input.schedule ? { shift: text(input.schedule.shift) } : {}),
+          ...("hoursPerWeek" in input.schedule
+            ? {
+                hoursPerWeek:
+                  typeof input.schedule.hoursPerWeek === "number"
+                    ? input.schedule.hoursPerWeek
+                    : null,
+              }
+            : {}),
+          ...("workMode" in input.schedule
+            ? {
+                workMode:
+                  input.schedule.workMode === "remote" ||
+                  input.schedule.workMode === "hybrid"
+                    ? input.schedule.workMode
+                    : "onsite",
+              }
+            : {}),
         }
       : current.schedule,
+    shifts: current.shifts,
+    team: current.team,
+    skillsGained: current.skillsGained,
+    promotions: current.promotions,
     benefits: arrayOrCurrent(input.benefits, current.benefits),
     paidTimeOff:
       "paidTimeOff" in input ? text(input.paidTimeOff) : current.paidTimeOff,
@@ -326,6 +430,56 @@ export function saveWorkMapDetails(
         ? workMapOverviewFields(input.overviewFields)
         : current.overviewFields,
   };
+  writeDetails(db, occupantId, roleId, details);
+  return details;
+}
+
+/** Saves a role's whole work setup: schedule, shifts, team, and growth. */
+export function saveWorkSetup(
+  db: DatabaseSync,
+  occupantId: string,
+  roleId: string,
+  input: JsonObject,
+): { ok: true; details: WorkMapRoleDetails } | { ok: false; error: WorkSetupError } {
+  requireRole(db, occupantId, roleId);
+  const prepared = prepareWorkSetup(input, randomUUID);
+  if (!prepared.ok) return prepared;
+  const current = readDetails(db, occupantId, roleId);
+  const { share, ...setup } = prepared.value;
+  const details: WorkMapRoleDetails = {
+    ...current,
+    ...setup,
+    share: { ...current.share, ...share },
+  };
+  writeDetails(db, occupantId, roleId, details);
+  return { ok: true, details };
+}
+
+/** Saves a role's pay and benefits. Whether pay is published is left as it was. */
+export function savePayAndBenefits(
+  db: DatabaseSync,
+  occupantId: string,
+  roleId: string,
+  input: JsonObject,
+): { ok: true; details: WorkMapRoleDetails } | { ok: false; error: PayError } {
+  requireRole(db, occupantId, roleId);
+  const current = readDetails(db, occupantId, roleId);
+  const prepared = preparePayAndBenefits(input, current.compensation, randomUUID);
+  if (!prepared.ok) return prepared;
+  const details: WorkMapRoleDetails = { ...current, ...prepared.value };
+  writeDetails(db, occupantId, roleId, details);
+  return { ok: true, details };
+}
+
+/** Saves a role's details, and records what changed. */
+function writeDetails(
+  db: DatabaseSync,
+  occupantId: string,
+  roleId: string,
+  details: WorkMapRoleDetails,
+  undo?: { of: StoredEdit },
+) {
+  const before = readDetails(db, occupantId, roleId);
   db.prepare(
     `INSERT INTO work_history_details
       (work_history_id, occupant_id, details_json, updated_at)
@@ -334,7 +488,50 @@ export function saveWorkMapDetails(
        details_json = excluded.details_json,
        updated_at = excluded.updated_at`,
   ).run(roleId, occupantId, JSON.stringify(details), new Date().toISOString());
-  return details;
+  recordDetailsEdit(db, occupantId, roleId, before, readDetails(db, occupantId, roleId), undo);
+}
+
+/** Older forms send equipment as names: keep matching items, add the rest. */
+function syncEquipmentItems(items: EquipmentItem[], names: string[]): EquipmentItem[] {
+  const fresh = equipmentFromNames(
+    names.filter((name) => !items.some((item) => item.name.toLowerCase() === name.toLowerCase())),
+    randomUUID,
+  );
+  return [...items.filter((item) => names.some((name) => name.toLowerCase() === item.name.toLowerCase())), ...fresh];
+}
+
+/** Saves a role's equipment and uniform. */
+export function saveGear(
+  db: DatabaseSync,
+  occupantId: string,
+  roleId: string,
+  input: JsonObject,
+): { ok: true; details: WorkMapRoleDetails } | { ok: false; error: GearError } {
+  requireRole(db, occupantId, roleId);
+  const prepared = prepareGear(input, randomUUID);
+  if (!prepared.ok) return prepared;
+  const current = readDetails(db, occupantId, roleId);
+  const { share, ...gear } = prepared.value;
+  const details: WorkMapRoleDetails = { ...current, ...gear, share: { ...current.share, ...share } };
+  writeDetails(db, occupantId, roleId, details);
+  return { ok: true, details };
+}
+
+/** Saves how a role looks in hindsight: ratings, leaving, commute, environment. */
+export function saveReflection(
+  db: DatabaseSync,
+  occupantId: string,
+  roleId: string,
+  input: JsonObject,
+): { ok: true; details: WorkMapRoleDetails } | { ok: false; error: ReflectionError } {
+  requireRole(db, occupantId, roleId);
+  const prepared = prepareReflection(input);
+  if (!prepared.ok) return prepared;
+  const current = readDetails(db, occupantId, roleId);
+  const { share, ...reflection } = prepared.value;
+  const details: WorkMapRoleDetails = { ...current, ...reflection, share: { ...current.share, ...share } };
+  writeDetails(db, occupantId, roleId, details);
+  return { ok: true, details };
 }
 
 export function addWorkMapLocation(
@@ -344,7 +541,9 @@ export function addWorkMapLocation(
   input: JsonObject,
 ): WorkMapLocation {
   requireRole(db, occupantId, roleId);
-  return persistWorkMapLocation(db, occupantId, roleId, randomUUID(), input);
+  const location = persistWorkMapLocation(db, occupantId, roleId, randomUUID(), input);
+  logRoleEvent(db, occupantId, roleId, "places", `Added a place: ${location.label || location.address || "a site"}`);
+  return location;
 }
 
 export function updateWorkMapLocation(
@@ -356,7 +555,9 @@ export function updateWorkMapLocation(
 ): WorkMapLocation {
   requireRole(db, occupantId, roleId);
   requireLocation(db, occupantId, roleId, locationId);
-  return persistWorkMapLocation(db, occupantId, roleId, locationId, input);
+  const location = persistWorkMapLocation(db, occupantId, roleId, locationId, input);
+  logRoleEvent(db, occupantId, roleId, "places", `Changed a place: ${location.label || location.address || "a site"}`);
+  return location;
 }
 
 export function removeWorkMapRole(
@@ -393,6 +594,10 @@ export function removeWorkMapRole(
       `DELETE FROM work_history_details
        WHERE work_history_id = ? AND occupant_id = ?`,
     ).run(id, occupantId);
+    db.prepare(
+      `DELETE FROM role_contacts WHERE role_id = ? AND occupant_id = ?`,
+    ).run(id, occupantId);
+    removeRoleEdits(db, occupantId, id);
     db.prepare(
       `DELETE FROM career_facts
        WHERE occupant_id = ? AND subject_id = ?`,
@@ -431,10 +636,12 @@ export function removeWorkMapLocation(
 ): void {
   requireRole(db, occupantId, roleId);
   requireLocation(db, occupantId, roleId, locationId);
+  const gone = readLocations(db, occupantId, roleId).find((item) => item.id === locationId);
   db.prepare(
     `DELETE FROM work_history_locations
      WHERE id = ? AND work_history_id = ? AND occupant_id = ?`,
   ).run(locationId, roleId, occupantId);
+  logRoleEvent(db, occupantId, roleId, "places", `Removed a place: ${gone?.label || gone?.address || "a site"}`);
 }
 
 export async function lookupNominatimPlace(
@@ -572,6 +779,7 @@ export function addWorkMapMedia(
     Number(media.isPublic),
     new Date().toISOString(),
   );
+  logRoleEvent(db, occupantId, roleId, "photos", `Added ${media.kind === "video" ? "a video" : media.kind === "attachment" ? "a file" : "a photo"}: ${media.title}`);
   return media;
 }
 
@@ -619,6 +827,7 @@ export function addWorkMapPhoto(
     storedName,
     new Date().toISOString(),
   );
+  logRoleEvent(db, occupantId, roleId, "photos", "Added a photo");
   return media;
 }
 
@@ -667,6 +876,7 @@ export function setWorkMapMediaPublic(
     )
     .run(Number(isPublic), mediaId, roleId, occupantId);
   if (updated.changes === 0) throw new WorkMapStoreError("media-missing");
+  logRoleEvent(db, occupantId, roleId, "photos", isPublic ? "Showed a photo on your page" : "Hid a photo from your page");
 }
 
 export function removeWorkMapMedia(
@@ -689,6 +899,7 @@ export function removeWorkMapMedia(
     `DELETE FROM work_history_media
      WHERE id = ? AND work_history_id = ? AND occupant_id = ?`,
   ).run(mediaId, roleId, occupantId);
+  logRoleEvent(db, occupantId, roleId, "photos", "Removed a photo");
   if (row.stored_name) {
     try {
       unlinkSync(uploadPath(uploadsDir, row.stored_name));
@@ -743,6 +954,7 @@ export async function addLinkedEvidence(
     evidenceId,
     pin: prepared.value.pin,
   });
+  logRoleEvent(db, occupantId, roleId, "evidence", `Added evidence: ${prepared.value.title}`);
   return { id, evidenceId, ...prepared.value };
 }
 
@@ -779,6 +991,7 @@ export async function updateLinkedEvidence(
     evidenceId,
     pin: prepared.value.pin,
   });
+  logRoleEvent(db, occupantId, roleId, "evidence", `Changed evidence: ${prepared.value.title}`);
   return { id: linkedId, evidenceId, ...prepared.value };
 }
 
@@ -797,6 +1010,7 @@ export async function removeLinkedEvidence(
      WHERE id = ? AND work_history_id = ? AND occupant_id = ?`,
   ).run(prepared.value.id, roleId, occupantId);
   await syncLinkedEvidenceFacts(db, occupantId, roleId, existing, null);
+  logRoleEvent(db, occupantId, roleId, "evidence", `Removed evidence: ${existing.title}`);
 }
 
 async function captureLinkedPage(
@@ -890,7 +1104,31 @@ function requireLinkedEvidence(
   return found;
 }
 
+/**
+ * A role's linked evidence, each pin read against the role's achievements as
+ * they are now (see `resolveAchievementPin`). A pin that changed on reading is
+ * saved, so older statement pins get their achievement's id once.
+ */
 function readLinkedEvidence(
+  db: DatabaseSync,
+  occupantId: string,
+  roleId: string,
+  achievements?: { achievements: string[]; achievementIds: string[] },
+): LinkedEvidence[] {
+  const items = readStoredLinkedEvidence(db, occupantId, roleId);
+  if (!achievements) return items;
+  const save = db.prepare("UPDATE work_history_linked_evidence SET pin_json = ? WHERE id = ? AND occupant_id = ?");
+  return items.map((item) => {
+    const pin = resolveAchievementPin(item.pin, achievements.achievements, achievements.achievementIds);
+    if (JSON.stringify(pin) !== JSON.stringify(item.pin)) {
+      save.run(JSON.stringify(pin), item.id, occupantId);
+      return { ...item, pin };
+    }
+    return item;
+  });
+}
+
+function readStoredLinkedEvidence(
   db: DatabaseSync,
   occupantId: string,
   roleId: string,
@@ -929,7 +1167,9 @@ function parsePin(value: unknown): LinkedEvidence["pin"] {
       return { kind: "event", id: pin.id };
     }
     if (pin.kind === "achievement" && typeof pin.statement === "string") {
-      return { kind: "achievement", statement: pin.statement };
+      return typeof pin.id === "string" && pin.id
+        ? { kind: "achievement", id: pin.id, statement: pin.statement }
+        : { kind: "achievement", statement: pin.statement };
     }
     return null;
   } catch {
@@ -1161,7 +1401,10 @@ function mapRole(
   occupantId: string,
   row: JsonObject,
 ): WorkMapRole {
+  const { storedLinks, ...achievementFields } = roleAchievements(db, occupantId, String(row.id), row.achievements_json);
+  const onRole = roleLinkTargets(db, occupantId, String(row.id));
   return {
+    achievementLinks: storedLinks.map((links) => liveAchievementLinks(links, onRole)),
     id: String(row.id),
     kind:
       row.kind === "school"
@@ -1176,15 +1419,20 @@ function mapRole(
     endDate: String(row.end_date),
     isCurrent: Number(row.is_current) === 1,
     description: String(row.description),
-    ...roleAchievements(db, occupantId, String(row.id), row.achievements_json),
+    ...achievementFields,
     factId: null,
     factVersion: null,
     evidenceIds: [],
     claims: [],
     locations: readLocations(db, occupantId, String(row.id)),
     media: readMedia(db, occupantId, String(row.id)),
-    linkedEvidence: readLinkedEvidence(db, occupantId, String(row.id)),
+    linkedEvidence: readLinkedEvidence(db, occupantId, String(row.id), achievementFields),
     details: readDetails(db, occupantId, String(row.id)),
+    people: readRolePeople(db, occupantId, String(row.id)),
+    edits: readRoleEdits(db, occupantId, String(row.id), {
+      fields: readRoleFields(db, occupantId, String(row.id))!,
+      details: readDetails(db, occupantId, String(row.id)),
+    }),
     ...canvasBoardsField(db, occupantId, String(row.id)),
   };
 }
@@ -1530,6 +1778,7 @@ function shareOrCurrent(value: unknown, current: WorkMapShare): WorkMapShare {
     workplaceRating: boolOr(value.workplaceRating, current.workplaceRating),
     equipment: boolOr(value.equipment, current.equipment),
     uniform: boolOr(value.uniform, current.uniform),
+    team: boolOr(value.team, current.team),
   };
 }
 
@@ -1551,7 +1800,13 @@ function roleAchievements(
   occupantId: string,
   roleId: string,
   raw: unknown,
-): { achievements: string[]; achievementIds: string[] } {
+): {
+  achievements: string[];
+  achievementIds: string[];
+  achievementDates: string[];
+  achievementTitles: string[];
+  storedLinks: Array<AchievementLinks | undefined>;
+} {
   const stored = readRoleAchievements(raw, randomUUID);
   if (stored.changed) {
     db.prepare(
@@ -1561,6 +1816,76 @@ function roleAchievements(
   return {
     achievements: stored.items.map((item) => item.statement),
     achievementIds: stored.items.map((item) => item.id),
+    achievementDates: stored.items.map((item) => item.date ?? ""),
+    achievementTitles: stored.items.map((item) => item.title ?? ""),
+    storedLinks: stored.items.map((item) => item.links),
+  };
+}
+
+/**
+ * Changes one achievement's month (`date`) and what it's linked to (`links`).
+ * Only the keys sent change. Links must be to people, moments, and places on
+ * this role. Its wording changes with the role, so facts stay in step.
+ */
+export function updateRoleAchievement(
+  db: DatabaseSync,
+  occupantId: string,
+  roleId: string,
+  achievementId: string,
+  input: JsonObject,
+): { id: string; title: string; date: string; links: AchievementLinks } {
+  requireRole(db, occupantId, roleId);
+  const date = "date" in input ? prepareAchievementDate(input.date) : null;
+  if (date && !date.ok) throw new WorkMapStoreError(date.error);
+  const links = "links" in input ? prepareAchievementLinks(input.links) : null;
+  if (links && !links.ok) throw new WorkMapStoreError(links.error);
+  const title = "title" in input ? prepareAchievementTitle(input.title) : null;
+  if (title && !title.ok) throw new WorkMapStoreError(title.error);
+  if (links?.ok) {
+    const onRole = roleLinkTargets(db, occupantId, roleId);
+    const missing =
+      links.value.people.some((id) => !onRole.people.includes(id)) ||
+      links.value.moments.some((id) => !onRole.moments.includes(id)) ||
+      links.value.places.some((id) => !onRole.places.includes(id));
+    if (missing) throw new WorkMapStoreError("link-missing");
+  }
+  const beforeFields = readRoleFields(db, occupantId, roleId)!;
+  const row = db
+    .prepare("SELECT achievements_json FROM work_history WHERE id = ? AND occupant_id = ?")
+    .get(roleId, occupantId) as { achievements_json: string };
+  const items = readRoleAchievements(row.achievements_json, randomUUID).items;
+  const index = items.findIndex((item) => item.id === achievementId);
+  if (index < 0) throw new WorkMapStoreError("achievement-missing");
+  const current = items[index]!;
+  const nextDate = date?.ok ? date.value : current.date ?? "";
+  const nextTitle = title?.ok ? title.value : current.title ?? "";
+  const nextLinks = links?.ok ? links.value : current.links;
+  const hasLinks = nextLinks && (nextLinks.people.length || nextLinks.moments.length || nextLinks.places.length || nextLinks.skills.length);
+  items[index] = {
+    id: current.id,
+    statement: current.statement,
+    ...(nextTitle ? { title: nextTitle } : {}),
+    ...(nextDate ? { date: nextDate } : {}),
+    ...(hasLinks ? { links: nextLinks } : {}),
+  };
+  db.prepare("UPDATE work_history SET achievements_json = ? WHERE id = ? AND occupant_id = ?").run(
+    JSON.stringify(items),
+    roleId,
+    occupantId,
+  );
+  recordFieldsEdit(db, occupantId, roleId, beforeFields, readRoleFields(db, occupantId, roleId)!);
+  return { id: achievementId, title: nextTitle, date: nextDate, links: nextLinks ?? { people: [], moments: [], places: [], skills: [] } };
+}
+
+/** The people, moments, and places on a role, that its achievements can link to. */
+function roleLinkTargets(db: DatabaseSync, occupantId: string, roleId: string) {
+  const details = readDetails(db, occupantId, roleId);
+  return {
+    people: (
+      db.prepare("SELECT id FROM role_contacts WHERE occupant_id = ? AND role_id = ?").all(occupantId, roleId) as Array<{ id: string }>
+    ).map((row) => row.id),
+    moments: [...(details.milestones ?? []), ...(details.events ?? [])].map((moment) => moment.id),
+    places: readLocations(db, occupantId, roleId).map((location) => location.id),
   };
 }
 

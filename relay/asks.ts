@@ -31,7 +31,28 @@ type AskRow = {
   answered_at: string | null;
   join_choice: "joined" | "declined" | null;
   join_json: string | null;
+  role_json: string | null;
+  answered_from: "browser" | "docier" | null;
 };
+
+type AskRole = { organization: string; title: string; period: string };
+
+/** The role on a "worked together" request, kept short; anything else is dropped. */
+function readAskRole(value: unknown): AskRole | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const text = (key: string) => (typeof record[key] === "string" ? (record[key] as string).trim().slice(0, 200) : "");
+  const role = { organization: text("organization"), title: text("title"), period: text("period") };
+  return role.organization || role.title ? role : null;
+}
+
+function askRole(row: AskRow): AskRole | null {
+  try {
+    return row.role_json ? readAskRole(JSON.parse(row.role_json)) : null;
+  } catch {
+    return null;
+  }
+}
 
 const HASH = /^[0-9a-f]{64}$/;
 
@@ -51,6 +72,8 @@ export function registerAsks(app: Hono, db: DatabaseSync, isOwner: (c: Context) 
     if (!isRequestKind(kind) || !text("body") || !text("fromName") || !text("recipientName") || !expiresAt) {
       return c.json({ error: "request-invalid" }, 400);
     }
+    const role = readAskRole(body.role);
+    if (kind === "worked-with" && !role) return c.json({ error: "request-invalid" }, 400);
     const now = new Date().toISOString();
     const current = read(hash);
     if (current && current.status !== "sent" && current.status !== "opened") {
@@ -58,13 +81,24 @@ export function registerAsks(app: Hono, db: DatabaseSync, isOwner: (c: Context) 
     }
     db.prepare(
       `INSERT INTO relay_asks
-        (token_hash, kind, body, from_name, from_headline, recipient_name, expires_at, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'sent', ?, ?)
+        (token_hash, kind, body, from_name, from_headline, recipient_name, expires_at, status, created_at, updated_at, role_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'sent', ?, ?, ?)
        ON CONFLICT(token_hash) DO UPDATE SET
          kind = excluded.kind, body = excluded.body, from_name = excluded.from_name,
          from_headline = excluded.from_headline, recipient_name = excluded.recipient_name,
-         expires_at = excluded.expires_at, updated_at = excluded.updated_at`,
-    ).run(hash, kind, text("body"), text("fromName"), text("fromHeadline"), text("recipientName"), expiresAt, now, now);
+         expires_at = excluded.expires_at, updated_at = excluded.updated_at, role_json = excluded.role_json`,
+    ).run(
+      hash,
+      kind,
+      text("body"),
+      text("fromName"),
+      text("fromHeadline"),
+      text("recipientName"),
+      expiresAt,
+      now,
+      now,
+      role ? JSON.stringify(role) : null,
+    );
     return c.json({ ok: true }, current ? 200 : 201);
   });
 
@@ -97,6 +131,7 @@ export function registerAsks(app: Hono, db: DatabaseSync, isOwner: (c: Context) 
           join: row.join_choice
             ? { choice: row.join_choice, details: row.join_json ? (JSON.parse(row.join_json) as JoinDetails) : null }
             : null,
+          ...(row.answered_from ? { answeredFrom: row.answered_from } : {}),
         };
       }
     }
@@ -147,6 +182,40 @@ export function registerAsks(app: Hono, db: DatabaseSync, isOwner: (c: Context) 
     return c.html(page(`${REQUEST_KIND_LABEL[row.kind as keyof typeof REQUEST_KIND_LABEL]} request`, answerForm(row, token)));
   });
 
+  // Recipient's own Docier: the request as data, so it can be answered from there.
+  app.get("/q/:token/data", (c) => {
+    privatePage(c);
+    const row = read(hashToken(c.req.param("token")));
+    if (!row) return c.json({ error: "not-found" }, 404);
+    const expired = row.expires_at <= new Date().toISOString();
+    const status =
+      row.status === "withdrawn"
+        ? "withdrawn"
+        : row.status === "approved" || row.status === "declined"
+          ? "answered"
+          : expired
+            ? "expired"
+            : "open";
+    if (row.status === "sent" && status === "open") {
+      db.prepare("UPDATE relay_asks SET status = 'opened', opened_at = ? WHERE token_hash = ? AND status = 'sent'").run(
+        new Date().toISOString(),
+        row.token_hash,
+      );
+    }
+    return c.json({
+      ask: {
+        kind: row.kind,
+        body: row.body,
+        fromName: row.from_name,
+        fromHeadline: row.from_headline,
+        recipientName: row.recipient_name,
+        role: askRole(row),
+        expiresAt: row.expires_at,
+        status,
+      },
+    });
+  });
+
   // Recipient: approve or decline, with a note.
   app.post("/q/:token/answer", async (c) => {
     privatePage(c);
@@ -164,7 +233,7 @@ export function registerAsks(app: Hono, db: DatabaseSync, isOwner: (c: Context) 
     const now = new Date().toISOString();
     db.prepare(
       `UPDATE relay_asks SET status = ?, note = ?, answered_at = ?, opened_at = COALESCE(opened_at, ?), updated_at = ?,
-              join_choice = ?, join_json = ?
+              join_choice = ?, join_json = ?, answered_from = ?
         WHERE token_hash = ? AND status IN ('sent', 'opened')`,
     ).run(
       prepared.value.decision,
@@ -174,6 +243,8 @@ export function registerAsks(app: Hono, db: DatabaseSync, isOwner: (c: Context) 
       now,
       join.value?.choice ?? null,
       join.value?.details ? JSON.stringify(join.value.details) : null,
+      // Answered from the recipient's own Docier, which records it on their side too.
+      body.from === "docier" ? "docier" : "browser",
       row.token_hash,
     );
     return c.json({ ok: true, status: prepared.value.decision });
@@ -195,16 +266,20 @@ function answerForm(row: AskRow, token: string): string {
   const kind = row.kind as keyof typeof REQUEST_KIND_ASK;
   const from = escapeHtml(row.from_name);
   const first = escapeHtml(row.from_name.split(/\s+/)[0] || row.from_name);
+  // A "worked together" request shows the role, asks for your details up front, and confirms.
+  const workedRole = row.kind === "worked-with" ? askRole(row) : null;
+  const worked = row.kind === "worked-with";
   return `
   <p class="kicker">${escapeHtml(REQUEST_KIND_LABEL[kind])} request</p>
   <h1>${from} asks you to ${escapeHtml(REQUEST_KIND_ASK[kind])}</h1>
   ${row.from_headline ? `<p class="sub">${escapeHtml(row.from_headline)}</p>` : ""}
+  ${workedRole ? `<div class="role-card"><b>${escapeHtml(workedRole.organization)}</b>${workedRole.title ? `<span>${escapeHtml(workedRole.title)}</span>` : ""}${workedRole.period ? `<small>${escapeHtml(workedRole.period)}</small>` : ""}</div>` : ""}
   <div class="msg">${escapeHtml(row.body).replaceAll("\n", "<br>")}</div>
   <form id="answer">
     <label>A note back to ${first} (optional)<textarea name="note" rows="4" maxlength="2000"></textarea></label>
     <div class="join" id="join">
-      <label class="check"><input type="checkbox" id="join-on"> Also join ${first}'s network and share my contact details</label>
-      <div class="fields" id="join-fields" hidden>
+      <label class="check"><input type="checkbox" id="join-on"${worked ? " checked" : ""}> ${worked ? `Share my details with ${first}` : `Also join ${first}'s network and share my contact details`}</label>
+      <div class="fields" id="join-fields"${worked ? "" : " hidden"}>
         <label>Name<input name="join-name" value="${escapeHtml(row.recipient_name)}" maxlength="200" autocomplete="name"></label>
         <label>Email<input name="join-email" type="email" maxlength="320" autocomplete="email"></label>
         <label>Organization<input name="join-organization" maxlength="200" autocomplete="organization"></label>
@@ -216,10 +291,11 @@ function answerForm(row: AskRow, token: string): string {
           <button type="button" class="linkish" id="join-photo-clear" hidden>Remove photo</button>
         </div>
       </div>
-      <p class="small" id="join-hint">Leave it unticked to answer without joining. ${first} only sees your answer and note.</p>
-      <button type="button" class="linkish" id="join-no">No thanks, don't add me</button>
+      <p class="small" id="join-hint">${worked ? `${first} keeps these in their network, with this job. Untick to answer without them.` : `Leave it unticked to answer without joining. ${first} only sees your answer and note.`}</p>
+      <button type="button" class="linkish" id="join-no"${worked ? " hidden" : ""}>No thanks, don't add me</button>
     </div>
-    <div class="acts"><button type="submit" name="decision" value="declined" class="no">Decline</button><button type="submit" name="decision" value="approved" class="yes">Approve</button></div>
+    ${worked ? `<p class="small">Use Docier? Paste this page's link into <b>Requests → Answer a request</b> in your Docier to confirm it on both sides.</p>` : ""}
+    <div class="acts"><button type="submit" name="decision" value="declined" class="no">Decline</button><button type="submit" name="decision" value="approved" class="yes">${worked ? "Confirm" : "Approve"}</button></div>
     <p id="status" role="status"></p>
   </form>
   <script>
@@ -286,7 +362,7 @@ function answerForm(row: AskRow, token: string): string {
         method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ decision, note, join }),
       }).catch(() => null);
       if (response && response.ok) {
-        form.outerHTML = '<div class="done">Thank you. ' + (decision === "approved" ? "You approved" : "You declined") + ' the request, and ${first} will see your answer.</div>';
+        form.outerHTML = '<div class="done">Thank you. ' + (decision === "approved" ? "${worked ? "You confirmed you worked together" : "You approved the request"}" : "You declined${worked ? "" : " the request"}") + ', and ${first} will see your answer.</div>';
         return;
       }
       for (const b of form.querySelectorAll("button")) b.disabled = false;
@@ -297,7 +373,8 @@ function answerForm(row: AskRow, token: string): string {
 
 function answeredCard(row: AskRow): string {
   const first = escapeHtml(row.from_name.split(/\s+/)[0] || row.from_name);
-  return `<h1>You ${row.status === "approved" ? "approved" : "declined"} this request.</h1><p>${first} has your answer. Thank you.</p>${
+  const verb = row.kind === "worked-with" ? (row.status === "approved" ? "confirmed" : "declined") : row.status === "approved" ? "approved" : "declined";
+  return `<h1>You ${verb} this request.</h1><p>${first} has your answer. Thank you.</p>${
     row.note ? `<div class="msg">${escapeHtml(row.note).replaceAll("\n", "<br>")}</div>` : ""
   }`;
 }
@@ -321,7 +398,7 @@ button:disabled{opacity:.5;cursor:default}.done{padding:14px;border-radius:12px;
 .check{display:flex;align-items:center;gap:10px;font-size:14px}.check input{width:18px;height:18px;accent-color:#f3efe6}
 .fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}.fields[hidden]{display:none}
 .fields input{height:36px;padding:0 10px;border-radius:9px;border:1px solid #3a3128;background:#1d1913;color:#f3efe6;font:inherit}
-.small{font-size:12px;color:#a49b8c}.photo-row{display:flex;align-items:center;gap:12px;grid-column:1/-1}.photo-row label{flex:1}.photo-preview{width:56px;height:56px;border-radius:50%;object-fit:cover;flex:none}.linkish{justify-self:start;height:auto;padding:0;border:0;background:none;color:#c9bdad;font-weight:400;text-decoration:underline}
+.small{font-size:12px;color:#a49b8c}.role-card{display:grid;gap:2px;padding:14px;border-radius:12px;border:1px solid #3a3128}.role-card b{font-size:16px}.role-card span{color:#e8e1d3}.role-card small{color:#a49b8c;font-size:13px}.photo-row{display:flex;align-items:center;gap:12px;grid-column:1/-1}.photo-row label{flex:1}.photo-preview{width:56px;height:56px;border-radius:50%;object-fit:cover;flex:none}.linkish{justify-self:start;height:auto;padding:0;border:0;background:none;color:#c9bdad;font-weight:400;text-decoration:underline}
 @media (max-width:520px){.fields{grid-template-columns:1fr}}footer{margin-top:14px;text-align:center;font-size:12px;color:#8f877a}
 </style></head><body><div><main>${content}</main><footer>Sent with Docier · This link is only for you</footer></div></body></html>`;
 }

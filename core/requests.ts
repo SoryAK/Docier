@@ -5,14 +5,27 @@ import type { ChangeOperation } from "./governance";
  * request is answered on a private Relay link; Docier follows its status.
  */
 
-export const REQUEST_KINDS = ["reference", "introduction", "recommendation", "general"] as const;
+export const REQUEST_KINDS = ["reference", "introduction", "recommendation", "general", "worked-with"] as const;
 export type RequestKind = (typeof REQUEST_KINDS)[number];
+
+/**
+ * Kinds written from the Requests composer. "Worked together" is sent from a
+ * person on a role, so it always carries that role.
+ */
+export const COMPOSABLE_REQUEST_KINDS = ["reference", "introduction", "recommendation", "general"] as const satisfies readonly RequestKind[];
+
+/** The role a "worked together" request is about, as shown on its answer page. */
+export type RequestRoleContext = { organization: string; title: string; period: string };
+
+/** How an answer came back: on the Relay page, or from the recipient's own Docier. */
+export type RequestAnsweredFrom = "browser" | "docier";
 
 export const REQUEST_KIND_LABEL: Record<RequestKind, string> = {
   reference: "Reference",
   introduction: "Introduction",
   recommendation: "Recommendation",
   general: "General",
+  "worked-with": "Worked together",
 };
 
 /** What the recipient is asked, in the page heading: "Sory asks you to …". */
@@ -21,6 +34,7 @@ export const REQUEST_KIND_ASK: Record<RequestKind, string> = {
   introduction: "make an introduction",
   recommendation: "write a recommendation",
   general: "help with something",
+  "worked-with": "confirm you worked together",
 };
 
 export type SentRequestStatus = "sent" | "opened" | "approved" | "declined" | "expired" | "withdrawn";
@@ -45,6 +59,8 @@ export type PreparedRequest = {
   body: string;
   recipient: RequestRecipient;
   expiresInDays: number;
+  /** The person's link to a role, for a "worked together" request; null for other kinds. */
+  roleLinkId: string | null;
 };
 
 export type RequestError =
@@ -53,7 +69,8 @@ export type RequestError =
   | "body-too-long"
   | "recipient-required"
   | "email-invalid"
-  | "expiry-invalid";
+  | "expiry-invalid"
+  | "role-required";
 
 function field(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -92,7 +109,9 @@ export function prepareOutgoingRequest(
 
   const days = record.expiresInDays === undefined ? REQUEST_DEFAULT_DAYS : Number(record.expiresInDays);
   if (!Number.isInteger(days) || days < 1 || days > 365) return { ok: false, error: "expiry-invalid" };
-  return { ok: true, value: { kind: record.kind, body, recipient, expiresInDays: days } };
+  const roleLinkId = record.kind === "worked-with" ? field(record.roleLinkId) : "";
+  if (record.kind === "worked-with" && !roleLinkId) return { ok: false, error: "role-required" };
+  return { ok: true, value: { kind: record.kind, body, recipient, expiresInDays: days, roleLinkId: roleLinkId || null } };
 }
 
 /** Waiting on the recipient: the request can still be edited or withdrawn. */
@@ -116,6 +135,8 @@ export type RelayRequestState = {
   answeredAt: string | null;
   /** Whether they chose to join, and their details until Docier has taken them. */
   join?: { choice: "joined" | "declined"; details: JoinDetails | null } | null;
+  /** Where the answer came from; older Relays leave it out, which means the page. */
+  answeredFrom?: RequestAnsweredFrom;
 };
 
 /**

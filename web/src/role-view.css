@@ -1,0 +1,2489 @@
+/* A role opened from Career History: the role in the middle, its History on the right. */
+
+/* The role scrolls on its own, as the story does. */
+.home-role {
+  min-width: 0;
+  min-height: 0;
+  padding-right: 0.85rem;
+  overflow: auto;
+}
+
+.home-sheet.is-right-open .home-role {
+  padding-right: 0;
+}
+
+/* The History panel brings its own header and padding. */
+.home-story-recent.home-role-history {
+  padding: 0;
+  margin-top: -1rem;
+}
+
+.role-view {
+  --rv-ink: #171717;
+  --rv-muted: #6b6b70;
+  --rv-line: #ebe8e4;
+  --rv-soft: #f6f5f3;
+  --rv-gold: #cd9f5b;
+  --rv-gold-ink: #8a6d4f;
+  --rv-gold-soft: #f6ead3;
+  /* The design system colours plain text by this; the role view is always on white. */
+  --color-text-primary: #171717;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  color: var(--rv-ink);
+}
+
+/* Banner: the cover photo, or a cream band when there is none. */
+.role-view-banner {
+  position: relative;
+  flex: none;
+  height: 168px;
+  overflow: hidden;
+  border-radius: 14px 14px 0 0;
+  background: #d8d2c8;
+  color: #fff;
+}
+
+.role-view-banner::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.08) 0%, rgba(0, 0, 0, 0) 30%, rgba(0, 0, 0, 0.62) 100%);
+  pointer-events: none;
+}
+
+.role-view-banner.is-cream {
+  background: linear-gradient(180deg, #fbf6ee, #f4ecdf);
+  color: var(--rv-ink);
+}
+
+.role-view-banner.is-cream::after {
+  display: none;
+}
+
+.role-view-cover {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.role-view-corner {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  z-index: 1;
+  display: flex;
+  gap: 6px;
+}
+
+.role-view-round {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--rv-ink);
+  cursor: pointer;
+}
+
+.role-view-round:hover {
+  background: #fff;
+}
+
+.is-cream .role-view-round,
+.is-cream .role-view-glass {
+  background: #fff;
+  box-shadow: inset 0 0 0 1px #eadfcd;
+}
+
+.role-view-heading {
+  position: absolute;
+  right: 20px;
+  bottom: 16px;
+  left: 22px;
+  z-index: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.role-view-names {
+  min-width: 0;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.35);
+}
+
+.is-cream .role-view-names {
+  text-shadow: none;
+}
+
+/* Page headings elsewhere set their own colour; on the banner the name follows the banner. */
+.role-view-banner .role-view-names h1,
+.role-view-banner .role-view-names p {
+  color: inherit;
+}
+
+.role-view-names h1 {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  font-size: clamp(1.2rem, 1.6vw + 0.6rem, 1.65rem);
+  font-weight: 650;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.role-view-names p {
+  margin: 3px 0 0;
+  overflow: hidden;
+  opacity: 0.92;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.role-view-actions {
+  display: flex;
+  flex: none;
+  gap: 6px;
+}
+
+.role-view-glass {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--rv-ink);
+  font: inherit;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.role-view-glass:hover {
+  background: #fff;
+}
+
+/* Place, dates, and the people worked with. */
+.role-view-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 12px 22px;
+  border-bottom: 1px solid var(--rv-line);
+}
+
+.role-view-meta p {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--rv-muted);
+  font-size: 0.875rem;
+}
+
+.role-view-meta mark {
+  padding: 0 7px;
+  border-radius: 999px;
+  background: #e7f6ec;
+  color: #1f7a3d;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.role-view-people {
+  position: relative;
+}
+
+.role-view-faces {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 8px 2px 2px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: #3f3f46;
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.role-view-faces:hover {
+  background: var(--rv-soft);
+}
+
+.role-view-stack {
+  display: flex;
+}
+
+.role-view-stack span,
+.role-view-avatar {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: var(--rv-gold-soft);
+  color: var(--rv-gold-ink);
+  font-size: 0.6875rem;
+  font-weight: 650;
+}
+
+.role-view-stack span + span {
+  margin-left: -8px;
+}
+
+.role-view-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 5;
+  width: min(300px, 80vw);
+  padding: 10px;
+  border: 1px solid var(--rv-line);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.14);
+}
+
+.role-view-pop ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.role-view-pop li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.role-view-pop small {
+  display: block;
+  color: var(--rv-muted);
+}
+
+/* Two tabs, plain text with a gold underline. */
+.role-view-tabs {
+  display: flex;
+  gap: 10px;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--rv-line);
+}
+
+.role-view-tabs button {
+  padding: 11px 6px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--rv-muted);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.role-view-tabs button[aria-selected="true"] {
+  border-bottom-color: var(--rv-gold);
+  color: var(--rv-ink);
+  font-weight: 600;
+}
+
+.role-view-tabs span {
+  margin-left: 6px;
+  color: var(--rv-gold-ink);
+  font-weight: 600;
+}
+
+.role-view-pane {
+  max-width: 54rem;
+  padding: 18px 22px 28px;
+}
+
+.role-view-story p {
+  margin: 0 0 10px;
+  line-height: 1.55;
+}
+
+.role-view-lead {
+  font-size: 1rem;
+}
+
+.role-view-empty {
+  margin: 0;
+  color: var(--rv-muted);
+}
+
+.role-view-text {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--rv-gold-ink);
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.role-view-text svg {
+  vertical-align: -2px;
+}
+
+.role-view-text:hover {
+  text-decoration: underline;
+}
+
+.role-view-section {
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid var(--rv-line);
+}
+
+.role-view-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.role-view-section-head h2 {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 650;
+}
+
+.role-view-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+}
+
+.role-view-strip button {
+  flex: none;
+  width: 128px;
+  aspect-ratio: 4 / 3;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 10px;
+  background: #d8d2c8;
+  cursor: zoom-in;
+}
+
+.role-view-strip .role-view-add-photo {
+  display: grid;
+  place-items: center;
+  border: 1px dashed #d6d0c6;
+  background: #f6f5f3;
+  color: #6b6b70;
+  cursor: pointer;
+}
+
+.role-view-strip img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.role-view-events {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.role-view-events b {
+  margin-right: 6px;
+  color: var(--rv-gold-ink);
+  font-size: 0.8125rem;
+}
+
+.role-view-facts {
+  display: grid;
+  grid-template-columns: 8rem 1fr;
+  gap: 6px 12px;
+  margin: 0;
+}
+
+.role-view-facts dt {
+  color: var(--rv-muted);
+}
+
+.role-view-facts dd {
+  margin: 0;
+}
+
+.role-view-achievements {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 14px;
+  padding-left: 20px;
+  line-height: 1.5;
+}
+
+/* Editing the role's main fields, in the middle. */
+.role-view-editor {
+  max-width: 40rem;
+  padding: 18px 22px 28px;
+}
+
+.role-view-editor h2 {
+  margin: 0 0 12px;
+  font-size: 1rem;
+}
+
+.role-view-editor fieldset {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.role-view-editor label {
+  display: grid;
+  gap: 4px;
+  color: #3f3f46;
+  font-size: 0.8125rem;
+}
+
+.role-view-editor input,
+.role-view-editor select,
+.role-view-editor textarea {
+  padding: 7px 9px;
+  border: 1px solid #d4d4d8;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--rv-ink);
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.role-view-editor .role-view-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.role-view-two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.role-view-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.role-view-ghost,
+.role-view-primary {
+  padding: 7px 14px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.role-view-ghost {
+  border: 1px solid var(--rv-line, #ebe8e4);
+  background: #fff;
+  color: #171717;
+}
+
+.role-view-primary {
+  border: 0;
+  background: #171717;
+  color: #fff;
+}
+
+.role-view-ghost:disabled,
+.role-view-primary:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.role-view-error {
+  margin: 8px 0 0;
+  color: #b42318;
+  font-size: 0.8125rem;
+}
+
+/* Gallery */
+.role-view-gallery {
+  width: min(900px, 92vw);
+  max-height: 86vh;
+  padding: 16px;
+  border: 0;
+  border-radius: 16px;
+}
+
+.role-view-gallery::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.role-view-gallery-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.role-view-gallery-head .role-view-round {
+  box-shadow: inset 0 0 0 1px #e4e4e7;
+}
+
+.role-view-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+}
+
+.role-view-gallery-grid figure {
+  margin: 0;
+}
+
+.role-view-gallery-grid img {
+  display: block;
+  width: 100%;
+  border-radius: 10px;
+}
+
+.role-view-gallery-grid figcaption {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+  color: #6b6b70;
+  font-size: 0.8125rem;
+}
+
+/* The role's History, in place of Recent. */
+.role-history {
+  --color-text-primary: #171717;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  color: #171717;
+}
+
+.role-history-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 14px 12px;
+  border-bottom: 1px solid #ebe8e4;
+  background: linear-gradient(180deg, #fdfaf4, #fff);
+}
+
+.role-history-head h2 {
+  margin: 0;
+  font-size: 0.9375rem;
+}
+
+.role-history-head p {
+  margin: 1px 0 0;
+  color: #6b6b70;
+  font-size: 0.75rem;
+}
+
+.role-history-mark {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.role-history-mark.is-cream {
+  display: grid;
+  place-items: center;
+  background: linear-gradient(180deg, #fbf6ee, #f1e6d4);
+  box-shadow: inset 0 0 0 1px #eadfcd;
+  color: #8a6d4f;
+  font-weight: 700;
+}
+
+.role-history-tools {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+}
+
+.role-history-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid #d9d9de;
+  border-radius: 10px;
+  color: #6b6b70;
+}
+
+.role-history-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  color: #171717;
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.role-history-search:focus-within {
+  border-color: #a1a1aa;
+}
+
+.role-history-tools select {
+  field-sizing: content;
+  padding: 4px 2px;
+  border: 0;
+  background: none;
+  color: #171717;
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.role-history-list {
+  display: grid;
+  flex: 1;
+  align-content: start;
+  gap: 8px;
+  min-height: 0;
+  padding: 0 12px 12px;
+  overflow: auto;
+}
+
+.role-history-year {
+  border: 1px solid #ebe8e4;
+  border-radius: 12px;
+}
+
+.role-history-year > button {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.role-history-year > button b {
+  font-size: 1rem;
+}
+
+.role-history-year > button span {
+  margin-right: auto;
+  color: #6b6b70;
+  font-size: 0.8125rem;
+}
+
+.role-history-year > button i {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: #8a6d4f;
+  font-size: 0.8125rem;
+  font-style: normal;
+  font-weight: 600;
+}
+
+.role-history-year > button svg {
+  transition: transform 140ms ease-out;
+}
+
+.role-history-year > button svg.is-open {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .role-history-year > button svg {
+    transition: none;
+  }
+}
+
+.role-history-year ol {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0 12px 12px;
+  list-style: none;
+}
+
+.role-history-year li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  gap: 1px 8px;
+  font-size: 0.8125rem;
+}
+
+.role-history-year li small {
+  grid-row: 1 / span 2;
+  padding-top: 1px;
+  color: #6b6b70;
+}
+
+.role-history-kind {
+  color: #8a6d4f;
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.role-history-text {
+  line-height: 1.4;
+}
+
+.role-history-compose {
+  flex: none;
+  padding: 10px 12px 12px;
+  border-top: 1px solid #ebe8e4;
+}
+
+.role-history-kinds {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.role-history-kinds button {
+  padding: 2px 9px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: #6b6b70;
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.role-history-kinds button[aria-checked="true"] {
+  background: #f6f5f3;
+  color: #171717;
+  font-weight: 600;
+}
+
+.role-history-add {
+  display: flex;
+  gap: 6px;
+}
+
+.role-history-add input {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 9px;
+  border: 1px solid #d4d4d8;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.role-history-remove {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: #fff;
+  color: #6b6b70;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.role-history-year li:hover .role-history-remove,
+.role-history-remove:focus-visible {
+  opacity: 1;
+}
+
+.role-history-remove:hover {
+  background: #f6f5f3;
+  color: #171717;
+}
+
+@media (hover: none) {
+  .role-history-remove {
+    opacity: 1;
+  }
+}
+
+/* People worked with on a role. */
+img.role-view-avatar {
+  object-fit: cover;
+}
+
+.role-people {
+  width: min(340px, 86vw);
+  padding: 12px;
+}
+
+.role-people h3 {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.role-people-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.role-people-head small,
+.role-people-optional {
+  color: #6b6b70;
+  font-size: 0.75rem;
+}
+
+.role-people-list {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.role-people-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.role-people-list li:hover {
+  background: #f6f5f3;
+}
+
+.role-people-who {
+  flex: 1;
+  min-width: 0;
+}
+
+.role-people-who b {
+  display: block;
+  font-size: 0.8125rem;
+}
+
+.role-people-who small {
+  display: block;
+  overflow: hidden;
+  color: #6b6b70;
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.role-people-actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+}
+
+.role-people-list li:hover .role-people-actions,
+.role-people-actions:focus-within {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .role-people-actions {
+    opacity: 1;
+  }
+}
+
+.role-people-actions button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: #6b6b70;
+  cursor: pointer;
+}
+
+.role-people-actions button:hover {
+  background: #fff;
+  color: #171717;
+}
+
+.role-people-suggest {
+  margin: 4px 0 8px;
+}
+
+.role-people-suggest small {
+  display: block;
+  margin-bottom: 4px;
+  color: #6b6b70;
+  font-size: 0.75rem;
+}
+
+.role-people-suggest div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.role-people-suggest button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border: 1px dashed #d6d0c6;
+  border-radius: 999px;
+  background: #fff;
+  color: #3f3f46;
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.role-people-suggest button:hover {
+  border-style: solid;
+  background: #fffaf0;
+}
+
+.role-people-find {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 9px;
+  border: 1px solid #d9d9de;
+  border-radius: 10px;
+  color: #6b6b70;
+}
+
+.role-people-find:focus-within {
+  border-color: #a1a1aa;
+}
+
+.role-people-find input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  color: #171717;
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.role-people-matches {
+  display: grid;
+  gap: 2px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.role-people-matches button {
+  display: block;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: #171717;
+  font: inherit;
+  font-size: 0.8125rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.role-people-matches button:hover {
+  background: #f6f5f3;
+}
+
+.role-people-matches small {
+  display: block;
+  color: #6b6b70;
+  font-size: 0.75rem;
+}
+
+.role-people-matches .is-new {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #8a6d4f;
+}
+
+.role-people-form h3 {
+  margin-bottom: 10px;
+}
+
+.role-people-form fieldset {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.role-people-form label {
+  display: grid;
+  gap: 3px;
+  color: #3f3f46;
+  font-size: 0.75rem;
+}
+
+.role-people-form input {
+  padding: 6px 8px;
+  border: 1px solid #d4d4d8;
+  border-radius: 8px;
+  color: #171717;
+  font: inherit;
+  font-size: 0.8125rem;
+}
+
+/* Asking someone to confirm you worked together. */
+.role-view-avatar.is-confirmed {
+  box-shadow: 0 0 0 2px #2f9e5b;
+}
+
+.role-people-who b {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.role-people-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: #f1f1f2;
+  color: #6b6b70;
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.role-people-tag.is-confirmed {
+  background: #e7f6ec;
+  color: #1f7a3d;
+}
+
+.role-people-tag.is-declined {
+  background: #fbecea;
+  color: #a33a2b;
+}
+
+.role-people-quote {
+  display: block;
+  margin-top: 3px;
+  color: #3f3f46;
+  font-size: 0.75rem;
+  font-style: italic;
+  quotes: "“" "”";
+}
+
+.role-people-check {
+  display: flex !important;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+}
+
+.role-people-check input {
+  width: auto;
+}
+
+.role-people-form textarea {
+  padding: 6px 8px;
+  border: 1px solid #d4d4d8;
+  border-radius: 8px;
+  color: #171717;
+  font: inherit;
+  font-size: 0.8125rem;
+  resize: vertical;
+}
+
+.role-people-form > .role-view-empty {
+  margin: -4px 0 10px;
+  font-size: 0.75rem;
+}
+
+.role-people-link {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.role-people-link input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid #d4d4d8;
+  border-radius: 8px;
+  background: #f6f5f3;
+  font: inherit;
+  font-size: 0.75rem;
+}
+
+.role-people-link .role-view-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* When each achievement happened. */
+.role-view-achievements li > span:first-child {
+  margin-right: 8px;
+}
+
+.role-view-when {
+  padding: 1px 8px;
+  border: 1px solid #ead5ad;
+  border-radius: 999px;
+  background: #f6ead3;
+  color: #6f5536;
+  font: inherit;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.role-view-when.is-empty {
+  border-style: dashed;
+  border-color: #d6d0c6;
+  background: none;
+  color: #8a6d4f;
+}
+
+.role-view-when.is-open {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: default;
+}
+
+.role-view-when input {
+  padding: 2px 6px;
+  border: 1px solid #d4d4d8;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 0.8125rem;
+}
+
+/* The evidence behind one achievement. */
+.role-proof {
+  position: relative;
+  display: inline-block;
+  margin-left: 6px;
+}
+
+.role-proof-tag {
+  padding: 1px 8px;
+  border: 1px dashed #d6d0c6;
+  border-radius: 999px;
+  background: none;
+  color: #6b6b70;
+  font: inherit;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.role-proof-tag.has {
+  border-style: solid;
+  border-color: #b9dcc5;
+  background: #e7f6ec;
+  color: #1f7a3d;
+  font-weight: 600;
+}
+
+.role-proof-pop {
+  left: 0;
+  right: auto;
+  display: grid;
+  gap: 8px;
+  width: min(360px, 86vw);
+  padding: 12px;
+  font-size: 0.875rem;
+}
+
+.role-proof-pop h3 {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.role-proof-for {
+  display: block;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #f6f5f3;
+  color: #3f3f46;
+  font-size: 0.75rem;
+}
+
+.role-proof-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.role-proof-list li {
+  position: relative;
+  display: grid;
+  padding: 6px 56px 6px 6px;
+  border-radius: 8px;
+}
+
+.role-proof-list li:hover {
+  background: #f6f5f3;
+}
+
+.role-proof-list a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #171717;
+  font-size: 0.8125rem;
+  text-decoration: none;
+}
+
+.role-proof-list a:hover b {
+  text-decoration: underline;
+}
+
+.role-proof-list small {
+  color: #6b6b70;
+  font-size: 0.75rem;
+}
+
+.role-proof-list .role-people-actions {
+  position: absolute;
+  top: 6px;
+  right: 4px;
+}
+
+.role-proof-list li:hover .role-people-actions {
+  opacity: 1;
+}
+
+.role-proof-url {
+  display: flex;
+  gap: 6px;
+}
+
+.role-proof-url input {
+  flex: 1;
+  min-width: 0;
+}
+
+.role-proof-two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.role-proof-pop select {
+  padding: 6px 8px;
+  border: 1px solid #d4d4d8;
+  border-radius: 8px;
+  background: #fff;
+  font: inherit;
+  font-size: 0.8125rem;
+}
+
+/* History entries that lead to something in the role. */
+.role-history-go {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.role-history-go:hover,
+.role-history-go:focus-visible {
+  color: #6f5536;
+  text-decoration: underline;
+  text-decoration-color: #e2b672;
+  text-underline-offset: 2px;
+}
+
+/* The achievement or person just picked in History, marked for a moment. */
+.role-view-achievements li.is-flash,
+.role-people-list li.is-flash {
+  border-radius: 8px;
+  background: #fbefd6;
+  box-shadow: 0 0 0 6px #fbefd6;
+  transition: background 0.6s ease-out, box-shadow 0.6s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .role-view-achievements li.is-flash,
+  .role-people-list li.is-flash {
+    transition: none;
+  }
+}
+
+/* An achievement, opened on its own. */
+.role-view-achievement-open {
+  margin-right: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.role-view-achievement-open:hover,
+.role-view-achievement-open:focus-visible {
+  text-decoration: underline;
+  text-decoration-color: #e2b672;
+  text-underline-offset: 3px;
+}
+
+.achievement-detail {
+  display: grid;
+  gap: 12px;
+}
+
+.achievement-detail-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  justify-self: start;
+}
+
+.achievement-detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.achievement-detail-head h2 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.achievement-detail-head .role-view-ghost,
+.achievement-detail-edit .role-view-ghost {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+}
+
+.achievement-detail-edit {
+  display: grid;
+  gap: 8px;
+}
+
+.achievement-detail-edit textarea {
+  padding: 8px 10px;
+  border: 1px solid #d4d4d8;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.achievement-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: #6b6b70;
+  font-size: 0.8125rem;
+}
+
+.achievement-detail-section {
+  display: grid;
+  gap: 8px;
+  padding-top: 14px;
+  border-top: 1px solid #ebe8e4;
+}
+
+.achievement-detail-section h3 {
+  margin: 0;
+  color: #5b5b61;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.role-proof.is-inline {
+  display: block;
+  margin: 0;
+}
+
+.role-proof-pop.is-inline {
+  position: static;
+  display: grid;
+  gap: 8px;
+  width: auto;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+}
+
+.achievement-links {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.achievement-links li {
+  display: grid;
+  grid-template-columns: 11rem 1fr;
+  align-items: start;
+  gap: 10px;
+}
+
+.achievement-links-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 3px;
+  color: #3f3f46;
+  font-size: 0.8125rem;
+}
+
+.achievement-links-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.achievement-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px 2px 10px;
+  border-radius: 999px;
+  background: #f6ead3;
+  color: #6f5536;
+  font-size: 0.8125rem;
+}
+
+.achievement-chip button {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: #8a6d4f;
+  cursor: pointer;
+}
+
+.achievement-chip button:hover {
+  background: #f1e0c0;
+}
+
+.achievement-links-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 10px;
+  border: 1px dashed #d6d0c6;
+  border-radius: 999px;
+  background: none;
+  color: #8a6d4f;
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.achievement-links-chips select,
+.achievement-skill-form input {
+  padding: 4px 8px;
+  border: 1px solid #d4d4d8;
+  border-radius: 8px;
+  background: #fff;
+  font: inherit;
+  font-size: 0.8125rem;
+}
+
+.achievement-skill-form {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.achievement-links-hint {
+  font-size: 0.8125rem;
+}
+
+@media (max-width: 720px) {
+  .achievement-links li {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}
+
+/* Each achievement as its own row: easy to tell apart, the whole row opens it. */
+.achievement-rows {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
+}
+
+.achievement-row {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px 10px 14px;
+  border: 1px solid #ebe8e4;
+  border-left: 3px solid #e8d6b3;
+  border-radius: 12px;
+  background: #fff;
+  transition: border-color 0.15s ease-out, background 0.15s ease-out;
+}
+
+.achievement-row:hover,
+.achievement-row:focus-within {
+  border-color: #e2cfa8;
+  border-left-color: #cd9f5b;
+  background: #fffcf6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .achievement-row {
+    transition: none;
+  }
+}
+
+.achievement-row-open {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #171717;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* Two lines each in the list: enough to tell them apart; the whole wording shows when it's opened. */
+.achievement-row-text {
+  display: -webkit-box;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.achievement-row-chevron {
+  flex: none;
+  margin-top: 3px;
+  color: #b8a48a;
+}
+
+.achievement-row:hover .achievement-row-chevron {
+  color: #8a6d4f;
+}
+
+.achievement-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.achievement-row-meta .role-proof {
+  margin-left: 0;
+}
+
+.achievement-row-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: #6b6b70;
+  font-size: 0.75rem;
+}
+
+.achievement-row-skill {
+  padding: 0 8px;
+  border-radius: 999px;
+  background: #f1f1f2;
+  color: #3f3f46;
+  font-size: 0.75rem;
+}
+
+/* History: each entry its own row too. */
+.role-history-year li {
+  padding: 6px 6px;
+  border-radius: 8px;
+}
+
+.role-history-year li + li {
+  border-top: 1px solid #f1eee9;
+  border-radius: 0 0 8px 8px;
+}
+
+.role-history-year li:has(.role-history-go):hover {
+  background: #fffaf0;
+}
+
+.role-history-year ol {
+  gap: 0;
+}
+
+.role-history-go {
+  display: block;
+  width: 100%;
+}
+
+.role-history-go:hover,
+.role-history-go:focus-visible {
+  text-decoration: none;
+  color: #171717;
+}
+
+/* History entries that open something are two lines; notes, milestones, and
+   events have nowhere else to be read, so they stay whole. */
+.role-history-text.role-history-go {
+  display: -webkit-box;
+  min-width: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* Let a row shrink to the column, so long wording ends in "…" instead of spilling. */
+.achievement-rows,
+.achievement-row {
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+
+.achievement-row-open {
+  min-width: 0;
+}
+
+/* An achievement opened from History, in a window over the page. */
+.achievement-popout {
+  --color-text-primary: #171717;
+  width: min(640px, 92vw);
+  max-height: 86vh;
+  padding: 0;
+  border: 0;
+  border-radius: 16px;
+  background: #fff;
+  color: #171717;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.22);
+  /* Tall content, like the role's editor, scrolls inside the window. */
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.achievement-popout::backdrop {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.achievement-popout-body {
+  position: relative;
+  padding: 22px 24px 24px;
+}
+
+.achievement-popout-body .achievement-detail-head {
+  padding-right: 40px;
+}
+
+.achievement-popout-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  box-shadow: inset 0 0 0 1px #e4e4e7;
+}
+
+/* The role's editor, in a popout. */
+.role-editor-popout .role-view-editor {
+  max-width: none;
+  padding: 0;
+}
+
+.role-editor-popout .role-view-editor h2 {
+  padding-right: 40px;
+}
+
+/* An achievement's short title, and its description. */
+.achievement-detail-add-title {
+  padding: 4px 12px;
+  border: 1px dashed #d6d0c6;
+  border-radius: 999px;
+  background: none;
+  color: #8a6d4f;
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.achievement-detail-title-edit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-right: 40px;
+}
+
+.achievement-detail-title-edit input {
+  flex: 1;
+  min-width: 12rem;
+  padding: 7px 10px;
+  border: 1px solid #d4d4d8;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.achievement-detail-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.achievement-detail-section-head .role-view-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.achievement-detail-description {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #ebe8e4;
+  border-radius: 10px;
+  background: #faf9f7;
+  color: #27272a;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.achievement-row-titled {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.achievement-row-titled b {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.achievement-row-text.is-description {
+  color: #6b6b70;
+  font-size: 0.8125rem;
+  -webkit-line-clamp: 1;
+}
+
+/* Proof and links: a line of copy and two buttons; what's added shows under them. */
+.achievement-backing-copy {
+  margin: 0;
+  color: #52525b;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.achievement-backing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.achievement-backing-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.achievement-link-menu-wrap {
+  display: contents;
+}
+
+/* The kinds of link, as a row of choices in the flow, so a scrolling popout can't clip them. */
+.achievement-link-menu {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex-basis: 100%;
+  padding: 6px;
+  border: 1px solid #ebe8e4;
+  border-radius: 12px;
+  background: #faf9f7;
+}
+
+.achievement-link-menu button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid #ebe8e4;
+  border-radius: 999px;
+  background: #fff;
+  color: #171717;
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.achievement-link-menu button:hover,
+.achievement-link-menu button:focus-visible {
+  background: #f6f5f3;
+}
+
+.achievement-link-picker {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #faf9f7;
+}
+
+.achievement-link-choose {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.achievement-link-choose select {
+  padding: 5px 8px;
+  border: 1px solid #d4d4d8;
+  border-radius: 8px;
+  background: #fff;
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.achievement-linked {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.achievement-linked .achievement-chip {
+  gap: 5px;
+  padding-left: 8px;
+}
+
+.achievement-backing .role-proof.is-inline:empty {
+  display: none;
+}
+
+/* The top of an achievement: what it is, where, then its title and date. */
+.achievement-detail-head {
+  display: grid;
+  gap: 2px;
+  padding-right: 40px;
+}
+
+.achievement-detail-head h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.achievement-detail-where {
+  margin: 0;
+  color: #6b6b70;
+  font-size: 0.875rem;
+}
+
+.achievement-detail-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border: 1px solid #ead5ad;
+  border-radius: 999px;
+  background: #fffaf0;
+  color: #171717;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.achievement-detail-title span {
+  color: #8a6d4f;
+  font-weight: 500;
+}
+
+.achievement-detail-title svg {
+  color: #8a6d4f;
+}
+
+.achievement-detail-add-title {
+  padding: 3px 12px;
+  font-size: 0.8125rem;
+}
+
+/* A role's work setup: schedule, shifts, team, and growth. */
+.role-setup-actions {
+  display: inline-flex;
+  gap: 14px;
+}
+
+.role-setup-actions .role-view-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.role-setup-flip {
+  transform: rotate(180deg);
+}
+
+.role-setup-line {
+  margin: 0;
+  color: var(--rv-ink, #171717);
+  font-size: 0.875rem;
+}
+
+.role-setup-facts {
+  margin-top: 12px;
+  font-size: 0.875rem;
+}
+
+.role-setup-list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.role-setup-list b {
+  font-weight: 600;
+  margin-right: 4px;
+}
+
+.role-setup-form h3 {
+  margin: 10px 0 -2px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rv-line, #ebe8e4);
+  font-size: 0.875rem;
+  font-weight: 650;
+}
+
+.role-setup-form fieldset > h3:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.role-setup-note {
+  margin: -6px 0 14px;
+  color: var(--rv-muted, #71717a);
+  font-size: 0.8125rem;
+}
+
+.role-setup-hint {
+  margin: 0;
+  color: var(--rv-muted, #71717a);
+  font-size: 0.75rem;
+}
+
+.role-setup-label {
+  color: #3f3f46;
+  font-size: 0.8125rem;
+}
+
+.role-setup-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+}
+
+.role-setup-row.is-promotion {
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) auto;
+}
+
+.role-setup-row-note {
+  grid-column: 1 / -1;
+  margin-top: -4px;
+  color: var(--rv-muted, #71717a);
+  font-size: 0.75rem;
+}
+
+.role-setup-remove {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 34px;
+  border: 1px solid #e4e4e7;
+  border-radius: 8px;
+  background: #fff;
+  color: #71717a;
+  cursor: pointer;
+}
+
+.role-setup-remove:hover {
+  color: #b42318;
+}
+
+.role-setup-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  justify-self: start;
+}
+
+/* A role's settings: a month field next to the design system's inputs. */
+.role-settings-month {
+  box-sizing: border-box;
+  width: 220px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border-primary, #d4d4d8);
+  border-radius: var(--radius-element, 8px);
+  background: var(--color-background-surface, #fff);
+  color: var(--color-text-primary, #171717);
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.role-settings-month-label {
+  display: grid;
+  gap: 4px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.role-settings-month-label .role-settings-month {
+  width: 170px;
+}
+
+/* Pay & benefits: private, so the heading carries a lock. */
+.role-setup .role-view-section-head h2 {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.role-pay-lock {
+  flex: none;
+  color: var(--rv-muted, #71717a);
+}
+
+.role-settings-checks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px 12px;
+}
+
+/* History's Edits: when each change was made, and Undo. */
+.role-history-edit {
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+  color: #6b6b70;
+  font-size: 0.75rem;
+}
+
+.role-history-edit em {
+  font-style: normal;
+}
+
+.role-history-undo {
+  padding: 1px 10px;
+  border: 1px solid #e4ddd2;
+  border-radius: 999px;
+  background: #fff;
+  color: #171717;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 550;
+  cursor: pointer;
+}
+
+.role-history-undo:hover:not(:disabled) {
+  border-color: #c9b79e;
+  background: #fffaf0;
+}
+
+.role-history-undo:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+/* Events and places, changed in place. */
+.role-events-list li,
+.role-places-row dd {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.role-events-list li > span:first-child {
+  min-width: 0;
+}
+
+.role-events-list small {
+  display: block;
+  margin-top: 1px;
+  color: var(--rv-muted, #71717a);
+  font-size: 0.75rem;
+}
+
+.role-places-row {
+  display: contents;
+}
+
+.role-places-row dd > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.role-row-actions {
+  display: flex;
+  flex: none;
+  gap: 2px;
+  opacity: 0;
+}
+
+.role-events-list li:hover .role-row-actions,
+.role-places-row:hover .role-row-actions,
+.role-places-row dd:hover .role-row-actions,
+.role-row-actions:focus-within {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .role-row-actions {
+    opacity: 1;
+  }
+}
+
+.role-row-actions button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: #6b6b70;
+  cursor: pointer;
+}
+
+.role-row-actions button:hover {
+  background: #f4efe7;
+  color: #171717;
+}
+
+.role-inline-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.role-inline-form {
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid var(--rv-line, #ebe8e4);
+  border-radius: 12px;
+  background: #fcfaf7;
+}
+
+.role-inline-form fieldset {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.role-inline-form label {
+  display: grid;
+  gap: 4px;
+  color: #3f3f46;
+  font-size: 0.8125rem;
+}
+
+.role-inline-form .role-view-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.role-inline-form input:not([type="checkbox"]),
+.role-inline-form select {
+  min-width: 0;
+  padding: 7px 9px;
+  border: 1px solid #d4d4d8;
+  border-radius: 8px;
+  background: #fff;
+  color: #171717;
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.role-inline-row {
+  display: grid;
+  grid-template-columns: minmax(0, 10rem) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.role-places .role-inline-row {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 9rem);
+}
+
+.role-inline-find {
+  display: flex;
+  gap: 6px;
+}
+
+.role-inline-find input {
+  flex: 1;
+}
+
+.role-inline-find .role-view-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.role-inline-matches {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.role-inline-matches button {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #ebe8e4;
+  border-radius: 8px;
+  background: #fff;
+  color: #171717;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.role-inline-matches button:hover {
+  border-color: #c9b79e;
+  background: #fffaf0;
+}
+
+.role-inline-matches span {
+  display: grid;
+  min-width: 0;
+}
+
+.role-inline-matches small {
+  overflow: hidden;
+  color: #6b6b70;
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.role-inline-found {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: #4d7c4f;
+  font-size: 0.8125rem;
+}
+
+@media (max-width: 560px) {
+  .role-inline-row,
+  .role-places .role-inline-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Back to the list: only where the list is hidden to make room for the role. */
+.role-view-back {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  margin: 0 0 10px;
+  padding: 6px 12px 6px 8px;
+  border: 1px solid var(--rv-line, #ebe8e4);
+  border-radius: 999px;
+  background: #fff;
+  color: #171717;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 550;
+  cursor: pointer;
+}
+
+/* Tablet, landscape: a slimmer list, so the role keeps its room. */
+@media (min-width: 801px) and (max-width: 1180px) {
+  .home-sheet.is-home:has(.pch):has(.role-view) {
+    grid-template-columns: 17rem minmax(0, 1fr);
+  }
+
+  .home-sheet.is-home.is-right-open:has(.pch):has(.role-view) {
+    grid-template-columns: 17rem minmax(20rem, 1fr) minmax(14rem, 18rem);
+  }
+}
+
+/* Tablet and phone: the role, then its History under it, in one column that scrolls. */
+@media (max-width: 1180px) {
+  .home-story-layout:has(> .home-role) {
+    display: block;
+    margin-top: 0;
+    overflow: auto;
+  }
+
+  .home-role {
+    padding-right: 0;
+    overflow: visible;
+  }
+
+  .home-role > .role-view {
+    min-height: 0;
+  }
+
+  .home-story-layout:has(> .home-role) > .home-story-recent.home-role-history {
+    display: flex;
+    height: auto;
+    min-height: 0;
+    margin: 16px 0 0;
+    border-top: 1px solid #e4e4e7;
+    border-left: 0;
+    border-radius: 14px;
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+/* Tablet, portrait, and phone: the role takes the screen; a button goes back to the list. */
+@media (max-width: 800px) {
+  .home-sheet:has(.role-view) > .home-history {
+    display: none;
+  }
+
+  .role-view-back {
+    display: inline-flex;
+  }
+}
+
+/* Phone: the name gets the banner's width; its buttons go under it. */
+@media (max-width: 560px) {
+  .role-view-heading {
+    right: 16px;
+    left: 16px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .role-view-names {
+    max-width: 100%;
+  }
+}
+
+/* Star ratings in a role's settings. */
+.role-settings-stars {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.role-settings-stars button {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: #d4d4d8;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.role-settings-stars button.is-on {
+  color: #cd9f5b;
+}
+
+.role-settings-stars button:hover {
+  background: rgba(205, 159, 91, 0.12);
+}

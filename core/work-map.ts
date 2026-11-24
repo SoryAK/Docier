@@ -1,3 +1,10 @@
+import { uniformLine, type EquipmentItem, type UniformItem } from "./role-gear";
+import { EMPTY_COMMUTE, EMPTY_LEAVING, EMPTY_RATINGS, type RoleCommute, type RoleLeaving, type RoleRatings } from "./role-reflection";
+import type { RoleEdit } from "./role-edits";
+import { EMPTY_PAY, type PayEvent, type RolePay, type TimeOffBalance } from "./role-pay";
+import { EMPTY_SCHEDULE, EMPTY_TEAM, type RolePromotion, type RoleSchedule, type RoleShift, type RoleTeam } from "./role-work-setup";
+import type { RolePerson } from "./role-people";
+import type { AchievementLinks } from "./role-achievements";
 import type { CanvasBoard } from "./canvas-board";
 import { formatHistoryPlace } from "./career-history";
 import type { ProjectionVisibility } from "./projection";
@@ -60,8 +67,13 @@ export type LinkedEvidence = {
   credit: (typeof LINKED_EVIDENCE_CREDITS)[number];
   quote: string;
   timestamp: string;
+  /**
+   * What this evidence backs. An achievement is pinned by its id, with its
+   * current statement alongside; pins saved before ids, and published copies,
+   * may carry the statement alone.
+   */
   pin:
-    | { kind: "achievement"; statement: string }
+    | { kind: "achievement"; id?: string; statement: string }
     | { kind: "event"; id: string }
     | null;
   isPublic: boolean;
@@ -82,7 +94,7 @@ export type LinkedEvidenceError =
 
 export function prepareLinkedEvidence(
   input: Record<string, unknown>,
-  role: Pick<WorkMapRole, "achievements" | "details">,
+  role: Pick<WorkMapRole, "achievements" | "achievementIds" | "details">,
 ):
   | { ok: true; value: PreparedLinkedEvidence }
   | { ok: false; error: LinkedEvidenceError } {
@@ -125,19 +137,46 @@ export function prepareLinkedEvidence(
 export function groupLinkedEvidence<T extends Pick<LinkedEvidence, "pin">>(
   achievements: string[],
   items: T[] | undefined,
+  achievementIds?: readonly string[],
 ): { achievements: Array<{ statement: string; evidence: T[] }>; other: T[] } {
-  const grouped = achievements.map((statement) => ({ statement, evidence: [] as T[] }));
+  const grouped = achievements.map((statement, index) => ({ statement, id: achievementIds?.[index], evidence: [] as T[] }));
   const other: T[] = [];
   for (const item of items ?? []) {
-    const wanted =
-      item.pin?.kind === "achievement" ? item.pin.statement.trim().toLowerCase() : null;
-    const home = wanted
-      ? grouped.find((entry) => entry.statement.trim().toLowerCase() === wanted)
+    const pin = item.pin?.kind === "achievement" ? item.pin : null;
+    const wanted = pin ? pin.statement.trim().toLowerCase() : null;
+    // By id when both sides have one; by statement for older pins and published copies.
+    const home = pin
+      ? (pin.id ? grouped.find((entry) => entry.id === pin.id) : undefined) ??
+        grouped.find((entry) => entry.statement.trim().toLowerCase() === wanted)
       : undefined;
     if (home) home.evidence.push(item);
     else other.push(item);
   }
-  return { achievements: grouped, other };
+  return { achievements: grouped.map(({ statement, evidence }) => ({ statement, evidence })), other };
+}
+
+/**
+ * A stored pin, read against the role's achievements as they are now: an
+ * achievement pin gets its id (matched by statement, for older pins) and its
+ * current statement. A pin to an achievement that's gone becomes null; a
+ * statement that matches nothing is kept as it was.
+ */
+export function resolveAchievementPin(
+  pin: LinkedEvidence["pin"],
+  achievements: readonly string[],
+  achievementIds: readonly string[] | undefined,
+): LinkedEvidence["pin"] {
+  if (!pin || pin.kind !== "achievement") return pin;
+  const ids = achievementIds ?? [];
+  if (pin.id) {
+    const index = ids.indexOf(pin.id);
+    return index >= 0 ? { kind: "achievement", id: pin.id, statement: achievements[index]!.trim() } : null;
+  }
+  const wanted = pin.statement.trim().toLowerCase();
+  const index = achievements.findIndex((achievement) => achievement.trim().toLowerCase() === wanted);
+  if (index < 0) return pin;
+  const id = ids[index];
+  return id ? { kind: "achievement", id, statement: achievements[index]!.trim() } : { kind: "achievement", statement: achievements[index]!.trim() };
 }
 
 export function prepareLinkedEvidenceDelete(input: {
@@ -174,7 +213,7 @@ function pageHost(value: string): string {
 
 function linkedEvidencePin(
   value: unknown,
-  role: Pick<WorkMapRole, "achievements" | "details">,
+  role: Pick<WorkMapRole, "achievements" | "achievementIds" | "details">,
 ): LinkedEvidence["pin"] | undefined {
   if (value == null) return null;
   if (typeof value !== "object") return undefined;
@@ -186,11 +225,21 @@ function linkedEvidencePin(
       : undefined;
   }
   if (pin.kind === "achievement") {
-    const wanted = text(pin.statement).toLowerCase();
-    const statement = role.achievements.find(
-      (achievement) => achievement.trim().toLowerCase() === wanted,
+    const id = text(pin.id);
+    if (id) {
+      return (role.achievementIds ?? []).includes(id)
+        ? resolveAchievementPin({ kind: "achievement", id, statement: "" }, role.achievements, role.achievementIds) ?? undefined
+        : undefined;
+    }
+    const resolved = resolveAchievementPin(
+      { kind: "achievement", statement: text(pin.statement) },
+      role.achievements,
+      role.achievementIds,
     );
-    return statement ? { kind: "achievement", statement: statement.trim() } : undefined;
+    // A statement must match an achievement on the role.
+    return resolved && resolved.kind === "achievement" && role.achievements.some((a) => a.trim() === resolved.statement)
+      ? resolved
+      : undefined;
   }
   return undefined;
 }
@@ -265,26 +314,38 @@ export type WorkMapRoleDetails = {
   milestones: WorkMapMoment[];
   events: WorkMapMoment[];
   notes: WorkMapMoment[];
-  compensation: {
-    currency: string;
-    period: "hourly" | "annual";
-    amount: number | null;
-    visibility: "private" | "range" | "public";
-  };
-  schedule: {
-    shift: string;
-    hoursPerWeek: number | null;
-    workMode: "onsite" | "hybrid" | "remote";
-  };
+  /** The rate and how it was paid. Only `amount`, `currency`, and `period` can be published. */
+  compensation: RolePay;
+  /** Raises, bonuses, and adjustments, by month. Never published. */
+  payHistory: PayEvent[];
+  benefitNotes: string;
+  /** Time off by year and kind. Never published. */
+  timeOff: TimeOffBalance[];
+  schedule: RoleSchedule;
+  /** Named shifts, e.g. "Nights 23:00–07:00". */
+  shifts: RoleShift[];
+  /** Who you reported to, the department, and the team's size. */
+  team: RoleTeam;
   benefits: string[];
   paidTimeOff: string;
   environment: string;
   growth: string;
   departure: string;
   workplaceRating: number | null;
+  /** Ratings by area, 1 to 5. Never published. */
+  ratings: RoleRatings;
+  /** Why you left, as a reason, and whether you'd go back. Never published. */
+  leaving: RoleLeaving;
+  /** Never published. */
+  commute: RoleCommute;
   uniform: string;
+  uniformItems: UniformItem[];
+  /** Names only, kept in step with `equipmentItems`: what your page can show. */
   equipment: string[];
+  equipmentItems: EquipmentItem[];
   skills: string[];
+  skillsGained: string[];
+  promotions: RolePromotion[];
   share: WorkMapShare;
 };
 
@@ -298,6 +359,8 @@ export type WorkMapShare = {
   workplaceRating: boolean;
   equipment: boolean;
   uniform: boolean;
+  /** Department and team size; never the name of who you reported to. */
+  team: boolean;
 };
 
 export type WorkMapClaim = {
@@ -319,6 +382,12 @@ export type WorkMapRole = {
   description: string;
   achievements: string[];
   achievementIds?: string[];
+  /** The month each achievement happened (YYYY-MM), or "" when not set; same order as `achievements`. */
+  achievementDates?: string[];
+  /** Each achievement's short title, or "" when it has none; its statement is the description. */
+  achievementTitles?: string[];
+  /** What each achievement is linked to on this role; same order as `achievements`. */
+  achievementLinks?: AchievementLinks[];
   factId: string | null;
   factVersion: number | null;
   evidenceIds: string[];
@@ -329,6 +398,10 @@ export type WorkMapRole = {
   details: WorkMapRoleDetails;
   canvasBoards?: CanvasBoard[];
   canvasRevision?: number;
+  /** My Network contacts linked to this role. */
+  people?: RolePerson[];
+  /** Changes made to this role, newest first. Never published. */
+  edits?: RoleEdit[];
 };
 
 export type WorkMapPublishSection =
@@ -535,6 +608,9 @@ export type WorkMapSnapshot = {
     growth?: string;
     departure?: string;
     schedule?: WorkMapRoleDetails["schedule"];
+    team?: { department: string; size: number | null };
+    promotions?: RolePromotion[];
+    skillsGained?: string[];
     benefits?: string[];
     paidTimeOff?: string;
     environment?: string;
@@ -564,22 +640,29 @@ export const EMPTY_WORK_MAP_DETAILS: WorkMapRoleDetails = {
   milestones: [],
   events: [],
   notes: [],
-  compensation: {
-    currency: "USD",
-    period: "annual",
-    amount: null,
-    visibility: "private",
-  },
-  schedule: { shift: "", hoursPerWeek: null, workMode: "onsite" },
+  compensation: { ...EMPTY_PAY },
+  payHistory: [],
+  benefitNotes: "",
+  timeOff: [],
+  schedule: { ...EMPTY_SCHEDULE },
+  shifts: [],
+  team: { ...EMPTY_TEAM },
   benefits: [],
   paidTimeOff: "",
   environment: "",
   growth: "",
   departure: "",
   workplaceRating: null,
+  ratings: { ...EMPTY_RATINGS },
+  leaving: { ...EMPTY_LEAVING },
+  commute: { ...EMPTY_COMMUTE },
   uniform: "",
+  uniformItems: [],
   equipment: [],
+  equipmentItems: [],
   skills: [],
+  skillsGained: [],
+  promotions: [],
   share: {
     growth: false,
     departure: false,
@@ -590,6 +673,7 @@ export const EMPTY_WORK_MAP_DETAILS: WorkMapRoleDetails = {
     workplaceRating: false,
     equipment: false,
     uniform: false,
+    team: false,
   },
 };
 
@@ -601,7 +685,15 @@ export function normalizeWorkMapDetails(
     ...empty,
     ...details,
     compensation: { ...empty.compensation, ...details?.compensation },
+    payHistory: Array.isArray(details?.payHistory) ? details.payHistory : [],
+    timeOff: Array.isArray(details?.timeOff) ? details.timeOff : [],
     schedule: { ...empty.schedule, ...details?.schedule },
+    team: { ...empty.team, ...details?.team },
+    ratings: { ...empty.ratings, ...details?.ratings },
+    leaving: { ...empty.leaving, ...details?.leaving },
+    commute: { ...empty.commute, ...details?.commute },
+    equipmentItems: Array.isArray(details?.equipmentItems) ? details.equipmentItems : [],
+    uniformItems: Array.isArray(details?.uniformItems) ? details.uniformItems : [],
     share: { ...empty.share, ...details?.share },
     summary: typeof details?.summary === "string" ? details.summary.trim() : "",
     website: workMapLink(details?.website),
@@ -784,6 +876,9 @@ function publishedRoleConditions(details: WorkMapRoleDetails) {
     growth?: string;
     departure?: string;
     schedule?: WorkMapRoleDetails["schedule"];
+    team?: { department: string; size: number | null };
+    promotions?: RolePromotion[];
+    skillsGained?: string[];
     benefits?: string[];
     paidTimeOff?: string;
     environment?: string;
@@ -798,6 +893,21 @@ function publishedRoleConditions(details: WorkMapRoleDetails) {
   } = {};
   if (detailsNormalized.share.growth && detailsNormalized.growth) {
     shared.growth = detailsNormalized.growth;
+  }
+  if (detailsNormalized.share.growth && detailsNormalized.promotions.length) {
+    shared.promotions = detailsNormalized.promotions;
+  }
+  if (detailsNormalized.share.growth && detailsNormalized.skillsGained.length) {
+    shared.skillsGained = detailsNormalized.skillsGained;
+  }
+  if (
+    detailsNormalized.share.team &&
+    (detailsNormalized.team.department || detailsNormalized.team.size)
+  ) {
+    shared.team = {
+      department: detailsNormalized.team.department,
+      size: detailsNormalized.team.size,
+    };
   }
   if (detailsNormalized.share.departure && detailsNormalized.departure) {
     shared.departure = detailsNormalized.departure;
@@ -823,8 +933,8 @@ function publishedRoleConditions(details: WorkMapRoleDetails) {
   if (detailsNormalized.share.equipment && detailsNormalized.equipment.length) {
     shared.equipment = detailsNormalized.equipment;
   }
-  if (detailsNormalized.share.uniform && detailsNormalized.uniform) {
-    shared.uniform = detailsNormalized.uniform;
+  if (detailsNormalized.share.uniform && uniformLine(detailsNormalized)) {
+    shared.uniform = uniformLine(detailsNormalized);
   }
   if (detailsNormalized.compensation.visibility === "public") {
     shared.compensation = {

@@ -664,6 +664,10 @@ export function openDatabase(path: string): DatabaseSync {
   addColumnIfMissing(db, "projection_access_requests", "deleted_at", "TEXT");
   // A sent request cleared from the lists; it stays in History.
   addColumnIfMissing(db, "outgoing_requests", "cleared_at", "TEXT");
+  // A "worked together" request is about one person's link to a role, and an
+  // answer may come from the page or from the recipient's own Docier.
+  addColumnIfMissing(db, "outgoing_requests", "role_link_id", "TEXT");
+  addColumnIfMissing(db, "outgoing_requests", "answered_from", "TEXT");
   // A photo on a My Network contact, stored in uploads like the profile photo.
   addColumnIfMissing(db, "contacts", "photo_stored_name", "TEXT");
   // A resume added in onboarding is listed in My Docs, where its kind can change like any file (#189).
@@ -702,6 +706,42 @@ export function openDatabase(path: string): DatabaseSync {
     "INTEGER NOT NULL DEFAULT 0",
   );
   addColumnIfMissing(db, "opportunities", "contact_id", "TEXT");
+  // People worked with on a role: a My Network contact linked to a role, with a
+  // note and the month you started working together that belong to that job.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS role_contacts (
+      id TEXT PRIMARY KEY,
+      occupant_id TEXT NOT NULL REFERENCES occupants(id),
+      role_id TEXT NOT NULL,
+      contact_id TEXT NOT NULL,
+      note TEXT NOT NULL DEFAULT '',
+      since TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL,
+      UNIQUE (occupant_id, role_id, contact_id)
+    )
+  `);
+  // A record of changes to a role. The role's own fields and its details keep
+  // what each change replaced, so it can be undone; the rest is only logged.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS role_edits (
+      id TEXT PRIMARY KEY,
+      occupant_id TEXT NOT NULL REFERENCES occupants(id),
+      role_id TEXT NOT NULL,
+      at TEXT NOT NULL,
+      area TEXT NOT NULL,
+      summary TEXT NOT NULL,
+      keys_json TEXT NOT NULL DEFAULT '[]',
+      before_json TEXT,
+      after_json TEXT,
+      undone_at TEXT,
+      undoes_id TEXT
+    )
+  `);
+  db.exec("CREATE INDEX IF NOT EXISTS role_edits_role ON role_edits (occupant_id, role_id, at)");
+  // Confirmed from here, answering their "worked together" request from this
+  // Docier: it then counts on both sides.
+  addColumnIfMissing(db, "role_contacts", "confirmed_at", "TEXT");
+  addColumnIfMissing(db, "role_contacts", "confirmed_note", "TEXT NOT NULL DEFAULT ''");
   addColumnIfMissing(db, "map_settings", "pin_theme", "TEXT NOT NULL DEFAULT 'kind'");
   addColumnIfMissing(
     db,

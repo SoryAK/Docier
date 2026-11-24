@@ -39,7 +39,6 @@ import {
 import banner from "./branding/docier-banner.webp";
 import mark from "./branding/docier-mark.svg";
 import { readTourPreview } from "./dev-routes";
-import { TOUR_REVEAL, type TourReveal } from "./tour-reveal";
 import "./welcome-tour.css";
 
 /** Where an action on the card takes the occupant: the place it is filled in. */
@@ -58,7 +57,7 @@ export type FirstRunMarks = {
 type Rect = { top: number; left: number; width: number; height: number };
 
 const HOLE_PAD = 6;
-const ANCHORS: TourAnchor[] = ["overview", "history-nav", "map", "share", "start", "network", "resources", "menu"];
+const ANCHORS: TourAnchor[] = ["overview", "history-nav", "map", "share", "start", "network", "menu"];
 
 const CARD_WIDTH = 320;
 const GUTTER = 16;
@@ -692,7 +691,7 @@ function Tour({
   const last = steps ? index === steps.length - 1 : false;
 
   // Home may still be drawing or loading its story, so look for the anchors for a moment before starting.
-  // Only steps with something to point at are kept: their anchors, a closed group holding them, or a fallback.
+  // Only steps with something to point at are kept: their anchors or a fallback.
   useEffect(() => {
     let tries = 0;
     let timer = 0;
@@ -719,18 +718,11 @@ function Tour({
 
   useLayoutEffect(() => {
     if (!step) return;
-    const onScreen = anchorsOnScreen();
-    const chosen = pickAnchors(step, onScreen) ?? [];
-    // A stop inside a closed group opens it for this step, and puts it back after.
-    const reveal =
-      step.reveal && !step.anchors.some((anchor) => onScreen.has(anchor)) && onScreen.has(step.reveal)
-        ? step.reveal
-        : null;
-    if (reveal) window.dispatchEvent(new CustomEvent<TourReveal>(TOUR_REVEAL, { detail: { target: reveal, open: true } }));
+    const chosen = pickAnchors(step, anchorsOnScreen()) ?? [];
     let frame = 0;
     const measure = () => {
       cancelAnimationFrame(frame);
-      // Two frames: an opened group draws on the first.
+      // Two frames, so layout has settled before measuring.
       frame = requestAnimationFrame(() => {
         frame = requestAnimationFrame(() => {
           const shown = anchorRects(chosen, true);
@@ -750,9 +742,6 @@ function Tour({
       cancelAnimationFrame(frame);
       window.removeEventListener("resize", measure);
       window.removeEventListener("scroll", measure, true);
-      if (reveal) {
-        window.dispatchEvent(new CustomEvent<TourReveal>(TOUR_REVEAL, { detail: { target: reveal, open: false } }));
-      }
     };
   }, [step]);
 

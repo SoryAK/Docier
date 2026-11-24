@@ -4,7 +4,6 @@
  */
 import { formatPay } from "./role-pay";
 import { SCHEDULE_TYPE_LABEL, workModeText } from "./role-work-setup";
-import { COMMUTE_MODE_LABEL, type RoleCommute } from "./role-reflection";
 import type { WorkMapRoleDetails } from "./work-map";
 
 /** What shows at a glance by choice. Only pay is a choice; the rest shows when it is set. */
@@ -34,14 +33,6 @@ export function roleGlance(details: GlanceDetails): GlanceItem[] {
 
   if (details.workplaceRating) items.push({ kind: "rating", tab: "back", text: `${details.workplaceRating}/5 overall` });
   return items;
-}
-
-/** The commute, short, for beside the role's place: "22 min commute"; "" when not set. */
-export function commuteGlance(commute: RoleCommute): string {
-  if (commute.mode === "remote") return COMMUTE_MODE_LABEL.remote;
-  if (commute.minutes != null) return `${commute.minutes} min commute`;
-  if (commute.miles != null) return `${commute.miles} mi commute`;
-  return "";
 }
 
 export function prepareRoleGlance(

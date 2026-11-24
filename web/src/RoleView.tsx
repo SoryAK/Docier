@@ -5,10 +5,10 @@ import {
   formatTenureMonths,
   tenureMonths,
 } from "@core/career-history";
-import { commuteGlance, roleGlance, type GlanceKind } from "@core/role-glance";
+import { roleGlance, type GlanceKind } from "@core/role-glance";
 import { roleLinkList } from "@core/role-links";
 import { roleCoverPhoto, type WorkMapRole } from "@core/work-map";
-import { ArrowLeft, Banknote, BriefcaseBusiness, CalendarDays, Car, ChevronRight, Clock, ImagePlus, Images, Lock, MapPin, Pencil, Plus, Star, Trash2, UserRound, X, type LucideIcon } from "lucide-react";
+import { ArrowLeft, Banknote, BriefcaseBusiness, CalendarDays, ChevronRight, Clock, ImagePlus, Images, Lock, MapPin, Pencil, Plus, Star, Trash2, UserRound, X, type LucideIcon } from "lucide-react";
 import { AchievementDate } from "./AchievementDate";
 import { AchievementDetail } from "./AchievementDetail";
 import { AchievementProof } from "./AchievementProof";
@@ -140,7 +140,6 @@ export function RoleView({
   const links = roleLinkList(details);
   const isJob = role.kind !== "school";
   const glance = isJob ? roleGlance(details) : [];
-  const commute = isJob ? commuteGlance(details.commute) : "";
   const tabs: Array<{ id: RoleTab; label: string; count?: number; locked?: boolean }> = [
     { id: "overview", label: "Overview" },
     { id: "achievements", label: "Achievements", count: role.achievements.length },
@@ -231,16 +230,7 @@ export function RoleView({
 
       <div className="role-view-meta">
         <p>
-          {place}
-          {commute ? (
-            <button type="button" className="role-view-commute" onClick={() => openTab("back")}>
-              <Car size={14} aria-hidden="true" />
-              <span>{commute}</span>
-            </button>
-          ) : null}
-          {place && period ? " · " : null}
-          {period}
-          {role.isCurrent ? <mark>Current</mark> : null}
+          {[place, period].filter(Boolean).join(" · ")}
           {tenure ? <span className="role-view-tenure">({tenure})</span> : null}
         </p>
         <RolePeople role={role} roles={roles} onSaved={onSaved} openRequest={peopleRequest} />

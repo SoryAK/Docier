@@ -1,3 +1,4 @@
+import { SCHEDULE_TYPE_LABEL, WORK_MODE_LABEL } from "../core/role-work-setup";
 import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { Hono, type Context } from "hono";
@@ -535,7 +536,10 @@ function renderProjectionHtml(
         ${role.techStack.length ? `<p class="skills">${role.techStack.map(escapeHtml).join(" · ")}</p>` : ""}
         ${role.growth ? `<p>${escapeHtml(role.growth)}</p>` : ""}
         ${role.departure ? `<p>${escapeHtml(role.departure)}</p>` : ""}
-        ${role.schedule ? `<p class="skills">${escapeHtml([role.schedule.shift, role.schedule.hoursPerWeek ? `${role.schedule.hoursPerWeek} hrs/week` : "", role.schedule.workMode].filter(Boolean).join(" · "))}</p>` : ""}
+        ${role.schedule ? `<p class="skills">${escapeHtml(scheduleLine(role.schedule))}</p>` : ""}
+        ${role.team ? `<p class="skills">${escapeHtml([role.team.department, role.team.size ? `Team of ${role.team.size}` : ""].filter(Boolean).join(" · "))}</p>` : ""}
+        ${role.promotions?.length ? `<ul>${role.promotions.map((item) => `<li>Promoted to ${escapeHtml(item.title)} · ${escapeHtml(item.date)}</li>`).join("")}</ul>` : ""}
+        ${role.skillsGained?.length ? `<p class="skills">Learned: ${role.skillsGained.map(escapeHtml).join(" · ")}</p>` : ""}
         ${role.benefits?.length ? `<p class="skills">${role.benefits.map(escapeHtml).join(" · ")}</p>` : ""}
         ${role.paidTimeOff ? `<p>${escapeHtml(role.paidTimeOff)}</p>` : ""}
         ${role.environment ? `<p>${escapeHtml(role.environment)}</p>` : ""}
@@ -635,4 +639,12 @@ function escapeHtml(value: string): string {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+/** "Full-time · Overnight · 40 hrs/week · Hybrid, 3 days on site". */
+function scheduleLine(schedule: { type?: string; shift: string; hoursPerWeek: number | null; workMode: string; daysOnSite?: number | null }): string {
+  const type = schedule.type && schedule.type in SCHEDULE_TYPE_LABEL ? SCHEDULE_TYPE_LABEL[schedule.type as keyof typeof SCHEDULE_TYPE_LABEL] : "";
+  const mode = WORK_MODE_LABEL[schedule.workMode as keyof typeof WORK_MODE_LABEL] ?? schedule.workMode;
+  const where = schedule.workMode === "hybrid" && schedule.daysOnSite ? `${mode}, ${schedule.daysOnSite} days on site` : mode;
+  return [type, schedule.shift, schedule.hoursPerWeek ? `${schedule.hoursPerWeek} hrs/week` : "", where].filter(Boolean).join(" · ");
 }

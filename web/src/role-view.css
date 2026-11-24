@@ -1984,3 +1984,115 @@ img.role-view-avatar {
   padding: 3px 12px;
   font-size: 0.8125rem;
 }
+
+/* A role's work setup: schedule, shifts, team, and growth. */
+.role-setup-actions {
+  display: inline-flex;
+  gap: 14px;
+}
+
+.role-setup-actions .role-view-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.role-setup-flip {
+  transform: rotate(180deg);
+}
+
+.role-setup-line {
+  margin: 0;
+  color: var(--rv-ink, #171717);
+  font-size: 0.875rem;
+}
+
+.role-setup-facts {
+  margin-top: 12px;
+  font-size: 0.875rem;
+}
+
+.role-setup-list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.role-setup-list b {
+  font-weight: 600;
+  margin-right: 4px;
+}
+
+.role-setup-form h3 {
+  margin: 10px 0 -2px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rv-line, #ebe8e4);
+  font-size: 0.875rem;
+  font-weight: 650;
+}
+
+.role-setup-form fieldset > h3:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.role-setup-note {
+  margin: -6px 0 14px;
+  color: var(--rv-muted, #71717a);
+  font-size: 0.8125rem;
+}
+
+.role-setup-hint {
+  margin: 0;
+  color: var(--rv-muted, #71717a);
+  font-size: 0.75rem;
+}
+
+.role-setup-label {
+  color: #3f3f46;
+  font-size: 0.8125rem;
+}
+
+.role-setup-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+}
+
+.role-setup-row.is-promotion {
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) auto;
+}
+
+.role-setup-row-note {
+  grid-column: 1 / -1;
+  margin-top: -4px;
+  color: var(--rv-muted, #71717a);
+  font-size: 0.75rem;
+}
+
+.role-setup-remove {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 34px;
+  border: 1px solid #e4e4e7;
+  border-radius: 8px;
+  background: #fff;
+  color: #71717a;
+  cursor: pointer;
+}
+
+.role-setup-remove:hover {
+  color: #b42318;
+}
+
+.role-setup-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  justify-self: start;
+}

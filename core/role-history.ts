@@ -77,6 +77,8 @@ export function roleHistory(
   moments("milestone", details?.milestones);
   moments("event", details?.events);
   moments("note", details?.notes);
+  // Promotions are milestones: "Promoted to Lead technician".
+  for (const item of details?.promotions ?? []) push(item.id, "milestone", `Promoted to ${item.title}`, item.date);
   // People join the year you started working together, or the role's start.
   for (const item of role.people ?? []) {
     const date = item.since || role.startDate;

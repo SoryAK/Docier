@@ -1,3 +1,4 @@
+import { EMPTY_SCHEDULE, EMPTY_TEAM, type RolePromotion, type RoleSchedule, type RoleShift, type RoleTeam } from "./role-work-setup";
 import type { RolePerson } from "./role-people";
 import type { AchievementLinks } from "./role-achievements";
 import type { CanvasBoard } from "./canvas-board";
@@ -315,11 +316,11 @@ export type WorkMapRoleDetails = {
     amount: number | null;
     visibility: "private" | "range" | "public";
   };
-  schedule: {
-    shift: string;
-    hoursPerWeek: number | null;
-    workMode: "onsite" | "hybrid" | "remote";
-  };
+  schedule: RoleSchedule;
+  /** Named shifts, e.g. "Nights 23:00–07:00". */
+  shifts: RoleShift[];
+  /** Who you reported to, the department, and the team's size. */
+  team: RoleTeam;
   benefits: string[];
   paidTimeOff: string;
   environment: string;
@@ -329,6 +330,8 @@ export type WorkMapRoleDetails = {
   uniform: string;
   equipment: string[];
   skills: string[];
+  skillsGained: string[];
+  promotions: RolePromotion[];
   share: WorkMapShare;
 };
 
@@ -342,6 +345,8 @@ export type WorkMapShare = {
   workplaceRating: boolean;
   equipment: boolean;
   uniform: boolean;
+  /** Department and team size; never the name of who you reported to. */
+  team: boolean;
 };
 
 export type WorkMapClaim = {
@@ -587,6 +592,9 @@ export type WorkMapSnapshot = {
     growth?: string;
     departure?: string;
     schedule?: WorkMapRoleDetails["schedule"];
+    team?: { department: string; size: number | null };
+    promotions?: RolePromotion[];
+    skillsGained?: string[];
     benefits?: string[];
     paidTimeOff?: string;
     environment?: string;
@@ -622,7 +630,9 @@ export const EMPTY_WORK_MAP_DETAILS: WorkMapRoleDetails = {
     amount: null,
     visibility: "private",
   },
-  schedule: { shift: "", hoursPerWeek: null, workMode: "onsite" },
+  schedule: { ...EMPTY_SCHEDULE },
+  shifts: [],
+  team: { ...EMPTY_TEAM },
   benefits: [],
   paidTimeOff: "",
   environment: "",
@@ -632,6 +642,8 @@ export const EMPTY_WORK_MAP_DETAILS: WorkMapRoleDetails = {
   uniform: "",
   equipment: [],
   skills: [],
+  skillsGained: [],
+  promotions: [],
   share: {
     growth: false,
     departure: false,
@@ -642,6 +654,7 @@ export const EMPTY_WORK_MAP_DETAILS: WorkMapRoleDetails = {
     workplaceRating: false,
     equipment: false,
     uniform: false,
+    team: false,
   },
 };
 
@@ -654,6 +667,7 @@ export function normalizeWorkMapDetails(
     ...details,
     compensation: { ...empty.compensation, ...details?.compensation },
     schedule: { ...empty.schedule, ...details?.schedule },
+    team: { ...empty.team, ...details?.team },
     share: { ...empty.share, ...details?.share },
     summary: typeof details?.summary === "string" ? details.summary.trim() : "",
     website: workMapLink(details?.website),
@@ -836,6 +850,9 @@ function publishedRoleConditions(details: WorkMapRoleDetails) {
     growth?: string;
     departure?: string;
     schedule?: WorkMapRoleDetails["schedule"];
+    team?: { department: string; size: number | null };
+    promotions?: RolePromotion[];
+    skillsGained?: string[];
     benefits?: string[];
     paidTimeOff?: string;
     environment?: string;
@@ -850,6 +867,21 @@ function publishedRoleConditions(details: WorkMapRoleDetails) {
   } = {};
   if (detailsNormalized.share.growth && detailsNormalized.growth) {
     shared.growth = detailsNormalized.growth;
+  }
+  if (detailsNormalized.share.growth && detailsNormalized.promotions.length) {
+    shared.promotions = detailsNormalized.promotions;
+  }
+  if (detailsNormalized.share.growth && detailsNormalized.skillsGained.length) {
+    shared.skillsGained = detailsNormalized.skillsGained;
+  }
+  if (
+    detailsNormalized.share.team &&
+    (detailsNormalized.team.department || detailsNormalized.team.size)
+  ) {
+    shared.team = {
+      department: detailsNormalized.team.department,
+      size: detailsNormalized.team.size,
+    };
   }
   if (detailsNormalized.share.departure && detailsNormalized.departure) {
     shared.departure = detailsNormalized.departure;

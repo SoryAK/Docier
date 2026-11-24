@@ -1,4 +1,5 @@
 import { moveColleaguesToNetwork, readRolePeople } from "./role-people";
+import { prepareWorkSetup, type WorkSetupError } from "../core/role-work-setup";
 import { createHash, randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -293,20 +294,34 @@ export function saveWorkMapDetails(
               : "private",
         }
       : current.compensation,
+    // Merged into what's saved, so a form that only knows some fields keeps the rest.
     schedule: isObject(input.schedule)
       ? {
-          shift: text(input.schedule.shift),
-          hoursPerWeek:
-            typeof input.schedule.hoursPerWeek === "number"
-              ? input.schedule.hoursPerWeek
-              : null,
-          workMode:
-            input.schedule.workMode === "remote" ||
-            input.schedule.workMode === "hybrid"
-              ? input.schedule.workMode
-              : "onsite",
+          ...current.schedule,
+          ...("shift" in input.schedule ? { shift: text(input.schedule.shift) } : {}),
+          ...("hoursPerWeek" in input.schedule
+            ? {
+                hoursPerWeek:
+                  typeof input.schedule.hoursPerWeek === "number"
+                    ? input.schedule.hoursPerWeek
+                    : null,
+              }
+            : {}),
+          ...("workMode" in input.schedule
+            ? {
+                workMode:
+                  input.schedule.workMode === "remote" ||
+                  input.schedule.workMode === "hybrid"
+                    ? input.schedule.workMode
+                    : "onsite",
+              }
+            : {}),
         }
       : current.schedule,
+    shifts: current.shifts,
+    team: current.team,
+    skillsGained: current.skillsGained,
+    promotions: current.promotions,
     benefits: arrayOrCurrent(input.benefits, current.benefits),
     paidTimeOff:
       "paidTimeOff" in input ? text(input.paidTimeOff) : current.paidTimeOff,
@@ -343,6 +358,34 @@ export function saveWorkMapDetails(
        updated_at = excluded.updated_at`,
   ).run(roleId, occupantId, JSON.stringify(details), new Date().toISOString());
   return details;
+}
+
+/** Saves a role's whole work setup: schedule, shifts, team, and growth. */
+export function saveWorkSetup(
+  db: DatabaseSync,
+  occupantId: string,
+  roleId: string,
+  input: JsonObject,
+): { ok: true; details: WorkMapRoleDetails } | { ok: false; error: WorkSetupError } {
+  requireRole(db, occupantId, roleId);
+  const prepared = prepareWorkSetup(input, randomUUID);
+  if (!prepared.ok) return prepared;
+  const current = readDetails(db, occupantId, roleId);
+  const { share, ...setup } = prepared.value;
+  const details: WorkMapRoleDetails = {
+    ...current,
+    ...setup,
+    share: { ...current.share, ...share },
+  };
+  db.prepare(
+    `INSERT INTO work_history_details
+      (work_history_id, occupant_id, details_json, updated_at)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT(work_history_id) DO UPDATE SET
+       details_json = excluded.details_json,
+       updated_at = excluded.updated_at`,
+  ).run(roleId, occupantId, JSON.stringify(details), new Date().toISOString());
+  return { ok: true, details };
 }
 
 export function addWorkMapLocation(
@@ -1571,6 +1614,7 @@ function shareOrCurrent(value: unknown, current: WorkMapShare): WorkMapShare {
     workplaceRating: boolOr(value.workplaceRating, current.workplaceRating),
     equipment: boolOr(value.equipment, current.equipment),
     uniform: boolOr(value.uniform, current.uniform),
+    team: boolOr(value.team, current.team),
   };
 }
 

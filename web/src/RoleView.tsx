@@ -11,6 +11,7 @@ import { AchievementDate } from "./AchievementDate";
 import { AchievementDetail } from "./AchievementDetail";
 import { AchievementProof } from "./AchievementProof";
 import { RolePeople } from "./RolePeople";
+import { RoleWorkSetup } from "./RoleWorkSetup";
 import "./role-view.css";
 
 type RoleTab = "overview" | "achievements";
@@ -208,6 +209,8 @@ export function RoleView({
                   </button>
                 </p>
               )}
+
+              <RoleWorkSetup role={role} onSaved={onSaved} />
 
               <section className="role-view-section" aria-labelledby={`${role.id}-photos`}>
                 <div className="role-view-section-head">

@@ -302,6 +302,7 @@ import {
   saveSharedCanvas,
   saveCanvasAction,
   saveWorkMapDetails,
+  saveWorkSetup,
   saveWorkMapSettings,
   updateWorkMapLocation,
   updateWorkMapRole,
@@ -1465,6 +1466,26 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
     } catch (error) {
       if (error instanceof WorkMapStoreError) {
         return c.json({ error: error.code }, 400);
+      }
+      throw error;
+    }
+  });
+
+  // A role's work setup: schedule, shifts, team, and growth, saved together.
+  app.put("/api/work-map/roles/:id/work-setup", async (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      const saved = saveWorkSetup(
+        db,
+        occupant.id,
+        c.req.param("id"),
+        (await c.req.json().catch(() => ({}))) as Record<string, unknown>,
+      );
+      if (!saved.ok) return c.json({ error: saved.error }, 400);
+      return c.json({ details: saved.details });
+    } catch (error) {
+      if (error instanceof WorkMapStoreError) {
+        return c.json({ error: error.code }, 404);
       }
       throw error;
     }

@@ -234,6 +234,11 @@ export function formatPay(amount: number | null, currency: string, period: RoleP
   return `${formatMoney(amount, currency)}${period === "hourly" ? "/hr" : "/yr"}`;
 }
 
+/** "+$2/hr" or "+10%". */
+export function differentialText(item: PayDifferential, currency: string): string {
+  return item.unit === "percent" ? `+${item.amount}%` : `+${formatMoney(item.amount, currency)}/hr`;
+}
+
 export function formatMoney(amount: number, currency: string): string {
   try {
     return new Intl.NumberFormat("en-US", {

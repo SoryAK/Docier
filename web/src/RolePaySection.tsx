@@ -4,6 +4,7 @@ import {
   PAY_TYPE_LABEL,
   TIME_OFF_LABEL,
   daysLeft,
+  differentialText,
   formatPay,
   payEventText,
   paySummary,
@@ -69,7 +70,7 @@ export function RolePaySection({ role, onEdit }: { role: WorkMapRole; onEdit: (p
               <ul className="role-setup-list">
                 {pay.differentials.map((item) => (
                   <li key={item.id}>
-                    <b>{item.label}</b> {item.unit === "percent" ? `+${item.amount}%` : `+${item.amount} ${pay.currency}/hr`}
+                    <b>{item.label}</b> {differentialText(item, pay.currency)}
                   </li>
                 ))}
               </ul>

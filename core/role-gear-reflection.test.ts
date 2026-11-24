@@ -27,7 +27,8 @@ describe("gear", () => {
     expect(result.value.equipmentItems[1]!.usage).toBe("worked-on");
     expect(result.value.share).toEqual({ equipment: true, uniform: false });
     expect(uniformLine(result.value)).toBe("Navy Coveralls (provided). Steel toes, bought my own.");
-    expect(gearSummary(result.value)).toBe("2 pieces of equipment · worked on 1 · uniform: Coveralls");
+    expect(gearSummary(result.value)).toBe("2 given to me · 1 worked on · uniform: Coveralls");
+    expect(gearSummary({ ...result.value, equipmentItems: result.value.equipmentItems.filter((item) => item.usage === "worked-on"), uniformItems: [], uniform: "" })).toBe("1 worked on");
   });
 
   it("refuses unnamed items and bad months, and reads older names as items", () => {

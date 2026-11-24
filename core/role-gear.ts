@@ -149,8 +149,8 @@ export function gearSummary(gear: Pick<RoleGear, "equipmentItems" | "uniformItem
   const parts: string[] = [];
   const given = gear.equipmentItems.filter((item) => item.usage === "assigned").length;
   const worked = gear.equipmentItems.length - given;
-  if (given) parts.push(`${given} piece${given === 1 ? "" : "s"} of equipment`);
-  if (worked) parts.push(`worked on ${worked}`);
+  if (given) parts.push(`${given} given to me`);
+  if (worked) parts.push(`${worked} worked on`);
   if (gear.uniformItems.length) parts.push(`uniform: ${gear.uniformItems.map((item) => item.item).join(", ")}`);
   else if (gear.uniform) parts.push("uniform notes");
   const line = parts.join(" · ");

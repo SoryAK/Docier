@@ -3,6 +3,7 @@ import {
   achievementStatement,
   prepareAchievementDate,
   prepareAchievementLinks,
+  prepareAchievementTitle,
   readRoleAchievements,
   reconcileRoleAchievements,
   roleAchievementStatements,
@@ -129,5 +130,18 @@ describe("role achievements", () => {
     expect(prepareAchievementLinks({ skills: ["x".repeat(61)] })).toEqual({ ok: false, error: "links-invalid" });
     expect(prepareAchievementLinks({ people: "p1" })).toEqual({ ok: false, error: "links-invalid" });
     expect(prepareAchievementLinks(null)).toEqual({ ok: false, error: "links-invalid" });
+  });
+
+  it("keeps a short title on an achievement through reading and rewording", () => {
+    const read = readRoleAchievements(JSON.stringify([{ id: "a", statement: "Cut downtime across the line", title: "  Cut downtime  " }]), () => "new");
+    expect(read.items[0]).toEqual({ id: "a", statement: "Cut downtime across the line", title: "Cut downtime" });
+    expect(reconcileRoleAchievements(read.items, ["Cut downtime across both lines"], () => "new")[0]).toEqual({
+      id: "a",
+      statement: "Cut downtime across both lines",
+      title: "Cut downtime",
+    });
+    expect(prepareAchievementTitle("  Cut downtime ")).toEqual({ ok: true, value: "Cut downtime" });
+    expect(prepareAchievementTitle("")).toEqual({ ok: true, value: "" });
+    expect(prepareAchievementTitle("x".repeat(81))).toEqual({ ok: false, error: "title-too-long" });
   });
 });

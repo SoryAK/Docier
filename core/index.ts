@@ -495,6 +495,7 @@ export {
   achievementStatement,
   prepareAchievementDate,
   prepareAchievementLinks,
+  prepareAchievementTitle,
   liveAchievementLinks,
   type AchievementLinks,
   readRoleAchievements,

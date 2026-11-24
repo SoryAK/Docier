@@ -271,9 +271,18 @@ export function RoleView({
                       <li key={id ?? index} className="achievement-row" data-achievement-id={id}>
                         {id ? (
                           <button type="button" className="achievement-row-open" onClick={() => setOpenAchievement(id)}>
-                            <span className="achievement-row-text" title={achievement}>
-                              {achievement}
-                            </span>
+                            {role.achievementTitles?.[index] ? (
+                              <span className="achievement-row-titled">
+                                <b>{role.achievementTitles[index]}</b>
+                                <span className="achievement-row-text is-description" title={achievement}>
+                                  {achievement}
+                                </span>
+                              </span>
+                            ) : (
+                              <span className="achievement-row-text" title={achievement}>
+                                {achievement}
+                              </span>
+                            )}
                             <ChevronRight size={16} aria-hidden="true" className="achievement-row-chevron" />
                           </button>
                         ) : (

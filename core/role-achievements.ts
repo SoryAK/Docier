@@ -6,7 +6,15 @@
 export type AchievementLinks = { people: string[]; moments: string[]; places: string[]; skills: string[] };
 
 /** One achievement on a role. `date` is the month it happened (YYYY-MM), when set. */
-export type RoleAchievement = { id: string; statement: string; date?: string; links?: AchievementLinks };
+export type RoleAchievement = { id: string; statement: string; title?: string; date?: string; links?: AchievementLinks };
+
+const TITLE_MAX = 80;
+
+/** A short title for an achievement; "" clears it. Its statement is the description. */
+export function prepareAchievementTitle(value: unknown): { ok: true; value: string } | { ok: false; error: "title-too-long" } {
+  const title = typeof value === "string" ? value.trim().replace(/\s+/g, " ") : "";
+  return title.length > TITLE_MAX ? { ok: false, error: "title-too-long" } : { ok: true, value: title };
+}
 
 const SKILL_MAX = 60;
 const LINKS_MAX = 50;
@@ -92,10 +100,11 @@ function readMonth(value: string): string | null {
   return month >= 1 && month <= 12 ? `${match[1]}-${match[2]}` : null;
 }
 
-function withDate(item: { id: string; statement: string }, raw: unknown, rawLinks?: unknown): RoleAchievement {
+function withDate(item: { id: string; statement: string }, raw: unknown, rawLinks?: unknown, rawTitle?: unknown): RoleAchievement {
   const date = typeof raw === "string" ? readMonth(raw.trim()) : null;
   const links = readLinks(rawLinks);
-  return { ...item, ...(date ? { date } : {}), ...(links ? { links } : {}) };
+  const title = typeof rawTitle === "string" ? rawTitle.trim().replace(/\s+/g, " ").slice(0, TITLE_MAX) : "";
+  return { ...item, ...(title ? { title } : {}), ...(date ? { date } : {}), ...(links ? { links } : {}) };
 }
 
 export function roleAchievementStatements(value: unknown): string[] {
@@ -125,7 +134,7 @@ export function readRoleAchievements(
       changed = true;
       continue;
     }
-    const record = entry as { id?: unknown; statement?: unknown; date?: unknown; links?: unknown };
+    const record = entry as { id?: unknown; statement?: unknown; title?: unknown; date?: unknown; links?: unknown };
     const statement = typeof record.statement === "string" ? record.statement.trim() : "";
     if (!statement) {
       changed = true;
@@ -133,16 +142,17 @@ export function readRoleAchievements(
     }
     const id = typeof record.id === "string" ? record.id.trim() : "";
     if (!id) {
-      items.push(withDate({ id: mintId(), statement }, record.date, record.links));
+      items.push(withDate({ id: mintId(), statement }, record.date, record.links, record.title));
       changed = true;
       continue;
     }
-    const item = withDate({ id, statement }, record.date, record.links);
+    const item = withDate({ id, statement }, record.date, record.links, record.title);
     items.push(item);
     if (
       record.id !== id ||
       record.statement !== statement ||
       (record.date ?? undefined) !== item.date ||
+      (record.title ?? undefined) !== item.title ||
       JSON.stringify(record.links ?? undefined) !== JSON.stringify(item.links)
     ) {
       changed = true;
@@ -163,6 +173,7 @@ export function reconcileRoleAchievements(
   const keep = (from: RoleAchievement, statement: string): RoleAchievement => ({
     id: from.id,
     statement,
+    ...(from.title ? { title: from.title } : {}),
     ...(from.date ? { date: from.date } : {}),
     ...(from.links ? { links: from.links } : {}),
   });

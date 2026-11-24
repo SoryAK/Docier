@@ -365,6 +365,8 @@ export type WorkMapRole = {
   achievementIds?: string[];
   /** The month each achievement happened (YYYY-MM), or "" when not set; same order as `achievements`. */
   achievementDates?: string[];
+  /** Each achievement's short title, or "" when it has none; its statement is the description. */
+  achievementTitles?: string[];
   /** What each achievement is linked to on this role; same order as `achievements`. */
   achievementLinks?: AchievementLinks[];
   factId: string | null;

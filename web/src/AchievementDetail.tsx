@@ -33,6 +33,9 @@ export function AchievementDetail({
   const statement = index >= 0 ? role.achievements[index] ?? "" : "";
   const links = (index >= 0 ? role.achievementLinks?.[index] : undefined) ?? EMPTY;
   const [editing, setEditing] = useState(false);
+  const title = (index >= 0 ? role.achievementTitles?.[index] : "") ?? "";
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleText, setTitleText] = useState(title);
   const [text, setText] = useState(statement);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -40,6 +43,7 @@ export function AchievementDetail({
 
   useEffect(() => {
     setEditing(false);
+    setEditingTitle(false);
     setAdding(null);
     setMessage("");
   }, [achievementId]);
@@ -91,6 +95,28 @@ export function AchievementDetail({
       onSaved();
     } catch {
       setMessage("That link could not be saved. Check your connection and try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveTitle(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusy(true);
+    setMessage("");
+    try {
+      const response = await fetch(
+        `/api/work-map/roles/${encodeURIComponent(role.id)}/achievements/${encodeURIComponent(achievementId)}`,
+        { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: titleText }) },
+      );
+      if (!response.ok) {
+        setMessage("The title could not be saved. Keep it under 80 characters.");
+        return;
+      }
+      setEditingTitle(false);
+      onSaved();
+    } catch {
+      setMessage("The title could not be saved. Check your connection and try again.");
     } finally {
       setBusy(false);
     }
@@ -181,24 +207,41 @@ export function AchievementDetail({
         </button>
       ) : null}
 
-      {editing ? (
-        <form className="achievement-detail-edit" onSubmit={saveText}>
-          <textarea value={text} onChange={(event) => setText(event.target.value)} rows={3} autoFocus disabled={busy} aria-label="Achievement" />
-          <span className="role-view-editor-actions">
-            <button type="button" className="role-view-ghost" onClick={() => { setEditing(false); setText(statement); }} disabled={busy}>
-              Cancel
-            </button>
-            <button type="submit" className="role-view-primary" disabled={busy || !text.trim()}>
-              {busy ? "Saving…" : "Save"}
-            </button>
-          </span>
+      {editingTitle ? (
+        <form className="achievement-detail-title-edit" onSubmit={saveTitle}>
+          <input
+            value={titleText}
+            onChange={(event) => setTitleText(event.target.value)}
+            maxLength={80}
+            placeholder="A short title, such as Cut robot downtime"
+            aria-label="Title"
+            autoFocus
+            disabled={busy}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") setEditingTitle(false);
+            }}
+          />
+          <button type="button" className="role-view-ghost" onClick={() => setEditingTitle(false)} disabled={busy}>
+            Cancel
+          </button>
+          <button type="submit" className="role-view-primary" disabled={busy}>
+            {busy ? "Saving…" : "Save"}
+          </button>
         </form>
       ) : (
         <div className="achievement-detail-head">
-          <h2>{statement}</h2>
-          <button type="button" className="role-view-ghost" onClick={() => { setText(statement); setEditing(true); }}>
-            <Pencil size={13} aria-hidden="true" /> Edit
-          </button>
+          {title ? (
+            <h2>{title}</h2>
+          ) : (
+            <button type="button" className="achievement-detail-add-title" onClick={() => { setTitleText(""); setEditingTitle(true); }}>
+              + Add a short title
+            </button>
+          )}
+          {title ? (
+            <button type="button" className="role-view-ghost" onClick={() => { setTitleText(title); setEditingTitle(true); }}>
+              <Pencil size={13} aria-hidden="true" /> Edit
+            </button>
+          ) : null}
         </div>
       )}
       <p className="achievement-detail-meta">
@@ -206,6 +249,32 @@ export function AchievementDetail({
         <span>{[role.organization, role.title].filter(Boolean).join(" · ")}</span>
       </p>
       {message ? <p className="role-view-error" role="alert">{message}</p> : null}
+
+      <section className="achievement-detail-section">
+        <span className="achievement-detail-section-head">
+          <h3>Description</h3>
+          {editing ? null : (
+            <button type="button" className="role-view-text" onClick={() => { setText(statement); setEditing(true); }}>
+              <Pencil size={12} aria-hidden="true" /> Edit
+            </button>
+          )}
+        </span>
+        {editing ? (
+          <form className="achievement-detail-edit" onSubmit={saveText}>
+            <textarea value={text} onChange={(event) => setText(event.target.value)} rows={4} autoFocus disabled={busy} aria-label="Description" />
+            <span className="role-view-editor-actions">
+              <button type="button" className="role-view-ghost" onClick={() => { setEditing(false); setText(statement); }} disabled={busy}>
+                Cancel
+              </button>
+              <button type="submit" className="role-view-primary" disabled={busy || !text.trim()}>
+                {busy ? "Saving…" : "Save"}
+              </button>
+            </span>
+          </form>
+        ) : (
+          <p className="achievement-detail-description">{statement}</p>
+        )}
+      </section>
 
       <section className="achievement-detail-section">
         <h3>Evidence</h3>

@@ -94,7 +94,8 @@ export function roleHistory(
   // role's first year, with no month, so it reads as not yet dated.
   role.achievements.forEach((text, index) => {
     const date = role.achievementDates?.[index] || (start ? start.year : "");
-    if (date) push(role.achievementIds?.[index] ?? `${role.id}:achievement:${index}`, "achievement", text, date);
+    const shown = role.achievementTitles?.[index] || text;
+    if (date) push(role.achievementIds?.[index] ?? `${role.id}:achievement:${index}`, "achievement", shown, date);
   });
 
   const shown = all.filter(

@@ -33,6 +33,7 @@ import {
   readCanvasBoards,
   prepareAchievementDate,
   prepareAchievementLinks,
+  prepareAchievementTitle,
   liveAchievementLinks,
   type AchievementLinks,
   readRoleAchievements,
@@ -1591,7 +1592,13 @@ function roleAchievements(
   occupantId: string,
   roleId: string,
   raw: unknown,
-): { achievements: string[]; achievementIds: string[]; achievementDates: string[]; storedLinks: Array<AchievementLinks | undefined> } {
+): {
+  achievements: string[];
+  achievementIds: string[];
+  achievementDates: string[];
+  achievementTitles: string[];
+  storedLinks: Array<AchievementLinks | undefined>;
+} {
   const stored = readRoleAchievements(raw, randomUUID);
   if (stored.changed) {
     db.prepare(
@@ -1602,6 +1609,7 @@ function roleAchievements(
     achievements: stored.items.map((item) => item.statement),
     achievementIds: stored.items.map((item) => item.id),
     achievementDates: stored.items.map((item) => item.date ?? ""),
+    achievementTitles: stored.items.map((item) => item.title ?? ""),
     storedLinks: stored.items.map((item) => item.links),
   };
 }
@@ -1617,12 +1625,14 @@ export function updateRoleAchievement(
   roleId: string,
   achievementId: string,
   input: JsonObject,
-): { id: string; date: string; links: AchievementLinks } {
+): { id: string; title: string; date: string; links: AchievementLinks } {
   requireRole(db, occupantId, roleId);
   const date = "date" in input ? prepareAchievementDate(input.date) : null;
   if (date && !date.ok) throw new WorkMapStoreError(date.error);
   const links = "links" in input ? prepareAchievementLinks(input.links) : null;
   if (links && !links.ok) throw new WorkMapStoreError(links.error);
+  const title = "title" in input ? prepareAchievementTitle(input.title) : null;
+  if (title && !title.ok) throw new WorkMapStoreError(title.error);
   if (links?.ok) {
     const onRole = roleLinkTargets(db, occupantId, roleId);
     const missing =
@@ -1639,11 +1649,13 @@ export function updateRoleAchievement(
   if (index < 0) throw new WorkMapStoreError("achievement-missing");
   const current = items[index]!;
   const nextDate = date?.ok ? date.value : current.date ?? "";
+  const nextTitle = title?.ok ? title.value : current.title ?? "";
   const nextLinks = links?.ok ? links.value : current.links;
   const hasLinks = nextLinks && (nextLinks.people.length || nextLinks.moments.length || nextLinks.places.length || nextLinks.skills.length);
   items[index] = {
     id: current.id,
     statement: current.statement,
+    ...(nextTitle ? { title: nextTitle } : {}),
     ...(nextDate ? { date: nextDate } : {}),
     ...(hasLinks ? { links: nextLinks } : {}),
   };
@@ -1652,7 +1664,7 @@ export function updateRoleAchievement(
     roleId,
     occupantId,
   );
-  return { id: achievementId, date: nextDate, links: nextLinks ?? { people: [], moments: [], places: [], skills: [] } };
+  return { id: achievementId, title: nextTitle, date: nextDate, links: nextLinks ?? { people: [], moments: [], places: [], skills: [] } };
 }
 
 /** The people, moments, and places on a role, that its achievements can link to. */

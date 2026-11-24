@@ -111,4 +111,14 @@ describe("dates on achievements", () => {
     await send("DELETE", `/api/work-map/roles/${id}/people/${person.linkId}`);
     expect((await role()).achievementLinks[0]!.people).toEqual([]);
   });
+
+  it("gives an achievement a short title, kept through edits, and shown in its history", async () => {
+    const { send, id, role } = await setup();
+    const [first] = (await role()).achievementIds;
+    expect((await role() as unknown as { achievementTitles: string[] }).achievementTitles).toEqual(["", ""]);
+    expect((await send("PUT", `/api/work-map/roles/${id}/achievements/${first}`, { title: "Less downtime" })).status).toBe(200);
+    await send("PUT", `/api/work-map/roles/${id}`, { achievements: ["Cut robot downtime by a third", "Trained two technicians"] });
+    expect((await role() as unknown as { achievementTitles: string[] }).achievementTitles).toEqual(["Less downtime", ""]);
+    expect((await send("PUT", `/api/work-map/roles/${id}/achievements/${first}`, { title: "x".repeat(81) })).status).toBe(400);
+  });
 });

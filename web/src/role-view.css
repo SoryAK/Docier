@@ -1770,3 +1770,73 @@ img.role-view-avatar {
 .role-editor-popout .role-view-editor h2 {
   padding-right: 40px;
 }
+
+/* An achievement's short title, and its description. */
+.achievement-detail-add-title {
+  padding: 4px 12px;
+  border: 1px dashed #d6d0c6;
+  border-radius: 999px;
+  background: none;
+  color: #8a6d4f;
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.achievement-detail-title-edit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-right: 40px;
+}
+
+.achievement-detail-title-edit input {
+  flex: 1;
+  min-width: 12rem;
+  padding: 7px 10px;
+  border: 1px solid #d4d4d8;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.achievement-detail-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.achievement-detail-section-head .role-view-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.achievement-detail-description {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #ebe8e4;
+  border-radius: 10px;
+  background: #faf9f7;
+  color: #27272a;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.achievement-row-titled {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.achievement-row-titled b {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.achievement-row-text.is-description {
+  color: #6b6b70;
+  font-size: 0.8125rem;
+  -webkit-line-clamp: 1;
+}

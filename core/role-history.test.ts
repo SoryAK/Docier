@@ -139,6 +139,14 @@ describe("roleHistory", () => {
     ]);
   });
 
+  it("shows an achievement by its short title when it has one", () => {
+    const years = roleHistory(
+      { ...role({ achievements: ["Cut robot downtime across the line", "Trained two"] }), achievementIds: ["a1", "a2"], achievementTitles: ["Less downtime", ""] },
+      { filter: "achievement", now: NOW },
+    );
+    expect(years[0]!.items.map((item) => item.text)).toEqual(["Less downtime", "Trained two"]);
+  });
+
   it("accepts a year alone as a date", () => {
     const years = roleHistory(role({ startDate: "2019", achievements: [], isCurrent: false, endDate: "" }), { now: NOW });
     expect(years).toEqual([{ year: "2019", label: "Started", items: [expect.objectContaining({ kind: "start", month: "" })] }]);

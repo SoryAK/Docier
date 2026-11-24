@@ -320,6 +320,8 @@ export type WorkMapRole = {
   description: string;
   achievements: string[];
   achievementIds?: string[];
+  /** The month each achievement happened (YYYY-MM), or "" when not set; same order as `achievements`. */
+  achievementDates?: string[];
   factId: string | null;
   factVersion: number | null;
   evidenceIds: string[];

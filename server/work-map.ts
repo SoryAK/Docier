@@ -31,6 +31,7 @@ import {
   prepareWorkMapRoleDraft,
   prepareWorkMapRoleDelete,
   readCanvasBoards,
+  prepareAchievementDate,
   readRoleAchievements,
   reconcileRoleAchievements,
   nominatimAddressLine,
@@ -1557,7 +1558,7 @@ function roleAchievements(
   occupantId: string,
   roleId: string,
   raw: unknown,
-): { achievements: string[]; achievementIds: string[] } {
+): { achievements: string[]; achievementIds: string[]; achievementDates: string[] } {
   const stored = readRoleAchievements(raw, randomUUID);
   if (stored.changed) {
     db.prepare(
@@ -1567,7 +1568,35 @@ function roleAchievements(
   return {
     achievements: stored.items.map((item) => item.statement),
     achievementIds: stored.items.map((item) => item.id),
+    achievementDates: stored.items.map((item) => item.date ?? ""),
   };
+}
+
+/** Sets or clears the month one achievement on a role happened. */
+export function setRoleAchievementDate(
+  db: DatabaseSync,
+  occupantId: string,
+  roleId: string,
+  achievementId: string,
+  input: JsonObject,
+): { id: string; date: string } {
+  requireRole(db, occupantId, roleId);
+  const prepared = prepareAchievementDate(input.date);
+  if (!prepared.ok) throw new WorkMapStoreError(prepared.error);
+  const row = db
+    .prepare("SELECT achievements_json FROM work_history WHERE id = ? AND occupant_id = ?")
+    .get(roleId, occupantId) as { achievements_json: string };
+  const items = readRoleAchievements(row.achievements_json, randomUUID).items;
+  const index = items.findIndex((item) => item.id === achievementId);
+  if (index < 0) throw new WorkMapStoreError("achievement-missing");
+  const { date: _old, ...rest } = items[index]!;
+  items[index] = prepared.value ? { ...rest, date: prepared.value } : rest;
+  db.prepare("UPDATE work_history SET achievements_json = ? WHERE id = ? AND occupant_id = ?").run(
+    JSON.stringify(items),
+    roleId,
+    occupantId,
+  );
+  return { id: achievementId, date: prepared.value };
 }
 
 function parseLocationKind(value: unknown): WorkMapLocation["kind"] {

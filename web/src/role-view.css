@@ -1165,3 +1165,46 @@ img.role-view-avatar {
   align-items: center;
   gap: 4px;
 }
+
+/* When each achievement happened. */
+.role-view-achievements li > span:first-child {
+  margin-right: 8px;
+}
+
+.role-view-when {
+  padding: 1px 8px;
+  border: 1px solid #ead5ad;
+  border-radius: 999px;
+  background: #f6ead3;
+  color: #6f5536;
+  font: inherit;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.role-view-when.is-empty {
+  border-style: dashed;
+  border-color: #d6d0c6;
+  background: none;
+  color: #8a6d4f;
+}
+
+.role-view-when.is-open {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: default;
+}
+
+.role-view-when input {
+  padding: 2px 6px;
+  border: 1px solid #d4d4d8;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 0.8125rem;
+}

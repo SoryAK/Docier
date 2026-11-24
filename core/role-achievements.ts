@@ -1,4 +1,27 @@
-export type RoleAchievement = { id: string; statement: string };
+/** One achievement on a role. `date` is the month it happened (YYYY-MM), when set. */
+export type RoleAchievement = { id: string; statement: string; date?: string };
+
+/** A month an achievement happened, as YYYY-MM; "" clears it. */
+export function prepareAchievementDate(value: unknown): { ok: true; value: string } | { ok: false; error: "date-invalid" } {
+  if (value === null || value === undefined) return { ok: true, value: "" };
+  if (typeof value !== "string") return { ok: false, error: "date-invalid" };
+  const raw = value.trim();
+  if (!raw) return { ok: true, value: "" };
+  const month = readMonth(raw);
+  return month ? { ok: true, value: month } : { ok: false, error: "date-invalid" };
+}
+
+function readMonth(value: string): string | null {
+  const match = value.match(/^(\d{4})-(\d{2})(?:-\d{2})?$/);
+  if (!match) return null;
+  const month = Number(match[2]);
+  return month >= 1 && month <= 12 ? `${match[1]}-${match[2]}` : null;
+}
+
+function withDate(item: { id: string; statement: string }, raw: unknown): RoleAchievement {
+  const date = typeof raw === "string" ? readMonth(raw.trim()) : null;
+  return date ? { ...item, date } : item;
+}
 
 export function roleAchievementStatements(value: unknown): string[] {
   return readRoleAchievements(value, () => "").items.map((item) => item.statement);
@@ -27,7 +50,7 @@ export function readRoleAchievements(
       changed = true;
       continue;
     }
-    const record = entry as { id?: unknown; statement?: unknown };
+    const record = entry as { id?: unknown; statement?: unknown; date?: unknown };
     const statement = typeof record.statement === "string" ? record.statement.trim() : "";
     if (!statement) {
       changed = true;
@@ -35,12 +58,13 @@ export function readRoleAchievements(
     }
     const id = typeof record.id === "string" ? record.id.trim() : "";
     if (!id) {
-      items.push({ id: mintId(), statement });
+      items.push(withDate({ id: mintId(), statement }, record.date));
       changed = true;
       continue;
     }
-    items.push({ id, statement });
-    if (record.id !== id || record.statement !== statement) changed = true;
+    const item = withDate({ id, statement }, record.date);
+    items.push(item);
+    if (record.id !== id || record.statement !== statement || (record.date ?? undefined) !== item.date) changed = true;
   }
   return { items, changed };
 }
@@ -52,11 +76,14 @@ export function reconcileRoleAchievements(
 ): RoleAchievement[] {
   const wanted = lines.map((line) => line.trim()).filter(Boolean);
   const pool = previous.map((item) => ({ ...item, used: false }));
+  // An achievement's month follows its id, so rewording or moving it keeps the date.
+  const keep = (from: RoleAchievement, statement: string): RoleAchievement =>
+    from.date ? { id: from.id, statement, date: from.date } : { id: from.id, statement };
   const matched = wanted.map((statement) => {
     const found = pool.find((item) => !item.used && item.statement === statement);
     if (!found) return null;
     found.used = true;
-    return { id: found.id, statement };
+    return keep(found, statement);
   });
   const leftover = pool.filter((item) => !item.used);
   let cursor = 0;
@@ -64,7 +91,7 @@ export function reconcileRoleAchievements(
     if (item) return item;
     const reuse = leftover[cursor];
     cursor += 1;
-    if (reuse) return { id: reuse.id, statement: wanted[index] ?? "" };
+    if (reuse) return keep(reuse, wanted[index] ?? "");
     return { id: mintId(), statement: wanted[index] ?? "" };
   });
 }

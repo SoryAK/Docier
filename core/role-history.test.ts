@@ -50,8 +50,8 @@ describe("roleHistory", () => {
       ["event", "Nov"],
       ["milestone", "Feb"],
     ]);
-    // Achievements have no dates yet, so they sit in the year the role started.
-    expect(years[2]!.items.map((item) => item.kind)).toEqual(["achievement", "start"]);
+    // An achievement with no date sits in the year the role started, with no month.
+    expect(years[2]!.items.map((item) => [item.kind, item.month])).toEqual([["start", "Jun"], ["achievement", ""]]);
     expect(years[2]!.items.find((item) => item.kind === "start")?.text).toBe(
       "Started as Mechatronics and Robotics Technician",
     );
@@ -126,6 +126,17 @@ describe("roleHistory", () => {
     ];
     const texts = roleHistory({ ...role({ achievements: [] }), people }, { filter: "person", now: NOW })[0]!.items.map((item) => item.text);
     expect(texts).toEqual(expect.arrayContaining(["Maria confirmed you worked together", "Dan confirmed you worked together, both ways", "You confirmed working with Sam"]));
+  });
+
+  it("puts a dated achievement in its own year and month", () => {
+    const years = roleHistory(
+      { ...role({ achievements: ["Cut downtime", "Trained two technicians"] }), achievementIds: ["a1", "a2"], achievementDates: ["2025-04", ""] },
+      { filter: "achievement", now: NOW },
+    );
+    expect(years.map((year) => [year.year, year.items.map((item) => [item.id, item.month])])).toEqual([
+      ["2025", [["a1", "Apr"]]],
+      ["2024", [["a2", ""]]],
+    ]);
   });
 
   it("accepts a year alone as a date", () => {

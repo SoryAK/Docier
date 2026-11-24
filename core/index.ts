@@ -492,6 +492,7 @@ export {
 } from "./canvas-board";
 export {
   achievementStatement,
+  prepareAchievementDate,
   readRoleAchievements,
   reconcileRoleAchievements,
   roleAchievementStatements,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   achievementStatement,
+  prepareAchievementDate,
   readRoleAchievements,
   reconcileRoleAchievements,
   roleAchievementStatements,
@@ -69,5 +70,35 @@ describe("role achievements", () => {
   it("returns the current statement for an achievement id", () => {
     expect(achievementStatement(["Old", "Current"], ["a", "b"], "b")).toBe("Current");
     expect(achievementStatement(["Old"], ["a"], "missing")).toBeNull();
+  });
+
+  it("keeps an achievement's month through reading, rewording, and reordering", () => {
+    const stored = JSON.stringify([
+      { id: "a", statement: "Cut downtime", date: "2025-04" },
+      { id: "b", statement: "Trained two technicians", date: "2025-13" },
+      { id: "c", statement: "Rebuilt the conveyor", date: "  " },
+    ]);
+    const read = readRoleAchievements(stored, () => "new");
+    expect(read.items).toEqual([
+      { id: "a", statement: "Cut downtime", date: "2025-04" },
+      { id: "b", statement: "Trained two technicians" },
+      { id: "c", statement: "Rebuilt the conveyor" },
+    ]);
+    // A bad month is dropped on read, and that counts as a change to save.
+    expect(read.changed).toBe(true);
+    const next = reconcileRoleAchievements(read.items, ["Rebuilt the conveyor", "Cut robot downtime by a third"], () => "new");
+    expect(next).toEqual([
+      { id: "c", statement: "Rebuilt the conveyor" },
+      { id: "a", statement: "Cut robot downtime by a third", date: "2025-04" },
+    ]);
+  });
+
+  it("reads a month for an achievement, or clears it", () => {
+    expect(prepareAchievementDate("2025-04")).toEqual({ ok: true, value: "2025-04" });
+    expect(prepareAchievementDate("2025-04-17")).toEqual({ ok: true, value: "2025-04" });
+    expect(prepareAchievementDate("")).toEqual({ ok: true, value: "" });
+    expect(prepareAchievementDate(null)).toEqual({ ok: true, value: "" });
+    expect(prepareAchievementDate("April")).toEqual({ ok: false, error: "date-invalid" });
+    expect(prepareAchievementDate("2025-00")).toEqual({ ok: false, error: "date-invalid" });
   });
 });

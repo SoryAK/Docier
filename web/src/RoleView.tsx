@@ -212,9 +212,17 @@ export function RoleView({ role, roles, onSaved }: { role: WorkMapRole; roles: W
             <div className="role-view-pane" role="tabpanel">
               {role.achievements.length > 0 ? (
                 <ol className="role-view-achievements">
-                  {role.achievements.map((achievement, index) => (
-                    <li key={role.achievementIds?.[index] ?? index}>{achievement}</li>
-                  ))}
+                  {role.achievements.map((achievement, index) => {
+                    const id = role.achievementIds?.[index];
+                    return (
+                      <li key={id ?? index}>
+                        <span>{achievement}</span>
+                        {id ? (
+                          <AchievementDate role={role} achievementId={id} date={role.achievementDates?.[index] ?? ""} onSaved={onSaved} />
+                        ) : null}
+                      </li>
+                    );
+                  })}
                 </ol>
               ) : (
                 <p className="role-view-empty">No achievements yet. What are you proud of from {name}?</p>
@@ -264,6 +272,92 @@ export function RoleView({ role, roles, onSaved }: { role: WorkMapRole; roles: W
         </div>
       </dialog>
     </article>
+  );
+}
+
+/**
+ * When an achievement happened, so it lands in the right year of the role's
+ * history. Opens a month field limited to the role's dates.
+ */
+function AchievementDate({
+  role,
+  achievementId,
+  date,
+  onSaved,
+}: {
+  role: WorkMapRole;
+  achievementId: string;
+  date: string;
+  onSaved: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const min = role.startDate.slice(0, 7) || undefined;
+  const now = new Date();
+  const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const max = (role.isCurrent ? thisMonth : role.endDate.slice(0, 7)) || thisMonth;
+
+  async function save(next: string) {
+    setBusy(true);
+    setFailed(false);
+    try {
+      const response = await fetch(
+        `/api/work-map/roles/${encodeURIComponent(role.id)}/achievements/${encodeURIComponent(achievementId)}`,
+        { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ date: next }) },
+      );
+      if (!response.ok) {
+        setFailed(true);
+        return;
+      }
+      setOpen(false);
+      onSaved();
+    } catch {
+      setFailed(true);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (open) {
+    return (
+      <span className="role-view-when is-open">
+        <input
+          type="month"
+          aria-label="When this happened"
+          defaultValue={date}
+          min={min}
+          max={max}
+          autoFocus
+          disabled={busy}
+          onChange={(event) => {
+            if (event.target.value) void save(event.target.value);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") setOpen(false);
+          }}
+        />
+        {date ? (
+          <button type="button" className="role-view-text" onClick={() => void save("")} disabled={busy}>
+            Clear
+          </button>
+        ) : null}
+        <button type="button" className="role-view-text" onClick={() => setOpen(false)} disabled={busy}>
+          Cancel
+        </button>
+        {failed ? <span className="role-view-error">Not saved. Try again.</span> : null}
+      </span>
+    );
+  }
+  return (
+    <button
+      type="button"
+      className={date ? "role-view-when" : "role-view-when is-empty"}
+      onClick={() => setOpen(true)}
+      title={date ? "Change when this happened" : "Add when this happened"}
+    >
+      {date ? monthYear(date) : "+ When?"}
+    </button>
   );
 }
 

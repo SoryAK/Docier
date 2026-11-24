@@ -90,9 +90,11 @@ export function roleHistory(
       push(`${item.linkId}:confirmed`, "person", text, item.confirmation.answeredAt.slice(0, 10));
     }
   }
-  // Achievements have no dates of their own yet, so they sit in the year the role started.
+  // An achievement goes in the month it happened; without a date it sits in the
+  // role's first year, with no month, so it reads as not yet dated.
   role.achievements.forEach((text, index) => {
-    if (start) push(role.achievementIds?.[index] ?? `${role.id}:achievement:${index}`, "achievement", text, role.startDate);
+    const date = role.achievementDates?.[index] || (start ? start.year : "");
+    if (date) push(role.achievementIds?.[index] ?? `${role.id}:achievement:${index}`, "achievement", text, date);
   });
 
   const shown = all.filter(

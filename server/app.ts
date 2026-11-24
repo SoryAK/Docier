@@ -305,6 +305,7 @@ import {
   saveWorkMapSettings,
   updateWorkMapLocation,
   updateWorkMapRole,
+  setRoleAchievementDate,
   addLinkedEvidence,
   lookupLinkedPage,
   removeLinkedEvidence,
@@ -1423,6 +1424,29 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
     } catch (error) {
       if (error instanceof WorkMapStoreError) {
         return c.json({ error: error.code }, error.code === "revision-stale" ? 409 : error.code === "role-missing" ? 404 : 400);
+      }
+      throw error;
+    }
+  });
+
+  // The month one achievement happened, so it lands in the right year of the role's history.
+  app.put("/api/work-map/roles/:id/achievements/:achievementId", async (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      const achievement = setRoleAchievementDate(
+        db,
+        occupant.id,
+        c.req.param("id"),
+        c.req.param("achievementId"),
+        (await c.req.json()) as Record<string, unknown>,
+      );
+      return c.json({ achievement });
+    } catch (error) {
+      if (error instanceof WorkMapStoreError) {
+        return c.json(
+          { error: error.code },
+          error.code === "role-missing" || error.code === "achievement-missing" ? 404 : 400,
+        );
       }
       throw error;
     }

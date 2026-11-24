@@ -303,6 +303,8 @@ import {
   saveCanvasAction,
   saveWorkMapDetails,
   saveWorkSetup,
+  saveGear,
+  saveReflection,
   undoRoleEdit,
   savePayAndBenefits,
   saveWorkMapSettings,
@@ -1520,6 +1522,46 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
       const undone = await undoRoleEdit(db, occupant.id, c.req.param("id"), c.req.param("editId"));
       if (!undone.ok) return c.json({ error: undone.error }, undone.error === "edit-missing" ? 404 : 409);
       return c.json({ ok: true });
+    } catch (error) {
+      if (error instanceof WorkMapStoreError) {
+        return c.json({ error: error.code }, 404);
+      }
+      throw error;
+    }
+  });
+
+  // A role's equipment and uniform.
+  app.put("/api/work-map/roles/:id/gear", async (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      const saved = saveGear(
+        db,
+        occupant.id,
+        c.req.param("id"),
+        (await c.req.json().catch(() => ({}))) as Record<string, unknown>,
+      );
+      if (!saved.ok) return c.json({ error: saved.error }, 400);
+      return c.json({ details: saved.details });
+    } catch (error) {
+      if (error instanceof WorkMapStoreError) {
+        return c.json({ error: error.code }, 404);
+      }
+      throw error;
+    }
+  });
+
+  // How a role looks in hindsight.
+  app.put("/api/work-map/roles/:id/reflection", async (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      const saved = saveReflection(
+        db,
+        occupant.id,
+        c.req.param("id"),
+        (await c.req.json().catch(() => ({}))) as Record<string, unknown>,
+      );
+      if (!saved.ok) return c.json({ error: saved.error }, 400);
+      return c.json({ details: saved.details });
     } catch (error) {
       if (error instanceof WorkMapStoreError) {
         return c.json({ error: error.code }, 404);

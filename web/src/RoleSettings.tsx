@@ -21,6 +21,7 @@ import { TimeInput } from "@astryxdesign/core/TimeInput";
 import { VStack } from "@astryxdesign/core/VStack";
 import {
   AcademicCapIcon,
+  ArrowUturnLeftIcon,
   ArrowTrendingUpIcon,
   BanknotesIcon,
   BriefcaseIcon,
@@ -32,16 +33,20 @@ import {
   EyeIcon,
   HashtagIcon,
   HeartIcon,
+  MapIcon,
   MapPinIcon,
   PencilSquareIcon,
+  ShieldCheckIcon,
   PlusIcon,
   SparklesIcon,
+  StarIcon,
   SunIcon,
   TagIcon,
   TrashIcon,
   TrophyIcon,
   UserGroupIcon,
   UserIcon,
+  WrenchScrewdriverIcon,
 } from "@heroicons/react/24/outline";
 import { formatHistoryPlace } from "@core/career-history";
 import {
@@ -52,10 +57,24 @@ import {
   type WorkMode,
 } from "@core/role-work-setup";
 import type { WorkMapRole } from "@core/work-map";
+import {
+  GEAR_ERROR,
+  GEAR_PANELS,
+  GearPanels,
+  REFLECTION_ERROR,
+  REFLECTION_PANELS,
+  ReflectionPanels,
+  gearBody,
+  gearDraft,
+  reflectionBody,
+  reflectionDraft,
+  type GearPanel,
+  type ReflectionPanel,
+} from "./RoleSettingsMore";
 import { PAY_ERROR, PAY_PANELS, PayPanels, payBody, payDraft, type PayPanel } from "./RoleSettingsPay";
 import { SettingsCard, SettingsRow, SettingsStatus } from "./SettingsRows";
 
-export type RoleSettingsPanel = "basics" | "about" | "achievements" | "schedule" | "shifts" | "team" | "growth" | PayPanel;
+export type RoleSettingsPanel = "basics" | "about" | "achievements" | "schedule" | "shifts" | "team" | "growth" | PayPanel | GearPanel | ReflectionPanel;
 
 type IconComponent = ComponentType<SVGProps<SVGSVGElement>>;
 type PanelConfig = { id: RoleSettingsPanel; label: string; description: string; icon: IconComponent };
@@ -96,6 +115,21 @@ function groupsFor(role: WorkMapRole): { label: string; panels: PanelConfig[] }[
         { id: "pay-history", label: "Pay history", description: "Raises, bonuses, and other changes.", icon: ChartBarIcon },
         { id: "benefits", label: "Benefits", description: "Health, retirement, and the rest.", icon: HeartIcon },
         { id: "time-off", label: "Time off", description: "Days off by year and kind.", icon: SunIcon },
+      ],
+    });
+    groups.push({
+      label: "Gear",
+      panels: [
+        { id: "equipment", label: "Equipment", description: "Tools, machines, and vehicles you had or worked on.", icon: WrenchScrewdriverIcon },
+        { id: "uniform", label: "Uniform", description: "What you wore for work.", icon: ShieldCheckIcon },
+      ],
+    });
+    groups.push({
+      label: "Looking back",
+      panels: [
+        { id: "rating", label: "Rating", description: "How it was, overall and by area.", icon: StarIcon },
+        { id: "leaving", label: "Leaving", description: "Why you left, and whether you'd go back.", icon: ArrowUturnLeftIcon },
+        { id: "commute", label: "Commute & place", description: "Getting there, and what the place was like.", icon: MapIcon },
       ],
     });
   }
@@ -189,6 +223,10 @@ export function RoleSettings({
   const [setup, setSetup] = useState(initialSetup);
   const [initialPay] = useState(() => payDraft(role));
   const [pay, setPay] = useState(initialPay);
+  const [initialGear] = useState(() => gearDraft(role));
+  const [gear, setGear] = useState(initialGear);
+  const [initialReflection] = useState(() => reflectionDraft(role));
+  const [reflection, setReflection] = useState(initialReflection);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const config = panels.find((item) => item.id === panel) ?? panels[0]!;
@@ -196,6 +234,9 @@ export function RoleSettings({
   const roleChanged = JSON.stringify(draft) !== JSON.stringify(initialRole);
   const setupChanged = JSON.stringify(setup) !== JSON.stringify(initialSetup);
   const payChanged = JSON.stringify(pay) !== JSON.stringify(initialPay);
+  const gearChanged = JSON.stringify(gear) !== JSON.stringify(initialGear);
+  const reflectionChanged = JSON.stringify(reflection) !== JSON.stringify(initialReflection);
+  const detailsChanged = setupChanged || payChanged || gearChanged || reflectionChanged;
   const people = [...new Set((role.people ?? []).map((person) => person.name))];
 
   const edit = (patch: Partial<typeof draft>) => setDraft((current) => ({ ...current, ...patch }));
@@ -205,6 +246,27 @@ export function RoleSettings({
     setBusy(true);
     setError(null);
     try {
+      // Each part saves on its own; a refusal opens the panel it's about.
+      const parts: Array<[boolean, string, unknown, Record<string, { panel: RoleSettingsPanel; message: string }>, string]> = [
+        [gearChanged, "gear", gearBody(gear), GEAR_ERROR, "The gear could not be saved. Try again."],
+        [reflectionChanged, "reflection", reflectionBody(reflection), REFLECTION_ERROR, "Looking back could not be saved. Try again."],
+      ];
+      for (const [changed, path, body, errors, fallback] of parts) {
+        if (!changed) continue;
+        const response = await fetch(`/api/work-map/roles/${encodeURIComponent(role.id)}/${path}`, {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!response.ok) {
+          const failed = (await response.json().catch(() => ({}))) as { error?: string };
+          const known = errors[String(failed.error)];
+          if (known) setPanel(known.panel);
+          setError(known?.message ?? fallback);
+          onSaved();
+          return;
+        }
+      }
       if (payChanged) {
         const response = await fetch(`/api/work-map/roles/${encodeURIComponent(role.id)}/pay`, {
           method: "PUT",
@@ -216,6 +278,7 @@ export function RoleSettings({
           const known = PAY_ERROR[String(body.error)];
           if (known) setPanel(known.panel);
           setError(known?.message ?? "Pay and benefits could not be saved. Try again.");
+          onSaved();
           return;
         }
       }
@@ -245,7 +308,7 @@ export function RoleSettings({
           const known = ERROR_PANEL[String(body.error)];
           if (known) setPanel(known.panel);
           setError(known?.message ?? "The work setup could not be saved. Try again.");
-          if (payChanged) onSaved();
+          onSaved();
           return;
         }
       }
@@ -274,7 +337,7 @@ export function RoleSettings({
         if (!response.ok) {
           setPanel("basics");
           setError("The role could not be saved. Check the fields and try again.");
-          if (setupChanged || payChanged) onSaved();
+          if (detailsChanged) onSaved();
           return;
         }
       }
@@ -296,7 +359,7 @@ export function RoleSettings({
           label={busy ? "Saving…" : "Save"}
           variant="primary"
           size="sm"
-          isDisabled={busy || (!roleChanged && !setupChanged && !payChanged)}
+          isDisabled={busy || (!roleChanged && !detailsChanged)}
           onClick={() => void save()}
         />
       </HStack>
@@ -597,6 +660,12 @@ export function RoleSettings({
           </SettingsCard>
           <ShareCard title="Show my growth on my page" description="Promotions, skills gained, and growth notes." value={setup.shareGrowth} onChange={(value) => editSetup({ shareGrowth: value })} />
         </>
+      ) : null}
+      {(GEAR_PANELS as readonly string[]).includes(panel) ? (
+        <GearPanels panel={panel as GearPanel} draft={gear} edit={(patch) => setGear((current) => ({ ...current, ...patch }))} />
+      ) : null}
+      {(REFLECTION_PANELS as readonly string[]).includes(panel) ? (
+        <ReflectionPanels panel={panel as ReflectionPanel} draft={reflection} edit={(patch) => setReflection((current) => ({ ...current, ...patch }))} />
       ) : null}
       {(PAY_PANELS as readonly string[]).includes(panel) ? (
         <PayPanels panel={panel as PayPanel} draft={pay} edit={(patch) => setPay((current) => ({ ...current, ...patch }))} />

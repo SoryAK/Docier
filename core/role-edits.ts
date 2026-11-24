@@ -135,8 +135,11 @@ const DETAIL_LABEL: Partial<Record<keyof WorkMapRoleDetails, string>> = {
   growth: "growth notes",
   departure: "why you left",
   workplaceRating: "the workplace rating",
-  uniform: "the uniform",
+  uniform: "uniform notes",
   equipment: "equipment",
+  ratings: "the ratings",
+  leaving: "why you left",
+  commute: "the commute",
   skills: "skills used",
   skillsGained: "skills gained",
   promotions: "promotions",
@@ -150,11 +153,13 @@ const NAMED_LISTS: Partial<Record<keyof WorkMapRoleDetails, string>> = {
   events: "an event",
   shifts: "a shift",
   promotions: "a promotion",
+  equipmentItems: "equipment",
+  uniformItems: "a uniform item",
 };
 
 function describeList(noun: string, before: unknown, after: unknown): string[] {
   const list = (value: unknown) => (Array.isArray(value) ? (value as Array<Record<string, unknown>>) : []);
-  const name = (item: Record<string, unknown>) => clip(String(item.title || item.name || item.detail || ""));
+  const name = (item: Record<string, unknown>) => clip(String(item.title || item.name || item.item || item.detail || ""));
   const was = new Map(list(before).map((item) => [String(item.id), item]));
   const now = new Map(list(after).map((item) => [String(item.id), item]));
   const parts: string[] = [];
@@ -175,6 +180,8 @@ export function describeDetailsChange(before: WorkMapRoleDetails, after: WorkMap
   for (const key of all) {
     if (sameValue(before[key], after[key])) continue;
     keys.push(key);
+    // Equipment names follow the items, which say what changed.
+    if (key === "equipment" && !sameValue(before.equipmentItems, after.equipmentItems)) continue;
     const noun = NAMED_LISTS[key];
     if (noun) parts.push(...describeList(noun, before[key], after[key]));
     else parts.push(`Changed ${DETAIL_LABEL[key] ?? key}`);

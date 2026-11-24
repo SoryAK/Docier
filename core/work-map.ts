@@ -1,3 +1,5 @@
+import { uniformLine, type EquipmentItem, type UniformItem } from "./role-gear";
+import { EMPTY_COMMUTE, EMPTY_LEAVING, EMPTY_RATINGS, type RoleCommute, type RoleLeaving, type RoleRatings } from "./role-reflection";
 import type { RoleEdit } from "./role-edits";
 import { EMPTY_PAY, type PayEvent, type RolePay, type TimeOffBalance } from "./role-pay";
 import { EMPTY_SCHEDULE, EMPTY_TEAM, type RolePromotion, type RoleSchedule, type RoleShift, type RoleTeam } from "./role-work-setup";
@@ -330,8 +332,17 @@ export type WorkMapRoleDetails = {
   growth: string;
   departure: string;
   workplaceRating: number | null;
+  /** Ratings by area, 1 to 5. Never published. */
+  ratings: RoleRatings;
+  /** Why you left, as a reason, and whether you'd go back. Never published. */
+  leaving: RoleLeaving;
+  /** Never published. */
+  commute: RoleCommute;
   uniform: string;
+  uniformItems: UniformItem[];
+  /** Names only, kept in step with `equipmentItems`: what your page can show. */
   equipment: string[];
+  equipmentItems: EquipmentItem[];
   skills: string[];
   skillsGained: string[];
   promotions: RolePromotion[];
@@ -642,8 +653,13 @@ export const EMPTY_WORK_MAP_DETAILS: WorkMapRoleDetails = {
   growth: "",
   departure: "",
   workplaceRating: null,
+  ratings: { ...EMPTY_RATINGS },
+  leaving: { ...EMPTY_LEAVING },
+  commute: { ...EMPTY_COMMUTE },
   uniform: "",
+  uniformItems: [],
   equipment: [],
+  equipmentItems: [],
   skills: [],
   skillsGained: [],
   promotions: [],
@@ -673,6 +689,11 @@ export function normalizeWorkMapDetails(
     timeOff: Array.isArray(details?.timeOff) ? details.timeOff : [],
     schedule: { ...empty.schedule, ...details?.schedule },
     team: { ...empty.team, ...details?.team },
+    ratings: { ...empty.ratings, ...details?.ratings },
+    leaving: { ...empty.leaving, ...details?.leaving },
+    commute: { ...empty.commute, ...details?.commute },
+    equipmentItems: Array.isArray(details?.equipmentItems) ? details.equipmentItems : [],
+    uniformItems: Array.isArray(details?.uniformItems) ? details.uniformItems : [],
     share: { ...empty.share, ...details?.share },
     summary: typeof details?.summary === "string" ? details.summary.trim() : "",
     website: workMapLink(details?.website),
@@ -912,8 +933,8 @@ function publishedRoleConditions(details: WorkMapRoleDetails) {
   if (detailsNormalized.share.equipment && detailsNormalized.equipment.length) {
     shared.equipment = detailsNormalized.equipment;
   }
-  if (detailsNormalized.share.uniform && detailsNormalized.uniform) {
-    shared.uniform = detailsNormalized.uniform;
+  if (detailsNormalized.share.uniform && uniformLine(detailsNormalized)) {
+    shared.uniform = uniformLine(detailsNormalized);
   }
   if (detailsNormalized.compensation.visibility === "public") {
     shared.compensation = {

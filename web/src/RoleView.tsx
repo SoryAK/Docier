@@ -13,6 +13,7 @@ import { AchievementProof } from "./AchievementProof";
 import { RolePeople } from "./RolePeople";
 import { RoleSettings, type RoleSettingsPanel } from "./RoleSettings";
 import { RoleEvents } from "./RoleEvents";
+import { RoleGearSection, RoleReflectionSection } from "./RoleMoreSections";
 import { RolePaySection } from "./RolePaySection";
 import { RolePlaces } from "./RolePlaces";
 import { RoleWorkSetup } from "./RoleWorkSetup";
@@ -221,6 +222,8 @@ export function RoleView({
 
               {role.kind === "school" ? null : <RoleWorkSetup role={role} onEdit={setSettings} />}
               {role.kind === "school" ? null : <RolePaySection role={role} onEdit={setSettings} />}
+              {role.kind === "school" ? null : <RoleGearSection role={role} onEdit={setSettings} />}
+              {role.kind === "school" ? null : <RoleReflectionSection role={role} onEdit={setSettings} />}
 
               <section className="role-view-section" aria-labelledby={`${role.id}-photos`}>
                 <div className="role-view-section-head">

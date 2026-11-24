@@ -2460,3 +2460,30 @@ img.role-view-avatar {
     max-width: 100%;
   }
 }
+
+/* Star ratings in a role's settings. */
+.role-settings-stars {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.role-settings-stars button {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: #d4d4d8;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.role-settings-stars button.is-on {
+  color: #cd9f5b;
+}
+
+.role-settings-stars button:hover {
+  background: rgba(205, 159, 91, 0.12);
+}

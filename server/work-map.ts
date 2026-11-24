@@ -13,6 +13,8 @@ import {
 import { prepareWorkSetup, type WorkSetupError } from "../core/role-work-setup";
 import { undoBlock, type RoleEditBlock, type RoleFields } from "../core/role-edits";
 import { preparePayAndBenefits, type PayError } from "../core/role-pay";
+import { equipmentFromNames, prepareGear, type EquipmentItem, type GearError } from "../core/role-gear";
+import { prepareReflection, type ReflectionError } from "../core/role-reflection";
 import { createHash, randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -365,6 +367,14 @@ export function saveWorkMapDetails(
     payHistory: current.payHistory,
     benefitNotes: current.benefitNotes,
     timeOff: current.timeOff,
+    ratings: current.ratings,
+    leaving: current.leaving,
+    commute: current.commute,
+    uniformItems: current.uniformItems,
+    // Names typed here become items; items already saved keep their details.
+    equipmentItems: Array.isArray(input.equipment)
+      ? syncEquipmentItems(current.equipmentItems, stringArray(input.equipment))
+      : current.equipmentItems,
     // Merged into what's saved, so a form that only knows some fields keeps the rest.
     schedule: isObject(input.schedule)
       ? {
@@ -479,6 +489,49 @@ function writeDetails(
        updated_at = excluded.updated_at`,
   ).run(roleId, occupantId, JSON.stringify(details), new Date().toISOString());
   recordDetailsEdit(db, occupantId, roleId, before, readDetails(db, occupantId, roleId), undo);
+}
+
+/** Older forms send equipment as names: keep matching items, add the rest. */
+function syncEquipmentItems(items: EquipmentItem[], names: string[]): EquipmentItem[] {
+  const fresh = equipmentFromNames(
+    names.filter((name) => !items.some((item) => item.name.toLowerCase() === name.toLowerCase())),
+    randomUUID,
+  );
+  return [...items.filter((item) => names.some((name) => name.toLowerCase() === item.name.toLowerCase())), ...fresh];
+}
+
+/** Saves a role's equipment and uniform. */
+export function saveGear(
+  db: DatabaseSync,
+  occupantId: string,
+  roleId: string,
+  input: JsonObject,
+): { ok: true; details: WorkMapRoleDetails } | { ok: false; error: GearError } {
+  requireRole(db, occupantId, roleId);
+  const prepared = prepareGear(input, randomUUID);
+  if (!prepared.ok) return prepared;
+  const current = readDetails(db, occupantId, roleId);
+  const { share, ...gear } = prepared.value;
+  const details: WorkMapRoleDetails = { ...current, ...gear, share: { ...current.share, ...share } };
+  writeDetails(db, occupantId, roleId, details);
+  return { ok: true, details };
+}
+
+/** Saves how a role looks in hindsight: ratings, leaving, commute, environment. */
+export function saveReflection(
+  db: DatabaseSync,
+  occupantId: string,
+  roleId: string,
+  input: JsonObject,
+): { ok: true; details: WorkMapRoleDetails } | { ok: false; error: ReflectionError } {
+  requireRole(db, occupantId, roleId);
+  const prepared = prepareReflection(input);
+  if (!prepared.ok) return prepared;
+  const current = readDetails(db, occupantId, roleId);
+  const { share, ...reflection } = prepared.value;
+  const details: WorkMapRoleDetails = { ...current, ...reflection, share: { ...current.share, ...share } };
+  writeDetails(db, occupantId, roleId, details);
+  return { ok: true, details };
 }
 
 export function addWorkMapLocation(

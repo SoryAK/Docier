@@ -2096,3 +2096,28 @@ img.role-view-avatar {
   gap: 4px;
   justify-self: start;
 }
+
+/* A role's settings: a month field next to the design system's inputs. */
+.role-settings-month {
+  box-sizing: border-box;
+  width: 220px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border-primary, #d4d4d8);
+  border-radius: var(--radius-element, 8px);
+  background: var(--color-background-surface, #fff);
+  color: var(--color-text-primary, #171717);
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.role-settings-month-label {
+  display: grid;
+  gap: 4px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.role-settings-month-label .role-settings-month {
+  width: 170px;
+}

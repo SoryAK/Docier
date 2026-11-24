@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   formatHistoryPeriod,
   formatHistoryPlace,
@@ -11,6 +11,7 @@ import { AchievementDate } from "./AchievementDate";
 import { AchievementDetail } from "./AchievementDetail";
 import { AchievementProof } from "./AchievementProof";
 import { RolePeople } from "./RolePeople";
+import { RoleSettings, type RoleSettingsPanel } from "./RoleSettings";
 import { RoleWorkSetup } from "./RoleWorkSetup";
 import "./role-view.css";
 
@@ -35,7 +36,7 @@ export function RoleView({
   focusRequest?: RoleFocusRequest | null;
 }) {
   const [tab, setTab] = useState<RoleTab>("overview");
-  const [editing, setEditing] = useState(false);
+  const [settings, setSettings] = useState<RoleSettingsPanel | null>(null);
   const galleryRef = useRef<HTMLDialogElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
@@ -86,7 +87,7 @@ export function RoleView({
   const [peopleRequest, setPeopleRequest] = useState<{ linkId: string; nonce: number } | null>(null);
   useEffect(() => {
     if (!focusRequest) return;
-    setEditing(false);
+    setSettings(null);
     if (focusRequest.kind === "overview") {
       setTab("overview");
       return;
@@ -102,7 +103,7 @@ export function RoleView({
   // A different role starts on its overview, with nothing left open.
   useEffect(() => {
     setTab("overview");
-    setEditing(false);
+    setSettings(null);
     setOpenAchievement(null);
   }, [role.id]);
 
@@ -154,7 +155,7 @@ export function RoleView({
                 {photoBusy ? "Adding…" : "Add photos"}
               </button>
             )}
-            <button type="button" className="role-view-glass" onClick={() => setEditing(true)}>
+            <button type="button" className="role-view-glass" onClick={() => setSettings("basics")}>
               <Pencil size={14} aria-hidden="true" />
               Edit
             </button>
@@ -171,9 +172,7 @@ export function RoleView({
         <RolePeople role={role} roles={roles} onSaved={onSaved} openRequest={peopleRequest} />
       </div>
 
-      {editing ? (
-        <RoleEditorPopout role={role} onClose={() => setEditing(false)} onSaved={onSaved} />
-      ) : null}
+      {settings ? <RoleSettings role={role} panel={settings} onClose={() => setSettings(null)} onSaved={onSaved} /> : null}
       {(
         <>
           <div className="role-view-tabs" role="tablist" aria-label={`${name} sections`}>
@@ -204,13 +203,13 @@ export function RoleView({
               ) : (
                 <p className="role-view-empty">
                   Nothing written about this job yet.{" "}
-                  <button type="button" className="role-view-text" onClick={() => setEditing(true)}>
+                  <button type="button" className="role-view-text" onClick={() => setSettings("about")}>
                     + Add a few lines
                   </button>
                 </p>
               )}
 
-              <RoleWorkSetup role={role} onSaved={onSaved} />
+              {role.kind === "school" ? null : <RoleWorkSetup role={role} onEdit={setSettings} />}
 
               <section className="role-view-section" aria-labelledby={`${role.id}-photos`}>
                 <div className="role-view-section-head">
@@ -318,7 +317,7 @@ export function RoleView({
                 <p className="role-view-empty">No achievements yet. What are you proud of from {name}?</p>
               )}
               {openAchievement ? null : (
-                <button type="button" className="role-view-text" onClick={() => setEditing(true)}>
+                <button type="button" className="role-view-text" onClick={() => setSettings("achievements")}>
                   + Add an achievement
                 </button>
               )}
@@ -373,145 +372,6 @@ function FactRow({ label, value }: { label: string; value: string }) {
       <dt>{label}</dt>
       <dd>{value}</dd>
     </>
-  );
-}
-
-/** The role's editor in a window over the page, so the role stays where it was. */
-function RoleEditorPopout({ role, onClose, onSaved }: { role: WorkMapRole; onClose: () => void; onSaved: () => void }) {
-  const ref = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
-    const dialog = ref.current;
-    if (dialog && !dialog.open) dialog.showModal();
-  }, []);
-  return (
-    <dialog
-      ref={ref}
-      className="achievement-popout role-editor-popout"
-      aria-label={`Edit ${role.organization || role.title || "role"}`}
-      onCancel={(event) => {
-        event.preventDefault();
-        onClose();
-      }}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
-      <div className="achievement-popout-body">
-        <button type="button" className="role-view-round achievement-popout-close" aria-label="Close" onClick={onClose}>
-          <X size={16} aria-hidden="true" />
-        </button>
-        <RoleEditor role={role} onClose={onClose} onSaved={onSaved} />
-      </div>
-    </dialog>
-  );
-}
-
-/** The fields used to add a role are the fields used to change it. */
-function RoleEditor({ role, onClose, onSaved }: { role: WorkMapRole; onClose: () => void; onSaved: () => void }) {
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState("");
-  const [current, setCurrent] = useState(role.isCurrent);
-  // A pinned site is saved by its id; show its name, and keep the pin unless the place is changed.
-  const pinned = /^\d+$/.test(role.locationLabel.trim());
-  const shownPlace = pinned ? formatHistoryPlace(role) : role.locationLabel;
-  // A month field shows YYYY-MM; an unchanged date keeps what was saved.
-  const keep = (value: string, saved: string) => (value === saved.slice(0, 7) ? saved : value);
-
-  async function save(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const field = (key: string) => String(form.get(key) ?? "").trim();
-    setBusy(true);
-    setMessage("");
-    try {
-      const response = await fetch(`/api/work-map/roles/${encodeURIComponent(role.id)}`, {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          kind: field("kind") || role.kind,
-          title: field("title"),
-          organization: field("organization"),
-          locationLabel: pinned && field("locationLabel") === shownPlace.trim() ? role.locationLabel : field("locationLabel"),
-          startDate: keep(field("startDate"), role.startDate),
-          endDate: current ? "" : keep(field("endDate"), role.endDate),
-          isCurrent: current,
-          description: field("description"),
-          achievements: field("achievements")
-            .split("\n")
-            .map((line) => line.trim())
-            .filter(Boolean),
-        }),
-      });
-      if (!response.ok) {
-        setMessage("The role could not be saved. Check the fields and try again.");
-        return;
-      }
-      onSaved();
-      onClose();
-    } catch {
-      setMessage("The role could not be saved. Check your connection and try again.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <form className="role-view-editor" onSubmit={save}>
-      <h2>Edit role</h2>
-      <fieldset disabled={busy}>
-        <label>
-          Kind
-          <select name="kind" defaultValue={role.kind}>
-            <option value="job">Job</option>
-            <option value="internship">Internship</option>
-            <option value="school">School</option>
-          </select>
-        </label>
-        <label>
-          {role.kind === "school" ? "School" : "Company"}
-          <input name="organization" defaultValue={role.organization} />
-        </label>
-        <label>
-          {role.kind === "school" ? "Degree or program" : "Title"}
-          <input name="title" defaultValue={role.title} />
-        </label>
-        <label>
-          Place
-          <input name="locationLabel" defaultValue={shownPlace} />
-        </label>
-        <div className="role-view-two">
-          <label>
-            Start
-            <input name="startDate" type="month" defaultValue={role.startDate.slice(0, 7)} />
-          </label>
-          <label>
-            End
-            <input name="endDate" type="month" defaultValue={role.endDate.slice(0, 7)} disabled={current} />
-          </label>
-        </div>
-        <label className="role-view-check">
-          <input type="checkbox" checked={current} onChange={(event) => setCurrent(event.target.checked)} />
-          {role.kind === "school" ? "I study here now" : "I work here now"}
-        </label>
-        <label>
-          Description
-          <textarea name="description" rows={4} defaultValue={role.description} />
-        </label>
-        <label>
-          Achievements, one per line
-          <textarea name="achievements" rows={7} defaultValue={role.achievements.join("\n")} />
-        </label>
-      </fieldset>
-      {message ? <p className="role-view-error" role="alert">{message}</p> : null}
-      <div className="role-view-editor-actions">
-        <button type="button" className="role-view-ghost" onClick={onClose} disabled={busy}>
-          Cancel
-        </button>
-        <button type="submit" className="role-view-primary" disabled={busy}>
-          {busy ? "Saving…" : "Save"}
-        </button>
-      </div>
-    </form>
   );
 }
 

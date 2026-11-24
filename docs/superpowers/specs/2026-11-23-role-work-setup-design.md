@@ -15,8 +15,12 @@ promoted) is what people forget first and what resumes and interviews ask for.
 - Everything is private by default. Schedule, team, and growth each have their
   own "Show on my page" switch. The name of the person you reported to is never
   published.
-- It lives on the role's Overview as a section with its own Edit button, which
-  opens a popout. The Edit role popout stays as it is.
+- It shows on the role's Overview as a section. Changing it happens in the
+  role's settings: a dialog laid out like Settings, with a rail of panels.
+  Under Role are Basics, About, and Achievements, and under Work setup are
+  Schedule, Shifts, Team, and Growth. One Save covers everything changed.
+  School roles have no Work setup panels. Later batches add their own groups
+  to the rail.
 
 ## Approaches
 

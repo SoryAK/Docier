@@ -1626,14 +1626,15 @@ img.role-view-avatar {
   cursor: pointer;
 }
 
-/* One line each in the list; the whole wording shows when it's opened. */
+/* Two lines each in the list: enough to tell them apart; the whole wording shows when it's opened. */
 .achievement-row-text {
+  display: -webkit-box;
   min-width: 0;
   overflow: hidden;
   font-size: 0.9375rem;
   line-height: 1.45;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .achievement-row-chevron {
@@ -1703,13 +1704,14 @@ img.role-view-avatar {
   color: #171717;
 }
 
-/* History entries that open something are one line; notes, milestones, and
+/* History entries that open something are two lines; notes, milestones, and
    events have nowhere else to be read, so they stay whole. */
 .role-history-text.role-history-go {
+  display: -webkit-box;
   min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 /* Let a row shrink to the column, so long wording ends in "…" instead of spilling. */

@@ -279,7 +279,7 @@ export function RolePeople({
         </button>
       ) : (
         <button type="button" className="role-view-text" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
-          + Who you worked with
+          + Colleagues
         </button>
       )}
 

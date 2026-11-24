@@ -636,7 +636,7 @@ export function RoleSettings({
                 people.length > 0 ? (
                   <HStack gap={1} wrap="wrap" align="center">
                     <Text type="supporting" color="secondary">
-                      From who you worked with:
+                      From your colleagues:
                     </Text>
                     {people.slice(0, 6).map((person) => (
                       <Button key={person} label={person} variant={setup.reportsTo === person ? "secondary" : "ghost"} size="sm" onClick={() => editSetup({ reportsTo: person })} />

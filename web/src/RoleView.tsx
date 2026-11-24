@@ -171,8 +171,9 @@ export function RoleView({
       </div>
 
       {editing ? (
-        <RoleEditor role={role} onClose={() => setEditing(false)} onSaved={onSaved} />
-      ) : (
+        <RoleEditorPopout role={role} onClose={() => setEditing(false)} onSaved={onSaved} />
+      ) : null}
+      {(
         <>
           <div className="role-view-tabs" role="tablist" aria-label={`${name} sections`}>
             <button type="button" role="tab" aria-selected={tab === "overview"} onClick={() => setTab("overview")}>
@@ -360,6 +361,36 @@ function FactRow({ label, value }: { label: string; value: string }) {
       <dt>{label}</dt>
       <dd>{value}</dd>
     </>
+  );
+}
+
+/** The role's editor in a window over the page, so the role stays where it was. */
+function RoleEditorPopout({ role, onClose, onSaved }: { role: WorkMapRole; onClose: () => void; onSaved: () => void }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const dialog = ref.current;
+    if (dialog && !dialog.open) dialog.showModal();
+  }, []);
+  return (
+    <dialog
+      ref={ref}
+      className="achievement-popout role-editor-popout"
+      aria-label={`Edit ${role.organization || role.title || "role"}`}
+      onCancel={(event) => {
+        event.preventDefault();
+        onClose();
+      }}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div className="achievement-popout-body">
+        <button type="button" className="role-view-round achievement-popout-close" aria-label="Close" onClick={onClose}>
+          <X size={16} aria-hidden="true" />
+        </button>
+        <RoleEditor role={role} onClose={onClose} onSaved={onSaved} />
+      </div>
+    </dialog>
   );
 }
 

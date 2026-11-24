@@ -1736,6 +1736,9 @@ img.role-view-avatar {
   background: #fff;
   color: #171717;
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.22);
+  /* Tall content, like the role's editor, scrolls inside the window. */
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .achievement-popout::backdrop {
@@ -1756,4 +1759,14 @@ img.role-view-avatar {
   top: 14px;
   right: 14px;
   box-shadow: inset 0 0 0 1px #e4e4e7;
+}
+
+/* The role's editor, in a popout. */
+.role-editor-popout .role-view-editor {
+  max-width: none;
+  padding: 0;
+}
+
+.role-editor-popout .role-view-editor h2 {
+  padding-right: 40px;
 }

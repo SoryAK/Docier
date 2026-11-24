@@ -289,7 +289,7 @@ export function HomeProforna({
       }
       if (!response.ok) {
         setDraft(body);
-        setStatus("Connect a model in Settings before talking to Docier.");
+        setStatus("Connect a model in Settings before using chat.");
         return;
       }
       const thread = (await response.json()) as {
@@ -473,8 +473,8 @@ export function HomeProforna({
               <button
                 type="button"
                 className="home-chat-sessions-action"
-                aria-label="New Chat"
-                title="New Chat"
+                aria-label="New chat"
+                title="New chat"
                 onClick={startNew}
               >
                 <Icon icon={Plus} size="sm" />
@@ -596,7 +596,7 @@ export function HomeProforna({
                   aria-selected={selectedId === null}
                   onClick={startNew}
                 >
-                  <span>New Chat</span>
+                  <span>New chat</span>
                 </button>
                 {sessions.map((session) => (
                   <div
@@ -751,7 +751,7 @@ export function HomeProforna({
       ) : (
         <h2>
           <button type="button" onClick={onToggle}>
-            Docier
+            Chat
           </button>
         </h2>
       )}

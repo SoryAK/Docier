@@ -926,7 +926,7 @@
 
 /*
  * The right-hand column (Recent on the story, History on a role) stands as its own
- * card beside the main one, as the Docier panel does when it's open, so the main
+ * card beside the main one, as the chat panel does when it's open, so the main
  * card is only as wide as what's in it.
  */
 @media (min-width: 801px) {

@@ -856,8 +856,8 @@ export function HomeBar({
                 ? "home-notice-btn home-proforna-toggle is-current"
                 : "home-notice-btn home-proforna-toggle"
             }
-            aria-label={profornaOpen ? "Hide Docier" : "Show Docier"}
-            title={profornaOpen ? "Hide Docier" : "Show Docier"}
+            aria-label={profornaOpen ? "Hide chat" : "Show chat"}
+            title={profornaOpen ? "Hide chat" : "Show chat"}
             aria-pressed={profornaOpen}
             onClick={onProforna}
           >

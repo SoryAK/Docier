@@ -1,6 +1,34 @@
-export const DOCUMENT_KINDS = ["evidence", "resume", "offer", "certificate"] as const;
+export const DOCUMENT_KINDS = [
+  "evidence",
+  "resume",
+  "offer",
+  "certificate",
+  "benefits",
+  "handbook",
+  "policy",
+  "pay-stub",
+  "contract",
+  "review",
+  "training",
+  "other",
+] as const;
 
 export type DocumentKind = (typeof DOCUMENT_KINDS)[number];
+
+export const DOCUMENT_KIND_LABEL: Record<DocumentKind, string> = {
+  evidence: "Evidence",
+  resume: "Resume",
+  offer: "Offer",
+  certificate: "Certificate",
+  benefits: "Benefits",
+  handbook: "Handbook",
+  policy: "Policy",
+  "pay-stub": "Pay stub",
+  contract: "Contract",
+  review: "Review",
+  training: "Training",
+  other: "Other",
+};
 
 export const DOCUMENT_MAX_BYTES = 25 * 1024 * 1024;
 

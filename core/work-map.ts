@@ -5,6 +5,7 @@ import { EMPTY_GLANCE, type RoleGlanceChoice } from "./role-glance";
 import { EMPTY_PAY, type PayEvent, type RolePay, type TimeOffBalance } from "./role-pay";
 import { EMPTY_SCHEDULE, EMPTY_TEAM, type RolePromotion, type RoleSchedule, type RoleShift, type RoleTeam } from "./role-work-setup";
 import type { RolePerson } from "./role-people";
+import type { RoleDocument } from "./role-documents";
 import type { AchievementLinks } from "./role-achievements";
 import type { CanvasBoard } from "./canvas-board";
 import { formatHistoryPlace } from "./career-history";
@@ -407,6 +408,8 @@ export type WorkMapRole = {
   canvasRevision?: number;
   /** My Network contacts linked to this role. */
   people?: RolePerson[];
+  /** Files from Documents kept with the role. Never published. */
+  documents?: RoleDocument[];
   /** Changes made to this role, newest first. Never published. */
   edits?: RoleEdit[];
 };

@@ -1,4 +1,5 @@
 import { moveColleaguesToNetwork, readRolePeople } from "./role-people";
+import { forgetRoleDocumentLinks, readRoleDocuments } from "./role-documents";
 import { prepareRoleLinks, type RoleLinkKind } from "../core/role-links";
 import { prepareRoleGlance } from "../core/role-glance";
 import {
@@ -634,6 +635,7 @@ export function removeWorkMapRole(
     db.prepare(
       `DELETE FROM role_contacts WHERE role_id = ? AND occupant_id = ?`,
     ).run(id, occupantId);
+    forgetRoleDocumentLinks(db, occupantId, id);
     removeRoleEdits(db, occupantId, id);
     db.prepare(
       `DELETE FROM career_facts
@@ -1466,6 +1468,7 @@ function mapRole(
     linkedEvidence: readLinkedEvidence(db, occupantId, String(row.id), achievementFields),
     details: readDetails(db, occupantId, String(row.id)),
     people: readRolePeople(db, occupantId, String(row.id)),
+    documents: readRoleDocuments(db, occupantId, String(row.id)),
     edits: readRoleEdits(db, occupantId, String(row.id), {
       fields: readRoleFields(db, occupantId, String(row.id))!,
       details: readDetails(db, occupantId, String(row.id)),

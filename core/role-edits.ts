@@ -6,7 +6,7 @@ import type { WorkMapRoleDetails } from "./work-map";
  * undone; people, places, photos, and evidence are only logged.
  */
 
-export type RoleEditArea = "role" | "details" | "people" | "places" | "photos" | "evidence";
+export type RoleEditArea = "role" | "details" | "people" | "places" | "photos" | "evidence" | "documents";
 
 /** The role's own fields, as one edit changes them. */
 export type RoleFields = {

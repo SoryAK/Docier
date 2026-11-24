@@ -57,6 +57,7 @@ const directTables = [
   "career_plans",
   "external_actions",
   "documents",
+  "role_documents",
   "integration_connections",
 ] as const;
 
@@ -105,6 +106,7 @@ const restoreOrder = [
   "career_tasks",
   "external_actions",
   "documents",
+  "role_documents",
   "integration_connections",
 ] as const;
 

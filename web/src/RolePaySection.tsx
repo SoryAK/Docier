@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { PAY_FREQUENCY_LABEL, PAY_TYPE_LABEL, TIME_OFF_LABEL, daysLeft, differentialText, formatPay, payEventText } from "@core/role-pay";
 import type { WorkMapRole } from "@core/work-map";
+import { FileText } from "lucide-react";
 import type { RoleSettingsPanel } from "./RoleSettings";
 import { GroupFacts, GroupMeter, GroupTags, GroupTimeline, RoleGroup, RoleGroups, monthYear } from "./RoleGroups";
 
@@ -21,6 +22,8 @@ export function RolePaySection({
   const amount = formatPay(pay.amount, pay.currency, pay.period);
   const hasPay = Boolean(amount || pay.payType || pay.frequency || pay.overtimeRate != null || pay.differentials.length || pay.bonusNotes || pay.equityNotes);
   const shown = d.glance.pay;
+  // Benefits packages kept in the role's Documents, linked where the benefits are.
+  const packages = (role.documents ?? []).filter((item) => item.kind === "benefits");
 
   async function setShown(next: boolean) {
     setBusy(true);
@@ -84,8 +87,20 @@ export function RolePaySection({
           <GroupTimeline items={d.payHistory.map((item) => ({ id: item.id, when: monthYear(item.date), text: payEventText(item, pay) }))} />
         </RoleGroup>
 
-        <RoleGroup title="Benefits" panel="benefits" onEdit={onEdit} empty={d.benefits.length || d.benefitNotes ? null : "Add the benefits you had"} note={d.benefitNotes}>
+        <RoleGroup title="Benefits" panel="benefits" onEdit={onEdit} empty={d.benefits.length || d.benefitNotes || packages.length ? null : "Add the benefits you had"} note={d.benefitNotes}>
           {d.benefits.length ? <GroupTags items={d.benefits} /> : null}
+          {packages.length ? (
+            <ul className="role-group-files">
+              {packages.map((item) => (
+                <li key={item.linkId}>
+                  <a href={`/api/documents/${encodeURIComponent(item.documentId)}?inline=1`} target="_blank" rel="noreferrer">
+                    <FileText size={14} aria-hidden="true" />
+                    {item.name}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </RoleGroup>
 
         <RoleGroup title="Time off" panel="time-off" onEdit={onEdit} empty={d.timeOff.length || d.paidTimeOff ? null : "Add the time off you had each year"} note={d.paidTimeOff}>

@@ -12,6 +12,7 @@ import { ArrowLeft, Banknote, BriefcaseBusiness, CalendarDays, ChevronRight, Clo
 import { AchievementDate } from "./AchievementDate";
 import { AchievementDetail } from "./AchievementDetail";
 import { AchievementProof } from "./AchievementProof";
+import { RoleDocuments } from "./RoleDocuments";
 import { RolePeople } from "./RolePeople";
 import { RoleSettings, type RoleSettingsPanel } from "./RoleSettings";
 import { RoleEvents } from "./RoleEvents";
@@ -23,7 +24,7 @@ import { BrandLogo } from "./BrandLogo";
 import { SocialMark } from "./SocialMark";
 import "./role-view.css";
 
-type RoleTab = "overview" | "achievements" | "setup" | "pay" | "colleagues";
+type RoleTab = "overview" | "achievements" | "setup" | "pay" | "colleagues" | "documents";
 
 const GLANCE_ICON: Record<GlanceKind, LucideIcon> = {
   work: BriefcaseBusiness,
@@ -150,6 +151,7 @@ export function RoleView({
         ] as const)
       : []),
     { id: "colleagues", label: "Colleagues", count: role.people?.length ?? 0 },
+    { id: "documents", label: "Documents", count: role.documents?.length ?? 0 },
   ];
   function openTab(next: RoleTab) {
     setTab(next);
@@ -321,6 +323,10 @@ export function RoleView({
           ) : tab === "pay" ? (
             <div className="role-view-pane" role="tabpanel">
               <RolePaySection role={role} onEdit={setSettings} onSaved={onSaved} />
+            </div>
+          ) : tab === "documents" ? (
+            <div className="role-view-pane" role="tabpanel">
+              <RoleDocuments role={role} onSaved={onSaved} />
             </div>
           ) : tab === "colleagues" ? (
             <div className="role-view-pane" role="tabpanel">

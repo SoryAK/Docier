@@ -225,6 +225,11 @@ export function AchievementDetail({
         </button>
       ) : null}
 
+      {/* Every achievement is labelled the same way: what it is, where it was, then its title and date. */}
+      <header className="achievement-detail-head">
+        <h2>Achievement</h2>
+        <p className="achievement-detail-where">{[role.organization, role.title].filter(Boolean).join(" · ")}</p>
+      </header>
       {editingTitle ? (
         <form className="achievement-detail-title-edit" onSubmit={saveTitle}>
           <input
@@ -232,7 +237,7 @@ export function AchievementDetail({
             onChange={(event) => setTitleText(event.target.value)}
             maxLength={80}
             placeholder="A short title, such as Cut robot downtime"
-            aria-label="Title"
+            aria-label="Short title"
             autoFocus
             disabled={busy}
             onKeyDown={(event) => {
@@ -247,25 +252,25 @@ export function AchievementDetail({
           </button>
         </form>
       ) : (
-        <div className="achievement-detail-head">
+        <p className="achievement-detail-meta">
           {title ? (
-            <h2>{title}</h2>
+            <button
+              type="button"
+              className="achievement-detail-title"
+              title="Change the short title"
+              onClick={() => { setTitleText(title); setEditingTitle(true); }}
+            >
+              <span>Title:</span> {title}
+              <Pencil size={12} aria-hidden="true" />
+            </button>
           ) : (
             <button type="button" className="achievement-detail-add-title" onClick={() => { setTitleText(""); setEditingTitle(true); }}>
               + Add a short title
             </button>
           )}
-          {title ? (
-            <button type="button" className="role-view-ghost" onClick={() => { setTitleText(title); setEditingTitle(true); }}>
-              <Pencil size={13} aria-hidden="true" /> Edit
-            </button>
-          ) : null}
-        </div>
+          <AchievementDate role={role} achievementId={achievementId} date={role.achievementDates?.[index] ?? ""} onSaved={onSaved} />
+        </p>
       )}
-      <p className="achievement-detail-meta">
-        <AchievementDate role={role} achievementId={achievementId} date={role.achievementDates?.[index] ?? ""} onSaved={onSaved} />
-        <span>{[role.organization, role.title].filter(Boolean).join(" · ")}</span>
-      </p>
       {message ? <p className="role-view-error" role="alert">{message}</p> : null}
 
       <section className="achievement-detail-section">

@@ -1935,3 +1935,52 @@ img.role-view-avatar {
 .achievement-backing .role-proof.is-inline:empty {
   display: none;
 }
+
+/* The top of an achievement: what it is, where, then its title and date. */
+.achievement-detail-head {
+  display: grid;
+  gap: 2px;
+  padding-right: 40px;
+}
+
+.achievement-detail-head h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.achievement-detail-where {
+  margin: 0;
+  color: #6b6b70;
+  font-size: 0.875rem;
+}
+
+.achievement-detail-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border: 1px solid #ead5ad;
+  border-radius: 999px;
+  background: #fffaf0;
+  color: #171717;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.achievement-detail-title span {
+  color: #8a6d4f;
+  font-weight: 500;
+}
+
+.achievement-detail-title svg {
+  color: #8a6d4f;
+}
+
+.achievement-detail-add-title {
+  padding: 3px 12px;
+  font-size: 0.8125rem;
+}

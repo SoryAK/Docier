@@ -1208,3 +1208,126 @@ img.role-view-avatar {
   font: inherit;
   font-size: 0.8125rem;
 }
+
+/* The evidence behind one achievement. */
+.role-proof {
+  position: relative;
+  display: inline-block;
+  margin-left: 6px;
+}
+
+.role-proof-tag {
+  padding: 1px 8px;
+  border: 1px dashed #d6d0c6;
+  border-radius: 999px;
+  background: none;
+  color: #6b6b70;
+  font: inherit;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.role-proof-tag.has {
+  border-style: solid;
+  border-color: #b9dcc5;
+  background: #e7f6ec;
+  color: #1f7a3d;
+  font-weight: 600;
+}
+
+.role-proof-pop {
+  left: 0;
+  right: auto;
+  display: grid;
+  gap: 8px;
+  width: min(360px, 86vw);
+  padding: 12px;
+  font-size: 0.875rem;
+}
+
+.role-proof-pop h3 {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.role-proof-for {
+  display: block;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #f6f5f3;
+  color: #3f3f46;
+  font-size: 0.75rem;
+}
+
+.role-proof-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.role-proof-list li {
+  position: relative;
+  display: grid;
+  padding: 6px 56px 6px 6px;
+  border-radius: 8px;
+}
+
+.role-proof-list li:hover {
+  background: #f6f5f3;
+}
+
+.role-proof-list a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #171717;
+  font-size: 0.8125rem;
+  text-decoration: none;
+}
+
+.role-proof-list a:hover b {
+  text-decoration: underline;
+}
+
+.role-proof-list small {
+  color: #6b6b70;
+  font-size: 0.75rem;
+}
+
+.role-proof-list .role-people-actions {
+  position: absolute;
+  top: 6px;
+  right: 4px;
+}
+
+.role-proof-list li:hover .role-people-actions {
+  opacity: 1;
+}
+
+.role-proof-url {
+  display: flex;
+  gap: 6px;
+}
+
+.role-proof-url input {
+  flex: 1;
+  min-width: 0;
+}
+
+.role-proof-two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.role-proof-pop select {
+  padding: 6px 8px;
+  border: 1px solid #d4d4d8;
+  border-radius: 8px;
+  background: #fff;
+  font: inherit;
+  font-size: 0.8125rem;
+}

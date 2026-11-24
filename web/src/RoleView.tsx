@@ -7,6 +7,7 @@ import {
 } from "@core/career-history";
 import { roleCoverPhoto, type WorkMapRole } from "@core/work-map";
 import { Globe, ImagePlus, Images, Pencil, Plus, Trash2, UserRound, X } from "lucide-react";
+import { AchievementProof } from "./AchievementProof";
 import { RolePeople } from "./RolePeople";
 import "./role-view.css";
 
@@ -218,7 +219,10 @@ export function RoleView({ role, roles, onSaved }: { role: WorkMapRole; roles: W
                       <li key={id ?? index}>
                         <span>{achievement}</span>
                         {id ? (
-                          <AchievementDate role={role} achievementId={id} date={role.achievementDates?.[index] ?? ""} onSaved={onSaved} />
+                          <>
+                            <AchievementDate role={role} achievementId={id} date={role.achievementDates?.[index] ?? ""} onSaved={onSaved} />
+                            <AchievementProof role={role} achievementId={id} statement={achievement} onSaved={onSaved} />
+                          </>
                         ) : null}
                       </li>
                     );

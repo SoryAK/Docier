@@ -427,6 +427,7 @@ export {
   attachFactsToWorkMapRole,
   buildWorkMapSnapshot,
   groupLinkedEvidence,
+  resolveAchievementPin,
   isLinkedEvidenceUrl,
   linkedEvidenceFromPage,
   normalizeSlug,

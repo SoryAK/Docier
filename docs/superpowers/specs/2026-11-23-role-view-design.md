@@ -66,6 +66,8 @@ Three columns, as on Home.
    - In the Achievements tab each achievement has a small date button ("Apr 2025", or "+ When?"), opening a month field limited to the role's dates; it can be cleared.
    - Undated achievements (resume imports, until dated) sit in the role's first year in History with no month, so they read as not yet dated.
 4. **Evidence on an achievement:** linked evidence names the achievement it backs; the proof tag counts it.
+   - A pin records the achievement's id with its current statement. Reading a role refreshes the statement from the id, so rewording an achievement keeps its evidence, and the facts and published pages, which match by statement, stay right. Older statement-only pins get their id once, by matching; a pin to a removed achievement becomes the role's general evidence.
+   - Each achievement's tag ("1 proof" / "+ proof") opens a panel listing its evidence with Change and Remove, and "+ Add evidence": a link with "Fill from link" (title, site, date, kind), whether it names you or is about your work, and your part. Saving keeps a copy of the page in the vault, as before.
 5. **Edits:** a record of changes to the role, shown under History's Edits filter, with undo for recent ones.
 6. **Adds in place** for photos, events, sites, and people, and the tablet and phone layouts.
 

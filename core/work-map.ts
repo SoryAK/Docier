@@ -61,8 +61,13 @@ export type LinkedEvidence = {
   credit: (typeof LINKED_EVIDENCE_CREDITS)[number];
   quote: string;
   timestamp: string;
+  /**
+   * What this evidence backs. An achievement is pinned by its id, with its
+   * current statement alongside; pins saved before ids, and published copies,
+   * may carry the statement alone.
+   */
   pin:
-    | { kind: "achievement"; statement: string }
+    | { kind: "achievement"; id?: string; statement: string }
     | { kind: "event"; id: string }
     | null;
   isPublic: boolean;
@@ -83,7 +88,7 @@ export type LinkedEvidenceError =
 
 export function prepareLinkedEvidence(
   input: Record<string, unknown>,
-  role: Pick<WorkMapRole, "achievements" | "details">,
+  role: Pick<WorkMapRole, "achievements" | "achievementIds" | "details">,
 ):
   | { ok: true; value: PreparedLinkedEvidence }
   | { ok: false; error: LinkedEvidenceError } {
@@ -126,19 +131,46 @@ export function prepareLinkedEvidence(
 export function groupLinkedEvidence<T extends Pick<LinkedEvidence, "pin">>(
   achievements: string[],
   items: T[] | undefined,
+  achievementIds?: readonly string[],
 ): { achievements: Array<{ statement: string; evidence: T[] }>; other: T[] } {
-  const grouped = achievements.map((statement) => ({ statement, evidence: [] as T[] }));
+  const grouped = achievements.map((statement, index) => ({ statement, id: achievementIds?.[index], evidence: [] as T[] }));
   const other: T[] = [];
   for (const item of items ?? []) {
-    const wanted =
-      item.pin?.kind === "achievement" ? item.pin.statement.trim().toLowerCase() : null;
-    const home = wanted
-      ? grouped.find((entry) => entry.statement.trim().toLowerCase() === wanted)
+    const pin = item.pin?.kind === "achievement" ? item.pin : null;
+    const wanted = pin ? pin.statement.trim().toLowerCase() : null;
+    // By id when both sides have one; by statement for older pins and published copies.
+    const home = pin
+      ? (pin.id ? grouped.find((entry) => entry.id === pin.id) : undefined) ??
+        grouped.find((entry) => entry.statement.trim().toLowerCase() === wanted)
       : undefined;
     if (home) home.evidence.push(item);
     else other.push(item);
   }
-  return { achievements: grouped, other };
+  return { achievements: grouped.map(({ statement, evidence }) => ({ statement, evidence })), other };
+}
+
+/**
+ * A stored pin, read against the role's achievements as they are now: an
+ * achievement pin gets its id (matched by statement, for older pins) and its
+ * current statement. A pin to an achievement that's gone becomes null; a
+ * statement that matches nothing is kept as it was.
+ */
+export function resolveAchievementPin(
+  pin: LinkedEvidence["pin"],
+  achievements: readonly string[],
+  achievementIds: readonly string[] | undefined,
+): LinkedEvidence["pin"] {
+  if (!pin || pin.kind !== "achievement") return pin;
+  const ids = achievementIds ?? [];
+  if (pin.id) {
+    const index = ids.indexOf(pin.id);
+    return index >= 0 ? { kind: "achievement", id: pin.id, statement: achievements[index]!.trim() } : null;
+  }
+  const wanted = pin.statement.trim().toLowerCase();
+  const index = achievements.findIndex((achievement) => achievement.trim().toLowerCase() === wanted);
+  if (index < 0) return pin;
+  const id = ids[index];
+  return id ? { kind: "achievement", id, statement: achievements[index]!.trim() } : { kind: "achievement", statement: achievements[index]!.trim() };
 }
 
 export function prepareLinkedEvidenceDelete(input: {
@@ -175,7 +207,7 @@ function pageHost(value: string): string {
 
 function linkedEvidencePin(
   value: unknown,
-  role: Pick<WorkMapRole, "achievements" | "details">,
+  role: Pick<WorkMapRole, "achievements" | "achievementIds" | "details">,
 ): LinkedEvidence["pin"] | undefined {
   if (value == null) return null;
   if (typeof value !== "object") return undefined;
@@ -187,11 +219,21 @@ function linkedEvidencePin(
       : undefined;
   }
   if (pin.kind === "achievement") {
-    const wanted = text(pin.statement).toLowerCase();
-    const statement = role.achievements.find(
-      (achievement) => achievement.trim().toLowerCase() === wanted,
+    const id = text(pin.id);
+    if (id) {
+      return (role.achievementIds ?? []).includes(id)
+        ? resolveAchievementPin({ kind: "achievement", id, statement: "" }, role.achievements, role.achievementIds) ?? undefined
+        : undefined;
+    }
+    const resolved = resolveAchievementPin(
+      { kind: "achievement", statement: text(pin.statement) },
+      role.achievements,
+      role.achievementIds,
     );
-    return statement ? { kind: "achievement", statement: statement.trim() } : undefined;
+    // A statement must match an achievement on the role.
+    return resolved && resolved.kind === "achievement" && role.achievements.some((a) => a.trim() === resolved.statement)
+      ? resolved
+      : undefined;
   }
   return undefined;
 }

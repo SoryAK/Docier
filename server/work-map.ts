@@ -34,6 +34,7 @@ import {
   prepareAchievementDate,
   readRoleAchievements,
   reconcileRoleAchievements,
+  resolveAchievementPin,
   nominatimAddressLine,
   presentWorkMapPlace,
   type WorkMapLocation,
@@ -896,7 +897,31 @@ function requireLinkedEvidence(
   return found;
 }
 
+/**
+ * A role's linked evidence, each pin read against the role's achievements as
+ * they are now (see `resolveAchievementPin`). A pin that changed on reading is
+ * saved, so older statement pins get their achievement's id once.
+ */
 function readLinkedEvidence(
+  db: DatabaseSync,
+  occupantId: string,
+  roleId: string,
+  achievements?: { achievements: string[]; achievementIds: string[] },
+): LinkedEvidence[] {
+  const items = readStoredLinkedEvidence(db, occupantId, roleId);
+  if (!achievements) return items;
+  const save = db.prepare("UPDATE work_history_linked_evidence SET pin_json = ? WHERE id = ? AND occupant_id = ?");
+  return items.map((item) => {
+    const pin = resolveAchievementPin(item.pin, achievements.achievements, achievements.achievementIds);
+    if (JSON.stringify(pin) !== JSON.stringify(item.pin)) {
+      save.run(JSON.stringify(pin), item.id, occupantId);
+      return { ...item, pin };
+    }
+    return item;
+  });
+}
+
+function readStoredLinkedEvidence(
   db: DatabaseSync,
   occupantId: string,
   roleId: string,
@@ -935,7 +960,9 @@ function parsePin(value: unknown): LinkedEvidence["pin"] {
       return { kind: "event", id: pin.id };
     }
     if (pin.kind === "achievement" && typeof pin.statement === "string") {
-      return { kind: "achievement", statement: pin.statement };
+      return typeof pin.id === "string" && pin.id
+        ? { kind: "achievement", id: pin.id, statement: pin.statement }
+        : { kind: "achievement", statement: pin.statement };
     }
     return null;
   } catch {
@@ -1167,6 +1194,7 @@ function mapRole(
   occupantId: string,
   row: JsonObject,
 ): WorkMapRole {
+  const achievementFields = roleAchievements(db, occupantId, String(row.id), row.achievements_json);
   return {
     id: String(row.id),
     kind:
@@ -1182,14 +1210,14 @@ function mapRole(
     endDate: String(row.end_date),
     isCurrent: Number(row.is_current) === 1,
     description: String(row.description),
-    ...roleAchievements(db, occupantId, String(row.id), row.achievements_json),
+    ...achievementFields,
     factId: null,
     factVersion: null,
     evidenceIds: [],
     claims: [],
     locations: readLocations(db, occupantId, String(row.id)),
     media: readMedia(db, occupantId, String(row.id)),
-    linkedEvidence: readLinkedEvidence(db, occupantId, String(row.id)),
+    linkedEvidence: readLinkedEvidence(db, occupantId, String(row.id), achievementFields),
     details: readDetails(db, occupantId, String(row.id)),
     people: readRolePeople(db, occupantId, String(row.id)),
     ...canvasBoardsField(db, occupantId, String(row.id)),

@@ -17,6 +17,17 @@ export type RolePerson = {
   note: string;
   /** YYYY-MM, or "" for the role's start. */
   since: string;
+  /** The latest request asking them to confirm you worked together, or null if none was sent. */
+  confirmation?: RolePersonConfirmation | null;
+};
+
+export type RolePersonConfirmation = {
+  requestId: string;
+  status: "sent" | "opened" | "approved" | "declined" | "expired" | "withdrawn";
+  /** Their note back. */
+  note: string;
+  answeredAt: string | null;
+  answeredFrom: "browser" | "docier" | null;
 };
 
 export type RolePersonLinkInput = { note?: unknown; since?: unknown };

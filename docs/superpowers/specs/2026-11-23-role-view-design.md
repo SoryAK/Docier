@@ -54,6 +54,13 @@ Three columns, as on Home.
    - History shows "Started working with …" in the year you started working together.
    - My Network shows the roles each person is linked to; each opens that role.
    - The role's old "worked with" list is retired: any entries move into My Network once, linked to their role.
+   - **Asking someone to confirm you worked together** (a "Worked together" request, sent from a person on the role, never from the general composer):
+     - The person's row offers "Ask to confirm": their email and a short message make a private Relay link to copy or email. Adding someone new can ask at once.
+     - Their page shows the role (company, title, dates) and nothing else from the career, with Confirm or Decline, a note back, and their details asked up front.
+     - Confirming marks them Confirmed on the role, quotes their note, fills blanks on their contact (nothing typed is replaced), and adds "… confirmed you worked together" to History. Declining leaves them linked, unconfirmed.
+     - While waiting the row shows Request sent or Opened, and the request can be withdrawn. All of these also show in Requests.
+     - Each answer records where it came from: the page, or (next) the recipient's own Docier.
+   - **Next: confirmed both ways.** When the person also uses Docier, they can answer the same link from their Docier: it suggests their matching role, and confirming records the link on both sides (you on their role, them on yours), without any shared server.
 3. **Dates on achievements:** each achievement gets a date (default: the role's start), so it lands in the right year.
 4. **Evidence on an achievement:** linked evidence names the achievement it backs; the proof tag counts it.
 5. **Edits:** a record of changes to the role, shown under History's Edits filter, with undo for recent ones.

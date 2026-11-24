@@ -1073,3 +1073,95 @@ img.role-view-avatar {
   font: inherit;
   font-size: 0.8125rem;
 }
+
+/* Asking someone to confirm you worked together. */
+.role-view-avatar.is-confirmed {
+  box-shadow: 0 0 0 2px #2f9e5b;
+}
+
+.role-people-who b {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.role-people-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: #f1f1f2;
+  color: #6b6b70;
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.role-people-tag.is-confirmed {
+  background: #e7f6ec;
+  color: #1f7a3d;
+}
+
+.role-people-tag.is-declined {
+  background: #fbecea;
+  color: #a33a2b;
+}
+
+.role-people-quote {
+  display: block;
+  margin-top: 3px;
+  color: #3f3f46;
+  font-size: 0.75rem;
+  font-style: italic;
+  quotes: "“" "”";
+}
+
+.role-people-check {
+  display: flex !important;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+}
+
+.role-people-check input {
+  width: auto;
+}
+
+.role-people-form textarea {
+  padding: 6px 8px;
+  border: 1px solid #d4d4d8;
+  border-radius: 8px;
+  color: #171717;
+  font: inherit;
+  font-size: 0.8125rem;
+  resize: vertical;
+}
+
+.role-people-form > .role-view-empty {
+  margin: -4px 0 10px;
+  font-size: 0.75rem;
+}
+
+.role-people-link {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.role-people-link input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid #d4d4d8;
+  border-radius: 8px;
+  background: #f6f5f3;
+  font: inherit;
+  font-size: 0.75rem;
+}
+
+.role-people-link .role-view-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}

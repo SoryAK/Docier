@@ -2906,7 +2906,7 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
   const requestError = (c: Context, error: unknown) => {
     if (error instanceof RequestStoreError) {
       const status =
-        error.code === "not-found" || error.code === "contact-missing"
+        error.code === "not-found" || error.code === "contact-missing" || error.code === "role-link-missing"
           ? 404
           : error.code === "relay-not-configured" || error.code === "request-closed" || error.code === "request-open"
             ? 409

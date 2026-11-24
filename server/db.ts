@@ -664,6 +664,10 @@ export function openDatabase(path: string): DatabaseSync {
   addColumnIfMissing(db, "projection_access_requests", "deleted_at", "TEXT");
   // A sent request cleared from the lists; it stays in History.
   addColumnIfMissing(db, "outgoing_requests", "cleared_at", "TEXT");
+  // A "worked together" request is about one person's link to a role, and an
+  // answer may come from the page or from the recipient's own Docier.
+  addColumnIfMissing(db, "outgoing_requests", "role_link_id", "TEXT");
+  addColumnIfMissing(db, "outgoing_requests", "answered_from", "TEXT");
   // A photo on a My Network contact, stored in uploads like the profile photo.
   addColumnIfMissing(db, "contacts", "photo_stored_name", "TEXT");
   // A resume added in onboarding is listed in My Docs, where its kind can change like any file (#189).

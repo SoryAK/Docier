@@ -10,8 +10,10 @@ import {
   planRequestWithdraw,
   prepareOutgoingRequest,
   requestEmailDraft,
+  formatHistoryPeriod,
   type RelayRequestState,
   type RequestKind,
+  type RequestRoleContext,
   type SentRequestStatus,
 } from "../core/index";
 import { mintOccupantApproval, persistApprovedChange, persistAuditEvent } from "./change-sets";
@@ -45,6 +47,8 @@ export type RelayAsk = {
   fromHeadline: string;
   recipientName: string;
   expiresAt: string;
+  /** For a "worked together" request: the role it is about. */
+  role?: RequestRoleContext;
 };
 
 export type SentRequest = {
@@ -87,6 +91,8 @@ type Row = {
   join_status: "joined" | "declined" | "ignored" | null;
   joined_contact_id: string | null;
   cleared_at: string | null;
+  role_link_id: string | null;
+  answered_from: "browser" | "docier" | null;
 };
 
 export class RequestStoreError extends Error {
@@ -142,6 +148,34 @@ function resolveRecipient(
   return { contactId: null, name: recipient.name, email: recipient.email };
 }
 
+/**
+ * The role a "worked together" request is about, from the person's link to it.
+ * The link must be to the person the request goes to.
+ */
+function roleForLink(
+  db: DatabaseSync,
+  occupantId: string,
+  linkId: string,
+  contactId: string | null,
+): RequestRoleContext {
+  const row = db
+    .prepare(
+      `SELECT rc.contact_id, w.company, w.title, w.start_date, w.end_date, w.is_current
+       FROM role_contacts rc JOIN work_history w ON w.id = rc.role_id AND w.occupant_id = rc.occupant_id
+       WHERE rc.id = ? AND rc.occupant_id = ?`,
+    )
+    .get(linkId, occupantId) as
+    | { contact_id: string; company: string; title: string; start_date: string; end_date: string; is_current: number }
+    | undefined;
+  if (!row) throw new RequestStoreError("role-link-missing");
+  if (row.contact_id !== contactId) throw new RequestStoreError("role-link-mismatch");
+  return {
+    organization: row.company,
+    title: row.title,
+    period: formatHistoryPeriod(row.start_date, row.end_date, Number(row.is_current) === 1),
+  };
+}
+
 function sender(db: DatabaseSync, occupantId: string) {
   const profile = readProfile(db, occupantId);
   const fromName = profile.fullName.trim() || `${profile.firstName} ${profile.lastName}`.trim();
@@ -172,6 +206,7 @@ export async function createRequest(
   const prepared = prepareOutgoingRequest(input);
   if (!prepared.ok) throw new RequestStoreError(prepared.error);
   const recipient = resolveRecipient(db, occupantId, prepared.value.recipient);
+  const role = prepared.value.roleLinkId ? roleForLink(db, occupantId, prepared.value.roleLinkId, recipient.contactId) : undefined;
   const { fromName, fromHeadline } = sender(db, occupantId);
   const id = randomUUID();
   const token = randomBytes(24).toString("base64url");
@@ -193,6 +228,7 @@ export async function createRequest(
     fromHeadline,
     recipientName: recipient.name,
     expiresAt,
+    ...(role ? { role } : {}),
   });
   db.exec("BEGIN");
   try {
@@ -200,8 +236,8 @@ export async function createRequest(
     db.prepare(
       `INSERT INTO outgoing_requests
         (id, occupant_id, contact_id, recipient_name, recipient_email, kind, body, link_token,
-         status, seen_status, recipient_note, expires_at, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'sent', 'sent', '', ?, ?, ?)`,
+         status, seen_status, recipient_note, expires_at, created_at, updated_at, role_link_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'sent', 'sent', '', ?, ?, ?, ?)`,
     ).run(
       id,
       occupantId,
@@ -214,6 +250,7 @@ export async function createRequest(
       expiresAt,
       createdAt,
       createdAt,
+      prepared.value.roleLinkId,
     );
     persistAuditEvent(db, {
       id: randomUUID(),
@@ -256,7 +293,8 @@ export async function listRequests(
       const states = await relay.askStates(pending.map((row) => tokenHash(row.link_token)));
       const update = db.prepare(
         `UPDATE outgoing_requests
-            SET status = ?, recipient_note = ?, opened_at = COALESCE(opened_at, ?), answered_at = ?, updated_at = ?
+            SET status = ?, recipient_note = ?, opened_at = COALESCE(opened_at, ?), answered_at = ?, updated_at = ?,
+                answered_from = ?
           WHERE id = ?`,
       );
       for (const row of pending) {
@@ -265,7 +303,9 @@ export async function listRequests(
         if (isAnswered(state.status)) await takeJoin(db, occupantId, row, state, relay, uploadsDir);
         const next = applyRelayRequestState(row.status, state);
         if (next === row.status && !(state.openedAt && !row.opened_at)) continue;
-        update.run(next, state.note, state.openedAt, state.answeredAt, new Date().toISOString(), row.id);
+        const from = isAnswered(next) ? (state.answeredFrom ?? "browser") : null;
+        update.run(next, state.note, state.openedAt, state.answeredAt, new Date().toISOString(), from, row.id);
+        row.answered_from = from;
         row.status = next;
         row.recipient_note = state.note;
         row.opened_at = row.opened_at ?? state.openedAt;
@@ -313,11 +353,18 @@ async function takeJoin(
     return;
   }
   const details = join.details;
-  const existing = db
-    .prepare(
-      "SELECT id, name, email, organization, role, notes FROM contacts WHERE occupant_id = ? AND lower(email) = lower(?) LIMIT 1",
-    )
-    .get(occupantId, details.email) as
+  // A request to someone in My Network fills that contact; otherwise the email finds them.
+  const existing = (
+    row.contact_id
+      ? db
+          .prepare("SELECT id, name, email, organization, role, notes FROM contacts WHERE id = ? AND occupant_id = ?")
+          .get(row.contact_id, occupantId)
+      : db
+          .prepare(
+            "SELECT id, name, email, organization, role, notes FROM contacts WHERE occupant_id = ? AND lower(email) = lower(?) LIMIT 1",
+          )
+          .get(occupantId, details.email)
+  ) as
     | { id: string; name: string; email: string; organization: string; role: string; notes: string }
     | undefined;
   let contactId: string;

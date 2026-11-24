@@ -192,6 +192,7 @@ export {
   identicalRoleReviews,
   formatHistoryGist,
   formatHistoryPlace,
+  formatHistoryPeriod,
   groupCareerHistory,
   presentCareerHistoryStats,
   searchCareerHistory,
@@ -556,6 +557,9 @@ export {
   type RequestDecision,
   type RequestError,
   type RequestKind,
+  type RequestRoleContext,
+  type RequestAnsweredFrom,
+  COMPOSABLE_REQUEST_KINDS,
   type RequestRecipient,
   type SentRequestStatus,
 } from "./requests";

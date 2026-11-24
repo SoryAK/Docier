@@ -82,6 +82,9 @@ export function roleHistory(
     const date = item.since || role.startDate;
     const text = `Started working with ${item.name}${item.note ? ` · ${item.note}` : ""}`;
     push(item.linkId, "person", text, date);
+    if (item.confirmation?.status === "approved" && item.confirmation.answeredAt) {
+      push(`${item.linkId}:confirmed`, "person", `${item.name} confirmed you worked together`, item.confirmation.answeredAt.slice(0, 10));
+    }
   }
   // Achievements have no dates of their own yet, so they sit in the year the role started.
   role.achievements.forEach((text, index) => {

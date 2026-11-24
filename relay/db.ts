@@ -56,6 +56,9 @@ export function openRelayDatabase(path: string): DatabaseSync {
   for (const [table, column] of [
     ["relay_asks", "join_choice TEXT"],
     ["relay_asks", "join_json TEXT"],
+    // The role a "worked together" request is about, and where its answer came from.
+    ["relay_asks", "role_json TEXT"],
+    ["relay_asks", "answered_from TEXT"],
     // The sections one link opens; NULL opens the whole page.
     ["relay_grants", "sections_json TEXT"],
   ]) {

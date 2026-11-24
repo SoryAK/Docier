@@ -53,7 +53,7 @@ describe("the rules for a request", () => {
   it("reads a request to someone outside My Network", () => {
     expect(prepareOutgoingRequest({ kind: "reference", body: " Would you? ", recipientName: "Marcus Hale", recipientEmail: "marcus@hale.example" })).toEqual({
       ok: true,
-      value: { kind: "reference", body: "Would you?", recipient: { name: "Marcus Hale", email: "marcus@hale.example" }, expiresInDays: 30 },
+      value: { kind: "reference", body: "Would you?", recipient: { name: "Marcus Hale", email: "marcus@hale.example" }, expiresInDays: 30, roleLinkId: null },
     });
     expect(prepareOutgoingRequest({ kind: "favor", body: "x", recipientName: "a", recipientEmail: "a@b.co" })).toEqual({ ok: false, error: "kind-invalid" });
     expect(prepareOutgoingRequest({ kind: "general", body: "x", recipientName: "a", recipientEmail: "not-an-email" })).toEqual({ ok: false, error: "email-invalid" });

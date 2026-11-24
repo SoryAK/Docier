@@ -18,6 +18,7 @@ import { TextInput } from "@astryxdesign/core/TextInput";
 import { VStack } from "@astryxdesign/core/VStack";
 import {
   REQUEST_BODY_MAX,
+  COMPOSABLE_REQUEST_KINDS,
   REQUEST_KINDS,
   REQUEST_KIND_LABEL,
   REQUEST_NOTE_MAX,
@@ -568,9 +569,10 @@ function RequestForm({
         label="Kind"
         size="sm"
         value={kind}
-        onChange={(value) => setKind((REQUEST_KINDS as readonly string[]).includes(value) ? (value as RequestKind) : "general")}
+        onChange={(value) => setKind((COMPOSABLE_REQUEST_KINDS as readonly string[]).includes(value) ? (value as RequestKind) : "general")}
       >
-        {REQUEST_KINDS.map((option) => (
+        {/* "Worked together" is sent from a person on a role, not from here. */}
+        {COMPOSABLE_REQUEST_KINDS.map((option) => (
           <SegmentedControlItem key={option} value={option} label={REQUEST_KIND_LABEL[option]} />
         ))}
       </SegmentedControl>

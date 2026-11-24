@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
+import { effectiveRequestStatus, type SentRequestStatus } from "../core/requests";
 import { colleagueToContact, prepareRolePersonLink, type RolePerson } from "../core/role-people";
 import { CareerManagementStoreError, createContact } from "./career-management";
 import { contactPhotoUrl } from "./contact-photos";
@@ -35,7 +36,10 @@ type LinkRow = {
   since: string;
 };
 
-function toPerson(row: LinkRow): RolePerson {
+function toPerson(row: LinkRow & ConfirmRow): RolePerson {
+  const status = row.request_status
+    ? effectiveRequestStatus(row.request_status, row.request_expires_at ?? "", new Date().toISOString())
+    : null;
   return {
     linkId: row.link_id,
     contactId: row.contact_id,
@@ -46,27 +50,55 @@ function toPerson(row: LinkRow): RolePerson {
     photoUrl: contactPhotoUrl(row.contact_id, row.photo_stored_name ?? null),
     note: row.note,
     since: row.since,
+    confirmation:
+      row.request_id && status
+        ? {
+            requestId: row.request_id,
+            status,
+            note: row.request_note ?? "",
+            answeredAt: row.request_answered_at ?? null,
+            answeredFrom: row.request_answered_from ?? null,
+          }
+        : null,
   };
 }
 
+type ConfirmRow = {
+  request_id: string | null;
+  request_status: SentRequestStatus | null;
+  request_note: string | null;
+  request_answered_at: string | null;
+  request_answered_from: "browser" | "docier" | null;
+  request_expires_at: string | null;
+};
+
+// The latest "worked together" request for each link says whether they confirmed.
 const SELECT_PEOPLE = `
   SELECT rc.id AS link_id, c.id AS contact_id, c.name, c.role, c.organization, c.email,
-         c.photo_stored_name, rc.note, rc.since
+         c.photo_stored_name, rc.note, rc.since,
+         q.id AS request_id, q.status AS request_status, q.recipient_note AS request_note,
+         q.answered_at AS request_answered_at, q.answered_from AS request_answered_from,
+         q.expires_at AS request_expires_at
   FROM role_contacts rc
-  JOIN contacts c ON c.id = rc.contact_id AND c.occupant_id = rc.occupant_id`;
+  JOIN contacts c ON c.id = rc.contact_id AND c.occupant_id = rc.occupant_id
+  LEFT JOIN outgoing_requests q ON q.id = (
+    SELECT id FROM outgoing_requests
+    WHERE occupant_id = rc.occupant_id AND role_link_id = rc.id
+    ORDER BY created_at DESC, rowid DESC LIMIT 1
+  )`;
 
 export function readRolePeople(db: DatabaseSync, occupantId: string, roleId: string): RolePerson[] {
   return (
     db
       .prepare(`${SELECT_PEOPLE} WHERE rc.occupant_id = ? AND rc.role_id = ? ORDER BY rc.created_at, rc.rowid`)
-      .all(occupantId, roleId) as LinkRow[]
+      .all(occupantId, roleId) as Array<LinkRow & ConfirmRow>
   ).map(toPerson);
 }
 
 function readLink(db: DatabaseSync, occupantId: string, roleId: string, linkId: string): RolePerson {
   const row = db
     .prepare(`${SELECT_PEOPLE} WHERE rc.occupant_id = ? AND rc.role_id = ? AND rc.id = ?`)
-    .get(occupantId, roleId, linkId) as LinkRow | undefined;
+    .get(occupantId, roleId, linkId) as (LinkRow & ConfirmRow) | undefined;
   if (!row) throw new RolePeopleError("link-missing");
   return toPerson(row);
 }

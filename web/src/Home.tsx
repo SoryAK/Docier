@@ -583,6 +583,10 @@ export function Home({
               setFocusJobId(id);
               goPage("history", id);
             }}
+            onCloseRole={() => {
+              setFocusJobId(null);
+              goPage("history", null);
+            }}
             onStart={(action) => {
               if (action === "import") {
                 setImportOpen(true);

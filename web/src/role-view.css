@@ -2176,3 +2176,287 @@ img.role-view-avatar {
   cursor: default;
   opacity: 0.55;
 }
+
+/* Events and places, changed in place. */
+.role-events-list li,
+.role-places-row dd {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.role-events-list li > span:first-child {
+  min-width: 0;
+}
+
+.role-events-list small {
+  display: block;
+  margin-top: 1px;
+  color: var(--rv-muted, #71717a);
+  font-size: 0.75rem;
+}
+
+.role-places-row {
+  display: contents;
+}
+
+.role-places-row dd > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.role-row-actions {
+  display: flex;
+  flex: none;
+  gap: 2px;
+  opacity: 0;
+}
+
+.role-events-list li:hover .role-row-actions,
+.role-places-row:hover .role-row-actions,
+.role-places-row dd:hover .role-row-actions,
+.role-row-actions:focus-within {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .role-row-actions {
+    opacity: 1;
+  }
+}
+
+.role-row-actions button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: #6b6b70;
+  cursor: pointer;
+}
+
+.role-row-actions button:hover {
+  background: #f4efe7;
+  color: #171717;
+}
+
+.role-inline-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.role-inline-form {
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid var(--rv-line, #ebe8e4);
+  border-radius: 12px;
+  background: #fcfaf7;
+}
+
+.role-inline-form fieldset {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.role-inline-form label {
+  display: grid;
+  gap: 4px;
+  color: #3f3f46;
+  font-size: 0.8125rem;
+}
+
+.role-inline-form .role-view-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.role-inline-form input:not([type="checkbox"]),
+.role-inline-form select {
+  min-width: 0;
+  padding: 7px 9px;
+  border: 1px solid #d4d4d8;
+  border-radius: 8px;
+  background: #fff;
+  color: #171717;
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.role-inline-row {
+  display: grid;
+  grid-template-columns: minmax(0, 10rem) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.role-places .role-inline-row {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 9rem);
+}
+
+.role-inline-find {
+  display: flex;
+  gap: 6px;
+}
+
+.role-inline-find input {
+  flex: 1;
+}
+
+.role-inline-find .role-view-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.role-inline-matches {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.role-inline-matches button {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #ebe8e4;
+  border-radius: 8px;
+  background: #fff;
+  color: #171717;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.role-inline-matches button:hover {
+  border-color: #c9b79e;
+  background: #fffaf0;
+}
+
+.role-inline-matches span {
+  display: grid;
+  min-width: 0;
+}
+
+.role-inline-matches small {
+  overflow: hidden;
+  color: #6b6b70;
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.role-inline-found {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: #4d7c4f;
+  font-size: 0.8125rem;
+}
+
+@media (max-width: 560px) {
+  .role-inline-row,
+  .role-places .role-inline-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Back to the list: only where the list is hidden to make room for the role. */
+.role-view-back {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  margin: 0 0 10px;
+  padding: 6px 12px 6px 8px;
+  border: 1px solid var(--rv-line, #ebe8e4);
+  border-radius: 999px;
+  background: #fff;
+  color: #171717;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 550;
+  cursor: pointer;
+}
+
+/* Tablet, landscape: a slimmer list, so the role keeps its room. */
+@media (min-width: 801px) and (max-width: 1180px) {
+  .home-sheet.is-home:has(.pch):has(.role-view) {
+    grid-template-columns: 17rem minmax(0, 1fr);
+  }
+
+  .home-sheet.is-home.is-right-open:has(.pch):has(.role-view) {
+    grid-template-columns: 17rem minmax(20rem, 1fr) minmax(14rem, 18rem);
+  }
+}
+
+/* Tablet and phone: the role, then its History under it, in one column that scrolls. */
+@media (max-width: 1180px) {
+  .home-story-layout:has(> .home-role) {
+    display: block;
+    margin-top: 0;
+    overflow: auto;
+  }
+
+  .home-role {
+    padding-right: 0;
+    overflow: visible;
+  }
+
+  .home-role > .role-view {
+    min-height: 0;
+  }
+
+  .home-story-layout:has(> .home-role) > .home-story-recent.home-role-history {
+    display: flex;
+    height: auto;
+    min-height: 0;
+    margin: 16px 0 0;
+    border-top: 1px solid #e4e4e7;
+    border-left: 0;
+    border-radius: 14px;
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+/* Tablet, portrait, and phone: the role takes the screen; a button goes back to the list. */
+@media (max-width: 800px) {
+  .home-sheet:has(.role-view) > .home-history {
+    display: none;
+  }
+
+  .role-view-back {
+    display: inline-flex;
+  }
+}
+
+/* Phone: the name gets the banner's width; its buttons go under it. */
+@media (max-width: 560px) {
+  .role-view-heading {
+    right: 16px;
+    left: 16px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .role-view-names {
+    max-width: 100%;
+  }
+}

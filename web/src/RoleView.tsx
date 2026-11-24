@@ -6,13 +6,15 @@ import {
   tenureMonths,
 } from "@core/career-history";
 import { roleCoverPhoto, type WorkMapRole } from "@core/work-map";
-import { CalendarDays, ChevronRight, Globe, ImagePlus, Images, MapPin, Pencil, Plus, Trash2, UserRound, X } from "lucide-react";
+import { ArrowLeft, CalendarDays, ChevronRight, Globe, ImagePlus, Images, MapPin, Pencil, Plus, Trash2, UserRound, X } from "lucide-react";
 import { AchievementDate } from "./AchievementDate";
 import { AchievementDetail } from "./AchievementDetail";
 import { AchievementProof } from "./AchievementProof";
 import { RolePeople } from "./RolePeople";
 import { RoleSettings, type RoleSettingsPanel } from "./RoleSettings";
+import { RoleEvents } from "./RoleEvents";
 import { RolePaySection } from "./RolePaySection";
+import { RolePlaces } from "./RolePlaces";
 import { RoleWorkSetup } from "./RoleWorkSetup";
 import "./role-view.css";
 
@@ -30,11 +32,14 @@ export function RoleView({
   roles,
   onSaved,
   focusRequest = null,
+  onClose,
 }: {
   role: WorkMapRole;
   roles: WorkMapRole[];
   onSaved: () => void;
   focusRequest?: RoleFocusRequest | null;
+  /** Back to the Career History list; shown where the list is hidden to make room. */
+  onClose?: () => void;
 }) {
   const [tab, setTab] = useState<RoleTab>("overview");
   const [settings, setSettings] = useState<RoleSettingsPanel | null>(null);
@@ -118,11 +123,15 @@ export function RoleView({
   const details = role.details;
   const summary = details.summary.trim();
   const description = role.description.trim();
-  const events = [...(details.events ?? [])].sort((a, b) => b.date.localeCompare(a.date));
-  const sites = role.locations.filter((location) => location.kind !== "primary");
 
   return (
     <article className="role-view" aria-label={name}>
+      {onClose ? (
+        <button type="button" className="role-view-back" onClick={onClose}>
+          <ArrowLeft size={15} aria-hidden="true" />
+          Career history
+        </button>
+      ) : null}
       <header className={cover ? "role-view-banner" : "role-view-banner is-cream"}>
         {cover ? <img className="role-view-cover" src={cover.url} alt="" /> : null}
         {details.website || details.linkedin ? (
@@ -233,28 +242,14 @@ export function RoleView({
                   </button>
                 </div>
                 {photoMessage ? <p className="role-view-error" role="alert">{photoMessage}</p> : null}
-                {events.length > 0 ? (
-                  <ul className="role-view-events">
-                    {events.map((event) => (
-                      <li key={event.id}>
-                        <b>{monthYear(event.date)}</b> {event.title || event.detail}
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
+                <RoleEvents role={role} onSaved={onSaved} />
               </section>
 
               <section className="role-view-section" aria-labelledby={`${role.id}-places`}>
                 <div className="role-view-section-head">
                   <h2 id={`${role.id}-places`}>Places</h2>
                 </div>
-                <dl className="role-view-facts">
-                  <dt>Main site</dt>
-                  <dd>{place || <span className="role-view-empty">Not set</span>}</dd>
-                  {sites.map((site) => (
-                    <FactRow key={site.id} label={siteKind(site.kind)} value={site.label || site.address} />
-                  ))}
-                </dl>
+                <RolePlaces role={role} mainPlace={place} onSaved={onSaved} />
               </section>
             </div>
           ) : (
@@ -366,25 +361,4 @@ export function RoleView({
       </dialog>
     </article>
   );
-}
-
-function FactRow({ label, value }: { label: string; value: string }) {
-  return (
-    <>
-      <dt>{label}</dt>
-      <dd>{value}</dd>
-    </>
-  );
-}
-
-function siteKind(kind: WorkMapRole["locations"][number]["kind"]): string {
-  return kind === "client" ? "Client site" : kind === "travel" ? "Travel" : "Site";
-}
-
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-function monthYear(date: string): string {
-  const match = date.match(/^(\d{4})(?:-(\d{2}))?/);
-  if (!match) return date;
-  const month = match[2] ? MONTHS[Number(match[2]) - 1] : "";
-  return month ? `${month} ${match[1]}` : match[1]!;
 }

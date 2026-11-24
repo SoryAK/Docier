@@ -76,6 +76,11 @@ Three columns, as on Home.
    - Edits appear only under the Edits filter, by when they were made, with the time and an Undo button. They are never published.
    - Undoing a change to the role's fields brings its facts back in step, as a save does.
 6. **Adds in place** for photos, events, sites, and people, and the tablet and phone layouts.
+   - Events: under Photos & events, "+ Add an event" opens a small form (month, what happened, optional details, show on my page). Each event can be changed or removed from its row. Saved with the role's details, so each change shows in Edits and can be undone.
+   - Places: under Places, "+ Add a place" opens a form (name, kind: site, client site, or travel; an address with Find, which looks it up so it goes on the map; show on my page). Each place can be changed or removed from its row; these are logged in Edits.
+   - Tablet, landscape (801 to 1180 px): the list narrows to 17rem, and the role's History moves under the role, in one column that scrolls.
+   - Tablet, portrait, and phone (800 px and under): the list hides while a role is open, and "← Career history" at the top of the role goes back to it. History sits under the role.
+   - Phone (560 px and under): the banner's buttons go under the name, so the name keeps the full width.
 
 Achievements without a date sit in the year the role started.
 

@@ -24,6 +24,7 @@ export function HomeCenter({
   revision = 0,
   focusRoleId,
   onSelectRole,
+  onCloseRole,
   viewRequest = null,
   pageContent = null,
   onStart,
@@ -33,6 +34,8 @@ export function HomeCenter({
   revision?: number;
   focusRoleId: string | null;
   onSelectRole: (id: string) => void;
+  /** Closes the open role, back to the Career History list. */
+  onCloseRole?: () => void;
   /** A first step when the story is empty: add a job or school, or import a resume. */
   onStart?: (action: "job" | "school" | "import") => void;
   viewRequest?: { id: number; updates: boolean; updateId: string | null } | null;
@@ -163,7 +166,7 @@ export function HomeCenter({
               <div className="home-story-page">{pageContent}</div>
             ) : showRole && focus ? (
               <div className="home-role">
-                <RoleView role={focus} roles={roles} onSaved={() => onRoleSaved?.()} focusRequest={roleFocus} />
+                <RoleView role={focus} roles={roles} onSaved={() => onRoleSaved?.()} focusRequest={roleFocus} onClose={onCloseRole} />
               </div>
             ) : view === "map" ? (
               <div className="home-center-map">

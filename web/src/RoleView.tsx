@@ -270,7 +270,9 @@ export function RoleView({
                       <li key={id ?? index} className="achievement-row" data-achievement-id={id}>
                         {id ? (
                           <button type="button" className="achievement-row-open" onClick={() => setOpenAchievement(id)}>
-                            <span className="achievement-row-text">{achievement}</span>
+                            <span className="achievement-row-text" title={achievement}>
+                              {achievement}
+                            </span>
                             <ChevronRight size={16} aria-hidden="true" className="achievement-row-chevron" />
                           </button>
                         ) : (

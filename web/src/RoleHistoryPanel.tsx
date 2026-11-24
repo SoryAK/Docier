@@ -177,11 +177,13 @@ export function RoleHistoryPanel({
                         <small>{item.month}</small>
                         <span className="role-history-kind">{KIND_LABEL[item.kind]}</span>
                         {target(item) && onSelect ? (
-                          <button type="button" className="role-history-text role-history-go" onClick={() => onSelect(target(item)!)}>
+                          <button type="button" className="role-history-text role-history-go" title={item.text} onClick={() => onSelect(target(item)!)}>
                             {item.text}
                           </button>
                         ) : (
-                          <span className="role-history-text">{item.text}</span>
+                          <span className="role-history-text" title={item.text}>
+                            {item.text}
+                          </span>
                         )}
                         {item.kind === "note" || item.kind === "milestone" || item.kind === "event" ? (
                           <button

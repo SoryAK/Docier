@@ -1626,13 +1626,14 @@ img.role-view-avatar {
   cursor: pointer;
 }
 
+/* One line each in the list; the whole wording shows when it's opened. */
 .achievement-row-text {
-  display: -webkit-box;
+  min-width: 0;
   overflow: hidden;
   font-size: 0.9375rem;
   line-height: 1.45;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .achievement-row-chevron {
@@ -1700,4 +1701,24 @@ img.role-view-avatar {
 .role-history-go:focus-visible {
   text-decoration: none;
   color: #171717;
+}
+
+/* History entries that open something are one line; notes, milestones, and
+   events have nowhere else to be read, so they stay whole. */
+.role-history-text.role-history-go {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Let a row shrink to the column, so long wording ends in "…" instead of spilling. */
+.achievement-rows,
+.achievement-row {
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+
+.achievement-row-open {
+  min-width: 0;
 }

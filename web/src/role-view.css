@@ -194,10 +194,11 @@
   font-weight: 600;
 }
 
-/* The role's website and LinkedIn, in their own row under the banner. */
+/* The company's links, in their own row under the banner: the website by name, the networks by logo. */
 .role-view-links {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 6px 8px;
   padding: 10px 22px;
   border-bottom: 1px solid var(--rv-line);
@@ -220,6 +221,29 @@
 
 .role-view-links a:hover {
   background: #e9e9ec;
+}
+
+.role-view-links a.is-logo {
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.role-view-links a.is-logo:hover {
+  background: #f4f4f5;
+}
+
+/* The logos sit close together, a little apart from the website. */
+.role-view-links a.is-logo + a.is-logo {
+  margin-left: -6px;
+}
+
+.role-view-links a.is-logo svg {
+  width: 16px;
+  height: 16px;
 }
 
 .role-view-links svg {

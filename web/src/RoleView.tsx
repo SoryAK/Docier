@@ -175,12 +175,19 @@ export function RoleView({
 
       {links.length > 0 ? (
         <nav className="role-view-links" aria-label="Company links">
-          {links.map((link) => (
-            <a key={link.kind} href={link.url} target="_blank" rel="noreferrer" title={link.url}>
-              {link.kind === "website" ? <SocialMark kind="site" /> : <BrandLogo kind={link.kind} />}
-              {link.label}
-            </a>
-          ))}
+          {links.map((link) =>
+            link.kind === "website" ? (
+              <a key={link.kind} href={link.url} target="_blank" rel="noreferrer" title={link.url}>
+                <SocialMark kind="site" />
+                {link.label}
+              </a>
+            ) : (
+              // A network's logo says what it is; its name shows on hover and is read aloud.
+              <a key={link.kind} className="is-logo" href={link.url} target="_blank" rel="noreferrer" title={link.label} aria-label={link.label}>
+                <BrandLogo kind={link.kind} />
+              </a>
+            ),
+          )}
         </nav>
       ) : null}
 

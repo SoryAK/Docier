@@ -194,14 +194,15 @@
   font-weight: 600;
 }
 
-/* The company's links, in their own row under the banner: the website by name, the networks by logo. */
+/* The company's links, on the line under the banner beside the people: the website by name, the networks by logo. */
 .role-view-links {
   display: flex;
-  flex-wrap: wrap;
+  flex: 0 1 auto;
   align-items: center;
-  gap: 6px 8px;
-  padding: 10px 22px;
-  border-bottom: 1px solid var(--rv-line);
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+  margin-left: auto;
 }
 
 .role-view-links a {
@@ -216,7 +217,13 @@
   color: var(--rv-ink);
   font-size: 0.8125rem;
   text-decoration: none;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+}
+
+/* A long site name is cut short; the logos never shrink. */
+.role-view-links a span {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .role-view-links a:hover {
@@ -224,6 +231,7 @@
 }
 
 .role-view-links a.is-logo {
+  flex: none;
   justify-content: center;
   width: 28px;
   height: 28px;

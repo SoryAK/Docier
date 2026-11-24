@@ -6,7 +6,7 @@ import {
   tenureMonths,
 } from "@core/career-history";
 import { roleCoverPhoto, type WorkMapRole } from "@core/work-map";
-import { ArrowLeft, CalendarDays, ChevronRight, Globe, ImagePlus, Images, MapPin, Pencil, Plus, Trash2, UserRound, X } from "lucide-react";
+import { ArrowLeft, CalendarDays, ChevronRight, ImagePlus, Images, MapPin, Pencil, Plus, Trash2, UserRound, X } from "lucide-react";
 import { AchievementDate } from "./AchievementDate";
 import { AchievementDetail } from "./AchievementDetail";
 import { AchievementProof } from "./AchievementProof";
@@ -17,6 +17,7 @@ import { RoleGearSection, RoleReflectionSection } from "./RoleMoreSections";
 import { RolePaySection } from "./RolePaySection";
 import { RolePlaces } from "./RolePlaces";
 import { RoleWorkSetup } from "./RoleWorkSetup";
+import { SocialMark } from "./SocialMark";
 import "./role-view.css";
 
 type RoleTab = "overview" | "achievements";
@@ -135,20 +136,6 @@ export function RoleView({
       ) : null}
       <header className={cover ? "role-view-banner" : "role-view-banner is-cream"}>
         {cover ? <img className="role-view-cover" src={cover.url} alt="" /> : null}
-        {details.website || details.linkedin ? (
-          <div className="role-view-corner">
-            {details.website ? (
-              <a className="role-view-round" href={details.website} target="_blank" rel="noreferrer" title="Website" aria-label="Website">
-                <Globe size={16} aria-hidden="true" />
-              </a>
-            ) : null}
-            {details.linkedin ? (
-              <a className="role-view-round" href={details.linkedin} target="_blank" rel="noreferrer" title="LinkedIn" aria-label="LinkedIn">
-                <UserRound size={16} aria-hidden="true" />
-              </a>
-            ) : null}
-          </div>
-        ) : null}
         <div className="role-view-heading">
           <div className="role-view-names">
             <h1>{name}</h1>
@@ -182,6 +169,23 @@ export function RoleView({
         </p>
         <RolePeople role={role} roles={roles} onSaved={onSaved} openRequest={peopleRequest} />
       </div>
+
+      {details.website || details.linkedin ? (
+        <nav className="role-view-links" aria-label="Links">
+          {details.website ? (
+            <a href={details.website} target="_blank" rel="noreferrer">
+              <SocialMark kind="site" />
+              {linkHost(details.website)}
+            </a>
+          ) : null}
+          {details.linkedin ? (
+            <a href={details.linkedin} target="_blank" rel="noreferrer">
+              <SocialMark kind="linkedin" />
+              LinkedIn
+            </a>
+          ) : null}
+        </nav>
+      ) : null}
 
       {settings ? <RoleSettings role={role} panel={settings} onClose={() => setSettings(null)} onSaved={onSaved} /> : null}
       {(
@@ -364,4 +368,13 @@ export function RoleView({
       </dialog>
     </article>
   );
+}
+
+/** "giantdirect.com" from "https://www.giantdirect.com/about". */
+function linkHost(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
 }

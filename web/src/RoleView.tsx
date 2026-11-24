@@ -30,7 +30,6 @@ const GLANCE_ICON: Record<GlanceKind, LucideIcon> = {
   hours: Clock,
   manager: UserRound,
   pay: Banknote,
-  rating: Star,
 };
 
 /** A thing picked in the role's History, to show in the role. */
@@ -191,6 +190,18 @@ export function RoleView({
       <div className="role-view-names">
         <div className="role-view-name-row">
           <h1>{name}</h1>
+          {isJob && details.workplaceRating ? (
+            <button
+              type="button"
+              className="role-view-rating"
+              title="Your overall rating, in Looking back"
+              aria-label={`Rated ${details.workplaceRating} out of 5 overall`}
+              onClick={() => openTab("overview")}
+            >
+              <Star size={15} aria-hidden="true" />
+              {details.workplaceRating}/5
+            </button>
+          ) : null}
           {links.length > 0 ? (
             <nav className="role-view-links" aria-label="Company links">
               {links.map((link) =>

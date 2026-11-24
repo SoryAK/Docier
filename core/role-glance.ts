@@ -11,11 +11,11 @@ export type RoleGlanceChoice = { pay: boolean };
 
 export const EMPTY_GLANCE: RoleGlanceChoice = { pay: false };
 
-export type GlanceTab = "setup" | "pay" | "overview";
-export type GlanceKind = "work" | "hours" | "manager" | "pay" | "rating";
+export type GlanceTab = "setup" | "pay";
+export type GlanceKind = "work" | "hours" | "manager" | "pay";
 export type GlanceItem = { kind: GlanceKind; tab: GlanceTab; text: string };
 
-type GlanceDetails = Pick<WorkMapRoleDetails, "schedule" | "team" | "compensation" | "workplaceRating" | "glance">;
+type GlanceDetails = Pick<WorkMapRoleDetails, "schedule" | "team" | "compensation" | "glance">;
 
 export function roleGlance(details: GlanceDetails): GlanceItem[] {
   const { schedule, team, compensation } = details;
@@ -31,7 +31,6 @@ export function roleGlance(details: GlanceDetails): GlanceItem[] {
   const pay = formatPay(compensation.amount, compensation.currency, compensation.period);
   if (details.glance?.pay && pay) items.push({ kind: "pay", tab: "pay", text: pay });
 
-  if (details.workplaceRating) items.push({ kind: "rating", tab: "overview", text: `${details.workplaceRating}/5 overall` });
   return items;
 }
 

@@ -125,6 +125,31 @@
   flex: none;
 }
 
+/* The overall rating, beside the name; it opens the Overview, where Looking back is. */
+.role-view-rating {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--rv-gold-soft);
+  color: var(--rv-gold-ink);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.role-view-rating svg {
+  fill: currentColor;
+}
+
+.role-view-rating:hover {
+  background: #f0dfc0;
+}
+
 .role-view-names h1 {
   min-width: 0;
   display: -webkit-box;

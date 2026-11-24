@@ -1,5 +1,6 @@
 import { moveColleaguesToNetwork, readRolePeople } from "./role-people";
 import { prepareWorkSetup, type WorkSetupError } from "../core/role-work-setup";
+import { preparePayAndBenefits, type PayError } from "../core/role-pay";
 import { createHash, randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -278,8 +279,10 @@ export function saveWorkMapDetails(
     milestones: momentsOrCurrent(input.milestones, current.milestones),
     events: momentsOrCurrent(input.events, current.events),
     notes: momentsOrCurrent(input.notes, current.notes),
+    // Merged into what's saved, so this older form keeps the newer pay fields.
     compensation: isObject(input.compensation)
       ? {
+          ...current.compensation,
           currency: text(input.compensation.currency) || current.compensation.currency,
           period:
             input.compensation.period === "hourly" ? "hourly" : "annual",
@@ -294,6 +297,9 @@ export function saveWorkMapDetails(
               : "private",
         }
       : current.compensation,
+    payHistory: current.payHistory,
+    benefitNotes: current.benefitNotes,
+    timeOff: current.timeOff,
     // Merged into what's saved, so a form that only knows some fields keeps the rest.
     schedule: isObject(input.schedule)
       ? {
@@ -386,6 +392,33 @@ export function saveWorkSetup(
        updated_at = excluded.updated_at`,
   ).run(roleId, occupantId, JSON.stringify(details), new Date().toISOString());
   return { ok: true, details };
+}
+
+/** Saves a role's pay and benefits. Whether pay is published is left as it was. */
+export function savePayAndBenefits(
+  db: DatabaseSync,
+  occupantId: string,
+  roleId: string,
+  input: JsonObject,
+): { ok: true; details: WorkMapRoleDetails } | { ok: false; error: PayError } {
+  requireRole(db, occupantId, roleId);
+  const current = readDetails(db, occupantId, roleId);
+  const prepared = preparePayAndBenefits(input, current.compensation, randomUUID);
+  if (!prepared.ok) return prepared;
+  const details: WorkMapRoleDetails = { ...current, ...prepared.value };
+  writeDetails(db, occupantId, roleId, details);
+  return { ok: true, details };
+}
+
+function writeDetails(db: DatabaseSync, occupantId: string, roleId: string, details: WorkMapRoleDetails) {
+  db.prepare(
+    `INSERT INTO work_history_details
+      (work_history_id, occupant_id, details_json, updated_at)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT(work_history_id) DO UPDATE SET
+       details_json = excluded.details_json,
+       updated_at = excluded.updated_at`,
+  ).run(roleId, occupantId, JSON.stringify(details), new Date().toISOString());
 }
 
 export function addWorkMapLocation(

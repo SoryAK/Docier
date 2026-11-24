@@ -2121,3 +2121,16 @@ img.role-view-avatar {
 .role-settings-month-label .role-settings-month {
   width: 170px;
 }
+
+/* Pay & benefits: private, so the heading carries a lock. */
+.role-pay-lock {
+  margin-left: 4px;
+  color: var(--rv-muted, #71717a);
+  vertical-align: -1px;
+}
+
+.role-settings-checks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px 12px;
+}

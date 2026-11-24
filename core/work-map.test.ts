@@ -310,6 +310,7 @@ describe("Work Map publication snapshots", () => {
               period: "annual",
               amount: 150_000,
               visibility: "public",
+              payType: "", frequency: "", overtimeRate: null, differentials: [], bonusNotes: "", equityNotes: "",
             },
             share: {
               growth: true,
@@ -1288,6 +1289,7 @@ function sampleRole(overrides: Partial<WorkMapRole> = {}): WorkMapRole {
         period: "annual",
         amount: 150_000,
         visibility: "private",
+        payType: "", frequency: "", overtimeRate: null, differentials: [], bonusNotes: "", equityNotes: "",
       },
       schedule: {
         type: "",

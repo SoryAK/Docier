@@ -1,3 +1,4 @@
+import { EMPTY_PAY, payEventText } from "./role-pay";
 import type { WorkMapMoment, WorkMapRole } from "./work-map";
 
 /**
@@ -77,6 +78,11 @@ export function roleHistory(
   moments("milestone", details?.milestones);
   moments("event", details?.events);
   moments("note", details?.notes);
+  // Raises and bonuses are milestones too: "Raise to $26/hr".
+  for (const item of details?.payHistory ?? []) {
+    if (item.kind === "adjustment") continue;
+    push(item.id, "milestone", payEventText(item, details?.compensation ?? EMPTY_PAY), item.date);
+  }
   // Promotions are milestones: "Promoted to Lead technician".
   for (const item of details?.promotions ?? []) push(item.id, "milestone", `Promoted to ${item.title}`, item.date);
   // People join the year you started working together, or the role's start.

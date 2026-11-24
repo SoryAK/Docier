@@ -303,6 +303,7 @@ import {
   saveCanvasAction,
   saveWorkMapDetails,
   saveWorkSetup,
+  savePayAndBenefits,
   saveWorkMapSettings,
   updateWorkMapLocation,
   updateWorkMapRole,
@@ -1476,6 +1477,26 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
     const occupant = ensureOccupant(db);
     try {
       const saved = saveWorkSetup(
+        db,
+        occupant.id,
+        c.req.param("id"),
+        (await c.req.json().catch(() => ({}))) as Record<string, unknown>,
+      );
+      if (!saved.ok) return c.json({ error: saved.error }, 400);
+      return c.json({ details: saved.details });
+    } catch (error) {
+      if (error instanceof WorkMapStoreError) {
+        return c.json({ error: error.code }, 404);
+      }
+      throw error;
+    }
+  });
+
+  // A role's pay and benefits, saved together. Never published from here.
+  app.put("/api/work-map/roles/:id/pay", async (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      const saved = savePayAndBenefits(
         db,
         occupant.id,
         c.req.param("id"),

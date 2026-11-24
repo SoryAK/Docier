@@ -22,17 +22,21 @@ import { VStack } from "@astryxdesign/core/VStack";
 import {
   AcademicCapIcon,
   ArrowTrendingUpIcon,
+  BanknotesIcon,
   BriefcaseIcon,
+  ChartBarIcon,
   BuildingOffice2Icon,
   CalendarDaysIcon,
   ClockIcon,
   DocumentTextIcon,
   EyeIcon,
   HashtagIcon,
+  HeartIcon,
   MapPinIcon,
   PencilSquareIcon,
   PlusIcon,
   SparklesIcon,
+  SunIcon,
   TagIcon,
   TrashIcon,
   TrophyIcon,
@@ -48,9 +52,10 @@ import {
   type WorkMode,
 } from "@core/role-work-setup";
 import type { WorkMapRole } from "@core/work-map";
+import { PAY_ERROR, PAY_PANELS, PayPanels, payBody, payDraft, type PayPanel } from "./RoleSettingsPay";
 import { SettingsCard, SettingsRow, SettingsStatus } from "./SettingsRows";
 
-export type RoleSettingsPanel = "basics" | "about" | "achievements" | "schedule" | "shifts" | "team" | "growth";
+export type RoleSettingsPanel = "basics" | "about" | "achievements" | "schedule" | "shifts" | "team" | "growth" | PayPanel;
 
 type IconComponent = ComponentType<SVGProps<SVGSVGElement>>;
 type PanelConfig = { id: RoleSettingsPanel; label: string; description: string; icon: IconComponent };
@@ -82,6 +87,15 @@ function groupsFor(role: WorkMapRole): { label: string; panels: PanelConfig[] }[
         { id: "shifts", label: "Shifts", description: "The shifts you worked, with their times.", icon: ClockIcon },
         { id: "team", label: "Team", description: "Who you reported to, the department, and the team.", icon: UserGroupIcon },
         { id: "growth", label: "Growth", description: "Skills, promotions, and what you learned.", icon: ArrowTrendingUpIcon },
+      ],
+    });
+    groups.push({
+      label: "Pay & benefits",
+      panels: [
+        { id: "pay", label: "Pay", description: "Your rate, how you were paid, and extras.", icon: BanknotesIcon },
+        { id: "pay-history", label: "Pay history", description: "Raises, bonuses, and other changes.", icon: ChartBarIcon },
+        { id: "benefits", label: "Benefits", description: "Health, retirement, and the rest.", icon: HeartIcon },
+        { id: "time-off", label: "Time off", description: "Days off by year and kind.", icon: SunIcon },
       ],
     });
   }
@@ -173,12 +187,15 @@ export function RoleSettings({
   const [initialSetup] = useState(() => setupDraft(role));
   const [draft, setDraft] = useState(initialRole);
   const [setup, setSetup] = useState(initialSetup);
+  const [initialPay] = useState(() => payDraft(role));
+  const [pay, setPay] = useState(initialPay);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const config = panels.find((item) => item.id === panel) ?? panels[0]!;
   const school = draft.kind === "school";
   const roleChanged = JSON.stringify(draft) !== JSON.stringify(initialRole);
   const setupChanged = JSON.stringify(setup) !== JSON.stringify(initialSetup);
+  const payChanged = JSON.stringify(pay) !== JSON.stringify(initialPay);
   const people = [...new Set((role.people ?? []).map((person) => person.name))];
 
   const edit = (patch: Partial<typeof draft>) => setDraft((current) => ({ ...current, ...patch }));
@@ -188,6 +205,20 @@ export function RoleSettings({
     setBusy(true);
     setError(null);
     try {
+      if (payChanged) {
+        const response = await fetch(`/api/work-map/roles/${encodeURIComponent(role.id)}/pay`, {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(payBody(pay)),
+        });
+        if (!response.ok) {
+          const body = (await response.json().catch(() => ({}))) as { error?: string };
+          const known = PAY_ERROR[String(body.error)];
+          if (known) setPanel(known.panel);
+          setError(known?.message ?? "Pay and benefits could not be saved. Try again.");
+          return;
+        }
+      }
       if (setupChanged) {
         const response = await fetch(`/api/work-map/roles/${encodeURIComponent(role.id)}/work-setup`, {
           method: "PUT",
@@ -214,6 +245,7 @@ export function RoleSettings({
           const known = ERROR_PANEL[String(body.error)];
           if (known) setPanel(known.panel);
           setError(known?.message ?? "The work setup could not be saved. Try again.");
+          if (payChanged) onSaved();
           return;
         }
       }
@@ -242,7 +274,7 @@ export function RoleSettings({
         if (!response.ok) {
           setPanel("basics");
           setError("The role could not be saved. Check the fields and try again.");
-          if (setupChanged) onSaved();
+          if (setupChanged || payChanged) onSaved();
           return;
         }
       }
@@ -264,7 +296,7 @@ export function RoleSettings({
           label={busy ? "Saving…" : "Save"}
           variant="primary"
           size="sm"
-          isDisabled={busy || (!roleChanged && !setupChanged)}
+          isDisabled={busy || (!roleChanged && !setupChanged && !payChanged)}
           onClick={() => void save()}
         />
       </HStack>
@@ -565,6 +597,9 @@ export function RoleSettings({
           </SettingsCard>
           <ShareCard title="Show my growth on my page" description="Promotions, skills gained, and growth notes." value={setup.shareGrowth} onChange={(value) => editSetup({ shareGrowth: value })} />
         </>
+      ) : null}
+      {(PAY_PANELS as readonly string[]).includes(panel) ? (
+        <PayPanels panel={panel as PayPanel} draft={pay} edit={(patch) => setPay((current) => ({ ...current, ...patch }))} />
       ) : null}
       {footer}
     </VStack>

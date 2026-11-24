@@ -1,3 +1,4 @@
+import { EMPTY_PAY, type PayEvent, type RolePay, type TimeOffBalance } from "./role-pay";
 import { EMPTY_SCHEDULE, EMPTY_TEAM, type RolePromotion, type RoleSchedule, type RoleShift, type RoleTeam } from "./role-work-setup";
 import type { RolePerson } from "./role-people";
 import type { AchievementLinks } from "./role-achievements";
@@ -310,12 +311,13 @@ export type WorkMapRoleDetails = {
   milestones: WorkMapMoment[];
   events: WorkMapMoment[];
   notes: WorkMapMoment[];
-  compensation: {
-    currency: string;
-    period: "hourly" | "annual";
-    amount: number | null;
-    visibility: "private" | "range" | "public";
-  };
+  /** The rate and how it was paid. Only `amount`, `currency`, and `period` can be published. */
+  compensation: RolePay;
+  /** Raises, bonuses, and adjustments, by month. Never published. */
+  payHistory: PayEvent[];
+  benefitNotes: string;
+  /** Time off by year and kind. Never published. */
+  timeOff: TimeOffBalance[];
   schedule: RoleSchedule;
   /** Named shifts, e.g. "Nights 23:00–07:00". */
   shifts: RoleShift[];
@@ -624,12 +626,10 @@ export const EMPTY_WORK_MAP_DETAILS: WorkMapRoleDetails = {
   milestones: [],
   events: [],
   notes: [],
-  compensation: {
-    currency: "USD",
-    period: "annual",
-    amount: null,
-    visibility: "private",
-  },
+  compensation: { ...EMPTY_PAY },
+  payHistory: [],
+  benefitNotes: "",
+  timeOff: [],
   schedule: { ...EMPTY_SCHEDULE },
   shifts: [],
   team: { ...EMPTY_TEAM },
@@ -666,6 +666,8 @@ export function normalizeWorkMapDetails(
     ...empty,
     ...details,
     compensation: { ...empty.compensation, ...details?.compensation },
+    payHistory: Array.isArray(details?.payHistory) ? details.payHistory : [],
+    timeOff: Array.isArray(details?.timeOff) ? details.timeOff : [],
     schedule: { ...empty.schedule, ...details?.schedule },
     team: { ...empty.team, ...details?.team },
     share: { ...empty.share, ...details?.share },

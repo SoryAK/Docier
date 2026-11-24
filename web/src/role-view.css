@@ -171,13 +171,42 @@
 }
 
 /* Place, dates, and the people worked with. */
-.role-view-meta {
+/* The title, then where and when, split by a thin divider. */
+.role-view-title-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px 12px;
-  padding: 8px 22px 0;
+  gap: 4px 10px;
+  margin-top: 3px;
+}
+
+.role-view-names .role-view-title-row p {
+  margin: 0;
+}
+
+.role-view-names .role-view-span {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  color: var(--rv-muted);
+  font-size: 0.875rem;
+}
+
+.role-view-divider {
+  flex: none;
+  width: 1px;
+  height: 14px;
+  background: #d6d2cc;
+}
+
+/* Colleagues follow the links at the right of the name; alone, they take the right edge. */
+.role-view-name-row .role-view-people {
+  flex: none;
+}
+
+.role-view-name-row h1 + .role-view-people {
+  margin-left: auto;
 }
 
 /*
@@ -230,16 +259,6 @@
   text-decoration: underline;
   text-decoration-color: var(--rv-gold);
   text-underline-offset: 3px;
-}
-
-.role-view-meta p {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-  color: var(--rv-muted);
-  font-size: 0.875rem;
 }
 
 /* The company's links, on the line under the banner beside the people: the website by name, the networks by logo. */
@@ -2575,9 +2594,13 @@ img.role-view-avatar {
     padding-right: 16px;
   }
 
-  .role-view-meta {
-    padding-right: 16px;
-    padding-left: 16px;
+  /* Where and when go under the title, so the divider has nothing to split. */
+  .role-view-divider {
+    display: none;
+  }
+
+  .role-view-names .role-view-span {
+    flex-basis: 100%;
   }
 }
 

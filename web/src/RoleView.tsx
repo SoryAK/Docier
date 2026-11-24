@@ -208,8 +208,16 @@ export function RoleView({
               )}
             </nav>
           ) : null}
+          <RolePeople role={role} roles={roles} onSaved={onSaved} openRequest={peopleRequest} />
         </div>
-        {subtitle ? <p>{subtitle}</p> : null}
+        <div className="role-view-title-row">
+          {subtitle ? <p>{subtitle}</p> : null}
+          {subtitle && (place || period) ? <span className="role-view-divider" aria-hidden="true" /> : null}
+          <p className="role-view-span">
+            {[place, period].filter(Boolean).join(" · ")}
+            {tenure ? <span className="role-view-tenure">({tenure})</span> : null}
+          </p>
+        </div>
       </div>
 
       {glance.length > 0 ? (
@@ -227,14 +235,6 @@ export function RoleView({
           })}
         </ul>
       ) : null}
-
-      <div className="role-view-meta">
-        <p>
-          {[place, period].filter(Boolean).join(" · ")}
-          {tenure ? <span className="role-view-tenure">({tenure})</span> : null}
-        </p>
-        <RolePeople role={role} roles={roles} onSaved={onSaved} openRequest={peopleRequest} />
-      </div>
 
       {settings ? <RoleSettings role={role} panel={settings} onClose={() => setSettings(null)} onSaved={onSaved} /> : null}
       {(

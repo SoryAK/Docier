@@ -206,9 +206,9 @@ export function RoleView({
             <nav className="role-view-links" aria-label="Company links">
               {links.map((link) =>
                 link.kind === "website" ? (
-                  <a key={link.kind} href={link.url} target="_blank" rel="noreferrer" title={link.url}>
+                  // The website by a globe alone, like the networks; its address shows on hover and is read aloud.
+                  <a key={link.kind} className="is-logo is-site" href={link.url} target="_blank" rel="noreferrer" title={link.label} aria-label={`Website: ${link.label}`}>
                     <SocialMark kind="site" />
-                    <span>{link.label}</span>
                   </a>
                 ) : (
                   // A network's logo says what it is; its name shows on hover and is read aloud.

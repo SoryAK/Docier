@@ -344,7 +344,7 @@
   background: #f4f4f5;
 }
 
-/* The logos sit close together, a little apart from the website. */
+/* The website globe and the logos sit close together. */
 .role-view-links a.is-logo + a.is-logo {
   margin-left: -6px;
 }

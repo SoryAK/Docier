@@ -14,7 +14,7 @@ export function RoleReflectionSection({ role, onEdit }: { role: WorkMapRole; onE
   const shared = [d.share.workplaceRating && "the overall rating", d.share.departure && "why you left, in your words", d.share.environment && "the work environment"].filter(Boolean) as string[];
 
   return (
-    <section className="role-view-section" aria-labelledby={`${role.id}-looking-back`}>
+    <section className="role-view-section role-view-reflection" aria-labelledby={`${role.id}-looking-back`}>
       <div className="role-view-section-head">
         <h2 id={`${role.id}-looking-back`}>Looking back</h2>
       </div>

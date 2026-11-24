@@ -274,7 +274,7 @@ export function RoleView({
           </div>
 
           {tab === "overview" ? (
-            <div className="role-view-pane" role="tabpanel">
+            <div className="role-view-pane is-overview" role="tabpanel">
               <section className="role-view-section role-view-about" aria-labelledby={`${role.id}-about`}>
                 <div className="role-view-section-head">
                   <h2 id={`${role.id}-about`}>Description</h2>
@@ -298,7 +298,7 @@ export function RoleView({
 
               {isJob ? <RoleReflectionSection role={role} onEdit={setSettings} /> : null}
 
-              <section className="role-view-section" aria-labelledby={`${role.id}-photos`}>
+              <section className="role-view-section role-view-photos" aria-labelledby={`${role.id}-photos`}>
                 <div className="role-view-section-head">
                   <h2 id={`${role.id}-photos`}>Photos &amp; events</h2>
                   {photos.length > 0 ? (
@@ -329,7 +329,7 @@ export function RoleView({
                 <RoleEvents role={role} onSaved={onSaved} />
               </section>
 
-              <section className="role-view-section" aria-labelledby={`${role.id}-places`}>
+              <section className="role-view-section role-view-places" aria-labelledby={`${role.id}-places`}>
                 <div className="role-view-section-head">
                   <h2 id={`${role.id}-places`}>Places</h2>
                 </div>

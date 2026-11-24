@@ -28,6 +28,7 @@
   --rv-gold-soft: #f6ead3;
   /* The design system colours plain text by this; the role view is always on white. */
   --color-text-primary: #171717;
+  container: role-view / inline-size;
   display: flex;
   flex-direction: column;
   min-height: 100%;
@@ -3131,4 +3132,37 @@ img.role-view-avatar {
 
 .role-group-files a:hover {
   text-decoration: underline;
+}
+
+/*
+ * A wide role (a big screen): the Overview runs in two columns, so the width
+ * holds content, not white space. Description, Photos & events, and Places stack
+ * on the left; Looking back runs down the right. Narrower, or with no Looking
+ * back (a school), it stays one column.
+ */
+@container role-view (min-width: 54rem) {
+  .role-view-pane.is-overview:has(> .role-view-reflection) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "about back"
+      "photos back"
+      "places back";
+    grid-template-rows: auto auto 1fr;
+    column-gap: 36px;
+    align-items: start;
+    max-width: none;
+  }
+
+  .role-view-pane.is-overview:has(> .role-view-reflection) > .role-view-about { grid-area: about; }
+  .role-view-pane.is-overview:has(> .role-view-reflection) > .role-view-photos { grid-area: photos; }
+  .role-view-pane.is-overview:has(> .role-view-reflection) > .role-view-places { grid-area: places; }
+
+  /* Looking back starts the right column, so it needs no line above it. */
+  .role-view-pane.is-overview > .role-view-reflection {
+    grid-area: back;
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+  }
 }

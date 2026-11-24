@@ -615,7 +615,8 @@ export function RoleSettings({
   );
   const name = [role.organization, role.title].filter(Boolean).join(" · ");
 
-  // Rendered at the page's root, so the role view's colors don't reach it.
+  // Rendered in Home itself, like Settings: Home's light look holds, and the
+  // role view's own colors don't reach it.
   return createPortal(
     <Dialog
       className="home-settings-dialog role-settings-dialog"
@@ -706,7 +707,7 @@ export function RoleSettings({
         )}
       </VStack>
     </Dialog>,
-    document.body,
+    document.querySelector(".home") ?? document.body,
   );
 }
 

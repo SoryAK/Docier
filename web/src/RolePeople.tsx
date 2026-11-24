@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { matchContacts, suggestRolePeople, type RolePerson } from "@core/role-people";
+import { confirmedBothWays, matchContacts, suggestRolePeople, type RolePerson } from "@core/role-people";
 import type { WorkMapRole } from "@core/work-map";
 import { BadgeCheck, Copy, Mail, Pencil, Plus, Send, UserPlus, X } from "lucide-react";
 import "./role-view.css";
@@ -382,7 +382,9 @@ export function RolePeople({
                           <ConfirmTag person={person} />
                         </b>
                         {person.role || person.note ? <small>{[person.role, person.note].filter(Boolean).join(" · ")}</small> : null}
-                        {person.confirmation?.note && (person.confirmation.status === "approved" || person.confirmation.status === "declined") ? (
+                        {person.confirmation?.direction === "sent" &&
+                        person.confirmation.note &&
+                        (person.confirmation.status === "approved" || person.confirmation.status === "declined") ? (
                           <q className="role-people-quote">{person.confirmation.note}</q>
                         ) : null}
                       </span>
@@ -502,9 +504,19 @@ function Face({ person, confirmed = false }: { person: RolePerson; confirmed?: b
 function ConfirmTag({ person }: { person: RolePerson }) {
   const status = person.confirmation?.status;
   if (status === "approved") {
+    const both = confirmedBothWays(person.confirmation);
     return (
-      <span className="role-people-tag is-confirmed" title={person.confirmation?.answeredFrom === "docier" ? "Confirmed from their Docier" : "Confirmed"}>
-        <BadgeCheck size={12} aria-hidden="true" /> Confirmed
+      <span
+        className="role-people-tag is-confirmed"
+        title={
+          person.confirmation?.direction === "received"
+            ? "You confirmed their request from your Docier"
+            : both
+              ? "They confirmed from their own Docier"
+              : "They confirmed on the request page"
+        }
+      >
+        <BadgeCheck size={12} aria-hidden="true" /> {both ? "Confirmed both ways" : "Confirmed"}
       </span>
     );
   }

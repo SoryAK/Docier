@@ -116,6 +116,18 @@ describe("roleHistory", () => {
     expect(roleHistory({ ...role(), people }, { filter: "person", now: NOW }).flatMap((y) => y.items.map((i) => i.id))).toEqual(["p2", "p1"]);
   });
 
+  it("words a confirmation by who confirmed it", () => {
+    const base = { contactId: "c", role: "", organization: "", email: "", photoUrl: null, note: "", since: "" };
+    const at = "2026-11-20T10:00:00.000Z";
+    const people = [
+      { ...base, linkId: "a", name: "Maria", confirmation: { requestId: "q", status: "approved" as const, note: "", answeredAt: at, answeredFrom: "browser" as const, direction: "sent" as const } },
+      { ...base, linkId: "b", name: "Dan", confirmation: { requestId: "q2", status: "approved" as const, note: "", answeredAt: at, answeredFrom: "docier" as const, direction: "sent" as const } },
+      { ...base, linkId: "c", name: "Sam", confirmation: { requestId: "", status: "approved" as const, note: "", answeredAt: at, answeredFrom: "docier" as const, direction: "received" as const } },
+    ];
+    const texts = roleHistory({ ...role({ achievements: [] }), people }, { filter: "person", now: NOW })[0]!.items.map((item) => item.text);
+    expect(texts).toEqual(expect.arrayContaining(["Maria confirmed you worked together", "Dan confirmed you worked together, both ways", "You confirmed working with Sam"]));
+  });
+
   it("accepts a year alone as a date", () => {
     const years = roleHistory(role({ startDate: "2019", achievements: [], isCurrent: false, endDate: "" }), { now: NOW });
     expect(years).toEqual([{ year: "2019", label: "Started", items: [expect.objectContaining({ kind: "start", month: "" })] }]);

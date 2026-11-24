@@ -60,7 +60,7 @@ Three columns, as on Home.
      - Confirming marks them Confirmed on the role, quotes their note, fills blanks on their contact (nothing typed is replaced), and adds "… confirmed you worked together" to History. Declining leaves them linked, unconfirmed.
      - While waiting the row shows Request sent or Opened, and the request can be withdrawn. All of these also show in Requests.
      - Each answer records where it came from: the page, or (next) the recipient's own Docier.
-   - **Next: confirmed both ways.** When the person also uses Docier, they can answer the same link from their Docier: it suggests their matching role, and confirming records the link on both sides (you on their role, them on yours), without any shared server.
+   - **Confirmed both ways.** When the person also uses Docier, they paste the link into Requests → Received → "Answer a request". Their Docier reads the request from the sender's Relay (`/q/<token>/data`), suggests their role at the same company, and on Confirm sends the answer marked as from a Docier, then adds the sender to their network on the chosen role, confirmed. Both sides show "Confirmed both ways". The answer is sent before anything is recorded, so a failed send leaves nothing behind. Pasted links must be https (or http on this machine) with a `/q/<token>` path. The two vaults share nothing but the answer.
 3. **Dates on achievements:** each achievement gets a date (default: the role's start), so it lands in the right year.
 4. **Evidence on an achievement:** linked evidence names the achievement it backs; the proof tag counts it.
 5. **Edits:** a record of changes to the role, shown under History's Edits filter, with undo for recent ones.

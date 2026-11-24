@@ -50,6 +50,7 @@ function toPerson(row: LinkRow & ConfirmRow): RolePerson {
     photoUrl: contactPhotoUrl(row.contact_id, row.photo_stored_name ?? null),
     note: row.note,
     since: row.since,
+    // Your own request to them comes first; otherwise a request of theirs you confirmed here.
     confirmation:
       row.request_id && status
         ? {
@@ -58,12 +59,24 @@ function toPerson(row: LinkRow & ConfirmRow): RolePerson {
             note: row.request_note ?? "",
             answeredAt: row.request_answered_at ?? null,
             answeredFrom: row.request_answered_from ?? null,
+            direction: "sent",
           }
-        : null,
+        : row.confirmed_at
+          ? {
+              requestId: "",
+              status: "approved",
+              note: row.confirmed_note ?? "",
+              answeredAt: row.confirmed_at,
+              answeredFrom: "docier",
+              direction: "received",
+            }
+          : null,
   };
 }
 
 type ConfirmRow = {
+  confirmed_at: string | null;
+  confirmed_note: string | null;
   request_id: string | null;
   request_status: SentRequestStatus | null;
   request_note: string | null;
@@ -75,7 +88,7 @@ type ConfirmRow = {
 // The latest "worked together" request for each link says whether they confirmed.
 const SELECT_PEOPLE = `
   SELECT rc.id AS link_id, c.id AS contact_id, c.name, c.role, c.organization, c.email,
-         c.photo_stored_name, rc.note, rc.since,
+         c.photo_stored_name, rc.note, rc.since, rc.confirmed_at, rc.confirmed_note,
          q.id AS request_id, q.status AS request_status, q.recipient_note AS request_note,
          q.answered_at AS request_answered_at, q.answered_from AS request_answered_from,
          q.expires_at AS request_expires_at

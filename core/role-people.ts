@@ -28,7 +28,20 @@ export type RolePersonConfirmation = {
   note: string;
   answeredAt: string | null;
   answeredFrom: "browser" | "docier" | null;
+  /**
+   * "sent": you asked them. "received": they asked you and you confirmed from
+   * this Docier, so it is confirmed on both sides.
+   */
+  direction: "sent" | "received";
 };
+
+/** Confirmed on both sides: they answered from their own Docier, or you confirmed theirs from here. */
+export function confirmedBothWays(confirmation: RolePersonConfirmation | null | undefined): boolean {
+  return (
+    confirmation?.status === "approved" &&
+    (confirmation.direction === "received" || confirmation.answeredFrom === "docier")
+  );
+}
 
 export type RolePersonLinkInput = { note?: unknown; since?: unknown };
 
@@ -49,7 +62,7 @@ export function prepareRolePersonLink(input: RolePersonLinkInput): RolePersonLin
   return { ok: true, value: { note, since: `${match[1]}-${match[2]}` } };
 }
 
-const sameCompany = (a: string, b: string) => {
+export const sameCompany = (a: string, b: string) => {
   const clean = (value: string) => value.trim().toLowerCase().replace(/\s+/g, " ");
   return clean(a) !== "" && clean(a) === clean(b);
 };
@@ -73,6 +86,31 @@ export function suggestRolePeople(
     }
   }
   return [...out.values()];
+}
+
+/** Your roles at the company a request is about, to answer it on. */
+export function rolesAtCompany(roles: Array<{ id: string; organization: string }>, organization: string): string[] {
+  return roles.filter((role) => sameCompany(role.organization, organization)).map((role) => role.id);
+}
+
+/**
+ * A request link pasted into Docier: https, or http on this machine, with a
+ * /q/<token> path. Anything else is refused before it is fetched.
+ */
+export function readRequestLink(link: unknown): { url: string; token: string } | null {
+  if (typeof link !== "string") return null;
+  let url: URL;
+  try {
+    url = new URL(link.trim());
+  } catch {
+    return null;
+  }
+  const local = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+  if (url.protocol !== "https:" && !(url.protocol === "http:" && local)) return null;
+  if (url.username || url.password) return null;
+  const match = url.pathname.match(/^\/q\/([A-Za-z0-9_-]{16,128})\/?$/);
+  if (!match) return null;
+  return { url: `${url.origin}/q/${match[1]}`, token: match[1]! };
 }
 
 /** My Network contacts whose name matches what was typed: names starting with it first. */

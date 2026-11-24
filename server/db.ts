@@ -720,6 +720,10 @@ export function openDatabase(path: string): DatabaseSync {
       UNIQUE (occupant_id, role_id, contact_id)
     )
   `);
+  // Confirmed from here, answering their "worked together" request from this
+  // Docier: it then counts on both sides.
+  addColumnIfMissing(db, "role_contacts", "confirmed_at", "TEXT");
+  addColumnIfMissing(db, "role_contacts", "confirmed_note", "TEXT NOT NULL DEFAULT ''");
   addColumnIfMissing(db, "map_settings", "pin_theme", "TEXT NOT NULL DEFAULT 'kind'");
   addColumnIfMissing(
     db,

@@ -1,3 +1,4 @@
+import { answerReceivedAsk, readReceivedAsk, ReceivedAskError } from "./received-asks";
 import { linkRolePerson, RolePeopleError, unlinkRolePerson, updateRolePersonLink } from "./role-people";
 import { Hono, type Context } from "hono";
 import type { DatabaseSync } from "node:sqlite";
@@ -318,6 +319,8 @@ import {
 } from "./page-capture";
 
 export type AppOptions = {
+  /** Reads a request link someone sent, to answer it from here; defaults to fetch. */
+  askFetch?: typeof fetch;
   uploadsDir?: string;
   extract?: ResumeExtractDeps;
   relay?: ProjectionRelay;
@@ -1485,6 +1488,30 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
       return c.json({ ok: true });
     } catch (error) {
       if (error instanceof RolePeopleError) return c.json({ error: error.code }, rolePeopleStatus(error.code));
+      throw error;
+    }
+  });
+
+  // A request someone sent you, answered from this Docier by pasting its link (#169).
+  const askFetch = options.askFetch ?? fetch;
+  const receivedAskStatus = (code: ReceivedAskError["code"]) =>
+    code === "role-missing" ? 404 : code === "request-closed" ? 409 : code === "link-unreachable" ? 502 : 400;
+  app.post("/api/received-asks/read", async (c) => {
+    try {
+      const body = (await c.req.json()) as Record<string, unknown>;
+      return c.json(await readReceivedAsk(db, ensureOccupant(db).id, askFetch, body.link));
+    } catch (error) {
+      if (error instanceof ReceivedAskError) return c.json({ error: error.code }, receivedAskStatus(error.code));
+      throw error;
+    }
+  });
+
+  app.post("/api/received-asks/answer", async (c) => {
+    try {
+      const body = (await c.req.json()) as Record<string, unknown>;
+      return c.json(await answerReceivedAsk(db, ensureOccupant(db).id, askFetch, body));
+    } catch (error) {
+      if (error instanceof ReceivedAskError) return c.json({ error: error.code }, receivedAskStatus(error.code));
       throw error;
     }
   });

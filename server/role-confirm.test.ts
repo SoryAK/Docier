@@ -162,7 +162,7 @@ describe("asking someone to confirm you worked together", () => {
             photoUrl: null,
             note: "",
             since: "",
-            confirmation: { requestId: "q1", status: "approved", note: "", answeredAt: "2026-11-20T10:00:00.000Z", answeredFrom: "browser" },
+            confirmation: { requestId: "q1", status: "approved", note: "", answeredAt: "2026-11-20T10:00:00.000Z", answeredFrom: "browser", direction: "sent" },
           },
         ],
       },

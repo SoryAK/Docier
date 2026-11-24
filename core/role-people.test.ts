@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   colleagueToContact,
+  readRequestLink,
+  rolesAtCompany,
   matchContacts,
   prepareRolePersonLink,
   suggestRolePeople,
@@ -66,5 +68,22 @@ describe("role people", () => {
       note: "trained me",
     });
     expect(colleagueToContact({ name: "  ", title: "", note: "", url: "" }, "X")).toBeNull();
+  });
+
+  it("reads only request links: https, or http on this machine", () => {
+    const token = "e4dqgcA-HjYnIglb29RxtGM-_qvcg06M";
+    expect(readRequestLink(`https://relay.example.com/q/${token}`)).toEqual({ url: `https://relay.example.com/q/${token}`, token });
+    expect(readRequestLink(` http://127.0.0.1:3998/q/${token}/ `)).toEqual({ url: `http://127.0.0.1:3998/q/${token}`, token });
+    expect(readRequestLink(`http://relay.example.com/q/${token}`)).toBeNull();
+    expect(readRequestLink(`https://relay.example.com/p/${token}`)).toBeNull();
+    expect(readRequestLink(`https://relay.example.com/q/short`)).toBeNull();
+    expect(readRequestLink(`https://user:pw@relay.example.com/q/${token}`)).toBeNull();
+    expect(readRequestLink("not a link")).toBeNull();
+  });
+
+  it("finds your roles at the company a request is about", () => {
+    const roles = [{ id: "a", organization: "Giants Direct" }, { id: "b", organization: " giants  direct" }, { id: "c", organization: "Amazon" }];
+    expect(rolesAtCompany(roles, "GIANTS DIRECT")).toEqual(["a", "b"]);
+    expect(rolesAtCompany(roles, "")).toEqual([]);
   });
 });

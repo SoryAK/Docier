@@ -182,6 +182,40 @@ export function registerAsks(app: Hono, db: DatabaseSync, isOwner: (c: Context) 
     return c.html(page(`${REQUEST_KIND_LABEL[row.kind as keyof typeof REQUEST_KIND_LABEL]} request`, answerForm(row, token)));
   });
 
+  // Recipient's own Docier: the request as data, so it can be answered from there.
+  app.get("/q/:token/data", (c) => {
+    privatePage(c);
+    const row = read(hashToken(c.req.param("token")));
+    if (!row) return c.json({ error: "not-found" }, 404);
+    const expired = row.expires_at <= new Date().toISOString();
+    const status =
+      row.status === "withdrawn"
+        ? "withdrawn"
+        : row.status === "approved" || row.status === "declined"
+          ? "answered"
+          : expired
+            ? "expired"
+            : "open";
+    if (row.status === "sent" && status === "open") {
+      db.prepare("UPDATE relay_asks SET status = 'opened', opened_at = ? WHERE token_hash = ? AND status = 'sent'").run(
+        new Date().toISOString(),
+        row.token_hash,
+      );
+    }
+    return c.json({
+      ask: {
+        kind: row.kind,
+        body: row.body,
+        fromName: row.from_name,
+        fromHeadline: row.from_headline,
+        recipientName: row.recipient_name,
+        role: askRole(row),
+        expiresAt: row.expires_at,
+        status,
+      },
+    });
+  });
+
   // Recipient: approve or decline, with a note.
   app.post("/q/:token/answer", async (c) => {
     privatePage(c);
@@ -199,7 +233,7 @@ export function registerAsks(app: Hono, db: DatabaseSync, isOwner: (c: Context) 
     const now = new Date().toISOString();
     db.prepare(
       `UPDATE relay_asks SET status = ?, note = ?, answered_at = ?, opened_at = COALESCE(opened_at, ?), updated_at = ?,
-              join_choice = ?, join_json = ?, answered_from = 'browser'
+              join_choice = ?, join_json = ?, answered_from = ?
         WHERE token_hash = ? AND status IN ('sent', 'opened')`,
     ).run(
       prepared.value.decision,
@@ -209,6 +243,8 @@ export function registerAsks(app: Hono, db: DatabaseSync, isOwner: (c: Context) 
       now,
       join.value?.choice ?? null,
       join.value?.details ? JSON.stringify(join.value.details) : null,
+      // Answered from the recipient's own Docier, which records it on their side too.
+      body.from === "docier" ? "docier" : "browser",
       row.token_hash,
     );
     return c.json({ ok: true, status: prepared.value.decision });
@@ -258,6 +294,7 @@ function answerForm(row: AskRow, token: string): string {
       <p class="small" id="join-hint">${worked ? `${first} keeps these in their network, with this job. Untick to answer without them.` : `Leave it unticked to answer without joining. ${first} only sees your answer and note.`}</p>
       <button type="button" class="linkish" id="join-no"${worked ? " hidden" : ""}>No thanks, don't add me</button>
     </div>
+    ${worked ? `<p class="small">Use Docier? Paste this page's link into <b>Requests → Answer a request</b> in your Docier to confirm it on both sides.</p>` : ""}
     <div class="acts"><button type="submit" name="decision" value="declined" class="no">Decline</button><button type="submit" name="decision" value="approved" class="yes">${worked ? "Confirm" : "Approve"}</button></div>
     <p id="status" role="status"></p>
   </form>

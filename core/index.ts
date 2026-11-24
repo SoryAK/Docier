@@ -494,6 +494,9 @@ export {
 export {
   achievementStatement,
   prepareAchievementDate,
+  prepareAchievementLinks,
+  liveAchievementLinks,
+  type AchievementLinks,
   readRoleAchievements,
   reconcileRoleAchievements,
   roleAchievementStatements,

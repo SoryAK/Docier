@@ -2,7 +2,17 @@ import { describe, expect, it } from "vitest";
 import { createApp } from "./app";
 import { openDatabase } from "./db";
 
-type Role = { id: string; achievements: string[]; achievementIds: string[]; achievementDates: string[] };
+type Links = { people: string[]; moments: string[]; places: string[]; skills: string[] };
+type Role = {
+  id: string;
+  achievements: string[];
+  achievementIds: string[];
+  achievementDates: string[];
+  achievementLinks: Links[];
+  people: Array<{ linkId: string }>;
+  locations: Array<{ id: string }>;
+  details: { milestones: Array<{ id: string }>; events: Array<{ id: string }> };
+};
 
 async function setup() {
   const app = createApp(openDatabase(":memory:"));
@@ -61,5 +71,44 @@ describe("dates on achievements", () => {
     expect(after.achievements).toEqual(["Trained two technicians", "Cut robot downtime by a third"]);
     expect(after.achievementDates).toEqual(["", "2025-04"]);
     expect(after.achievementIds[1]).toBe(first);
+  });
+
+  it("links an achievement to people, events, places, and skills on its role", async () => {
+    const { send, id, role } = await setup();
+    const person = (await send("POST", `/api/work-map/roles/${id}/people`, { contact: { name: "Maria Reyes" } })).body.person as { linkId: string };
+    await send("PUT", `/api/work-map/roles/${id}/details`, {
+      events: [{ id: "e1", date: "2025-11", title: "Peak season", detail: "", isPublic: true }],
+      milestones: [{ id: "m1", date: "2025-02", title: "Certified", detail: "", isPublic: true }],
+    });
+    const site = (
+      await send("POST", `/api/work-map/roles/${id}/locations`, { label: "Lancaster DC", kind: "site", latitude: 40.03, longitude: -76.3 })
+    ).body;
+    const siteId = (site.location ?? site).id as string;
+    const before = await role();
+    expect(before.achievementLinks).toEqual([
+      { people: [], moments: [], places: [], skills: [] },
+      { people: [], moments: [], places: [], skills: [] },
+    ]);
+    const [first] = before.achievementIds;
+
+    const linked = await send("PUT", `/api/work-map/roles/${id}/achievements/${first}`, {
+      links: { people: [person.linkId], moments: ["e1", "m1"], places: [siteId], skills: ["PLC troubleshooting"] },
+    });
+    expect(linked.status).toBe(200);
+    const after = await role();
+    expect(after.achievementLinks[0]).toEqual({ people: [person.linkId], moments: ["e1", "m1"], places: [siteId], skills: ["PLC troubleshooting"] });
+    // Changing links leaves the date alone, and the other way round.
+    await send("PUT", `/api/work-map/roles/${id}/achievements/${first}`, { date: "2025-04" });
+    expect((await role()).achievementLinks[0]!.skills).toEqual(["PLC troubleshooting"]);
+
+    // Only things on this role can be linked.
+    for (const links of [{ people: ["nope"] }, { moments: ["nope"] }, { places: ["nope"] }]) {
+      const refused = await send("PUT", `/api/work-map/roles/${id}/achievements/${first}`, { links });
+      expect(refused.status).toBe(400);
+      expect(refused.body.error).toBe("link-missing");
+    }
+    // Something removed from the role drops out of the achievement's links.
+    await send("DELETE", `/api/work-map/roles/${id}/people/${person.linkId}`);
+    expect((await role()).achievementLinks[0]!.people).toEqual([]);
   });
 });

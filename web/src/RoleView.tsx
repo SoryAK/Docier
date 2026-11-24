@@ -7,6 +7,8 @@ import {
 } from "@core/career-history";
 import { roleCoverPhoto, type WorkMapRole } from "@core/work-map";
 import { Globe, ImagePlus, Images, Pencil, Plus, Trash2, UserRound, X } from "lucide-react";
+import { AchievementDate } from "./AchievementDate";
+import { AchievementDetail } from "./AchievementDetail";
 import { AchievementProof } from "./AchievementProof";
 import { RolePeople } from "./RolePeople";
 import "./role-view.css";
@@ -77,9 +79,9 @@ export function RoleView({
     }
   }
 
-  // Something picked in History: show it here. An achievement is scrolled to and
-  // briefly marked; a person opens the list of people worked with.
-  const [flashId, setFlashId] = useState<string | null>(null);
+  // Something picked in History: show it here. An achievement opens on its own;
+  // a person opens the list of people worked with.
+  const [openAchievement, setOpenAchievement] = useState<string | null>(null);
   const [peopleRequest, setPeopleRequest] = useState<{ linkId: string; nonce: number } | null>(null);
   useEffect(() => {
     if (!focusRequest) return;
@@ -93,23 +95,14 @@ export function RoleView({
       return;
     }
     setTab("achievements");
-    setFlashId(focusRequest.id);
-    const frame = requestAnimationFrame(() => {
-      document
-        .querySelector(`[data-achievement-id="${CSS.escape(focusRequest.id)}"]`)
-        ?.scrollIntoView({ block: "center", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
-    });
-    const timer = window.setTimeout(() => setFlashId(null), 1800);
-    return () => {
-      cancelAnimationFrame(frame);
-      window.clearTimeout(timer);
-    };
+    setOpenAchievement(focusRequest.id);
   }, [focusRequest]);
 
   // A different role starts on its overview, with nothing left open.
   useEffect(() => {
     setTab("overview");
     setEditing(false);
+    setOpenAchievement(null);
   }, [role.id]);
 
   const name = role.organization.trim() || role.title.trim() || "Untitled";
@@ -185,7 +178,15 @@ export function RoleView({
             <button type="button" role="tab" aria-selected={tab === "overview"} onClick={() => setTab("overview")}>
               Overview
             </button>
-            <button type="button" role="tab" aria-selected={tab === "achievements"} onClick={() => setTab("achievements")}>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "achievements"}
+              onClick={() => {
+                setTab("achievements");
+                setOpenAchievement(null);
+              }}
+            >
               Achievements
               {role.achievements.length > 0 ? <span>{role.achievements.length}</span> : null}
             </button>
@@ -253,13 +254,21 @@ export function RoleView({
             </div>
           ) : (
             <div className="role-view-pane" role="tabpanel">
-              {role.achievements.length > 0 ? (
+              {openAchievement ? (
+                <AchievementDetail role={role} achievementId={openAchievement} onBack={() => setOpenAchievement(null)} onSaved={onSaved} />
+              ) : role.achievements.length > 0 ? (
                 <ol className="role-view-achievements">
                   {role.achievements.map((achievement, index) => {
                     const id = role.achievementIds?.[index];
                     return (
-                      <li key={id ?? index} data-achievement-id={id} className={id && id === flashId ? "is-flash" : undefined}>
-                        <span>{achievement}</span>
+                      <li key={id ?? index} data-achievement-id={id}>
+                        {id ? (
+                          <button type="button" className="role-view-achievement-open" onClick={() => setOpenAchievement(id)}>
+                            {achievement}
+                          </button>
+                        ) : (
+                          <span>{achievement}</span>
+                        )}
                         {id ? (
                           <>
                             <AchievementDate role={role} achievementId={id} date={role.achievementDates?.[index] ?? ""} onSaved={onSaved} />
@@ -273,9 +282,11 @@ export function RoleView({
               ) : (
                 <p className="role-view-empty">No achievements yet. What are you proud of from {name}?</p>
               )}
-              <button type="button" className="role-view-text" onClick={() => setEditing(true)}>
-                + Add an achievement
-              </button>
+              {openAchievement ? null : (
+                <button type="button" className="role-view-text" onClick={() => setEditing(true)}>
+                  + Add an achievement
+                </button>
+              )}
             </div>
           )}
         </>
@@ -318,92 +329,6 @@ export function RoleView({
         </div>
       </dialog>
     </article>
-  );
-}
-
-/**
- * When an achievement happened, so it lands in the right year of the role's
- * history. Opens a month field limited to the role's dates.
- */
-function AchievementDate({
-  role,
-  achievementId,
-  date,
-  onSaved,
-}: {
-  role: WorkMapRole;
-  achievementId: string;
-  date: string;
-  onSaved: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
-  const min = role.startDate.slice(0, 7) || undefined;
-  const now = new Date();
-  const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const max = (role.isCurrent ? thisMonth : role.endDate.slice(0, 7)) || thisMonth;
-
-  async function save(next: string) {
-    setBusy(true);
-    setFailed(false);
-    try {
-      const response = await fetch(
-        `/api/work-map/roles/${encodeURIComponent(role.id)}/achievements/${encodeURIComponent(achievementId)}`,
-        { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ date: next }) },
-      );
-      if (!response.ok) {
-        setFailed(true);
-        return;
-      }
-      setOpen(false);
-      onSaved();
-    } catch {
-      setFailed(true);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  if (open) {
-    return (
-      <span className="role-view-when is-open">
-        <input
-          type="month"
-          aria-label="When this happened"
-          defaultValue={date}
-          min={min}
-          max={max}
-          autoFocus
-          disabled={busy}
-          onChange={(event) => {
-            if (event.target.value) void save(event.target.value);
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "Escape") setOpen(false);
-          }}
-        />
-        {date ? (
-          <button type="button" className="role-view-text" onClick={() => void save("")} disabled={busy}>
-            Clear
-          </button>
-        ) : null}
-        <button type="button" className="role-view-text" onClick={() => setOpen(false)} disabled={busy}>
-          Cancel
-        </button>
-        {failed ? <span className="role-view-error">Not saved. Try again.</span> : null}
-      </span>
-    );
-  }
-  return (
-    <button
-      type="button"
-      className={date ? "role-view-when" : "role-view-when is-empty"}
-      onClick={() => setOpen(true)}
-      title={date ? "Change when this happened" : "Add when this happened"}
-    >
-      {date ? monthYear(date) : "+ When?"}
-    </button>
   );
 }
 

@@ -41,13 +41,17 @@ export function AchievementProof({
   achievementId,
   statement,
   onSaved,
+  inline = false,
 }: {
   role: WorkMapRole;
   achievementId: string;
   statement: string;
   onSaved: () => void;
+  /** Shown in place, as on an achievement's own page, instead of behind its tag. */
+  inline?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [openState, setOpen] = useState(false);
+  const open = inline || openState;
   const [draft, setDraft] = useState<Draft | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -55,7 +59,7 @@ export function AchievementProof({
   const items = role.linkedEvidence.filter((item) => item.pin?.kind === "achievement" && item.pin.id === achievementId);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || inline) return;
     function onDown(event: PointerEvent) {
       if (!wrapRef.current?.contains(event.target as Node)) setOpen(false);
     }
@@ -70,7 +74,7 @@ export function AchievementProof({
       document.removeEventListener("pointerdown", onDown);
       document.removeEventListener("keydown", onKey);
     };
-  }, [open, draft]);
+  }, [open, draft, inline]);
 
   const base = `/api/work-map/roles/${encodeURIComponent(role.id)}/linked-evidence`;
 
@@ -151,7 +155,8 @@ export function AchievementProof({
   const blank: Draft = { id: null, url: "", title: "", outlet: "", publishedOn: "", kind: "article", credit: "about-my-work", contribution: "", isPublic: false };
 
   return (
-    <span className="role-proof" ref={wrapRef}>
+    <span className={inline ? "role-proof is-inline" : "role-proof"} ref={wrapRef}>
+      {inline ? null : (
       <button
         type="button"
         className={items.length > 0 ? "role-proof-tag has" : "role-proof-tag"}
@@ -161,8 +166,13 @@ export function AchievementProof({
       >
         {items.length > 0 ? `${items.length} proof` : "+ proof"}
       </button>
+      )}
       {open ? (
-        <span className="role-view-pop role-proof-pop" role="dialog" aria-label="Evidence for this achievement">
+        <span
+          className={inline ? "role-proof-pop is-inline" : "role-view-pop role-proof-pop"}
+          role={inline ? undefined : "dialog"}
+          aria-label="Evidence for this achievement"
+        >
           {draft ? (
             <form className="role-people-form" onSubmit={save}>
               <h3>{draft.id ? "Change evidence" : "Add evidence"}</h3>
@@ -226,11 +236,15 @@ export function AchievementProof({
             </form>
           ) : (
             <>
-              <span className="role-people-head">
-                <h3>Evidence</h3>
-                <small>Saved with a copy in your vault</small>
-              </span>
-              <span className="role-proof-for">{statement}</span>
+              {inline ? null : (
+                <>
+                  <span className="role-people-head">
+                    <h3>Evidence</h3>
+                    <small>Saved with a copy in your vault</small>
+                  </span>
+                  <span className="role-proof-for">{statement}</span>
+                </>
+              )}
               {items.length > 0 ? (
                 <ul className="role-proof-list">
                   {items.map((item) => (

@@ -32,6 +32,9 @@ import {
   prepareWorkMapRoleDelete,
   readCanvasBoards,
   prepareAchievementDate,
+  prepareAchievementLinks,
+  liveAchievementLinks,
+  type AchievementLinks,
   readRoleAchievements,
   reconcileRoleAchievements,
   resolveAchievementPin,
@@ -1194,8 +1197,10 @@ function mapRole(
   occupantId: string,
   row: JsonObject,
 ): WorkMapRole {
-  const achievementFields = roleAchievements(db, occupantId, String(row.id), row.achievements_json);
+  const { storedLinks, ...achievementFields } = roleAchievements(db, occupantId, String(row.id), row.achievements_json);
+  const onRole = roleLinkTargets(db, occupantId, String(row.id));
   return {
+    achievementLinks: storedLinks.map((links) => liveAchievementLinks(links, onRole)),
     id: String(row.id),
     kind:
       row.kind === "school"
@@ -1586,7 +1591,7 @@ function roleAchievements(
   occupantId: string,
   roleId: string,
   raw: unknown,
-): { achievements: string[]; achievementIds: string[]; achievementDates: string[] } {
+): { achievements: string[]; achievementIds: string[]; achievementDates: string[]; storedLinks: Array<AchievementLinks | undefined> } {
   const stored = readRoleAchievements(raw, randomUUID);
   if (stored.changed) {
     db.prepare(
@@ -1597,34 +1602,69 @@ function roleAchievements(
     achievements: stored.items.map((item) => item.statement),
     achievementIds: stored.items.map((item) => item.id),
     achievementDates: stored.items.map((item) => item.date ?? ""),
+    storedLinks: stored.items.map((item) => item.links),
   };
 }
 
-/** Sets or clears the month one achievement on a role happened. */
-export function setRoleAchievementDate(
+/**
+ * Changes one achievement's month (`date`) and what it's linked to (`links`).
+ * Only the keys sent change. Links must be to people, moments, and places on
+ * this role. Its wording changes with the role, so facts stay in step.
+ */
+export function updateRoleAchievement(
   db: DatabaseSync,
   occupantId: string,
   roleId: string,
   achievementId: string,
   input: JsonObject,
-): { id: string; date: string } {
+): { id: string; date: string; links: AchievementLinks } {
   requireRole(db, occupantId, roleId);
-  const prepared = prepareAchievementDate(input.date);
-  if (!prepared.ok) throw new WorkMapStoreError(prepared.error);
+  const date = "date" in input ? prepareAchievementDate(input.date) : null;
+  if (date && !date.ok) throw new WorkMapStoreError(date.error);
+  const links = "links" in input ? prepareAchievementLinks(input.links) : null;
+  if (links && !links.ok) throw new WorkMapStoreError(links.error);
+  if (links?.ok) {
+    const onRole = roleLinkTargets(db, occupantId, roleId);
+    const missing =
+      links.value.people.some((id) => !onRole.people.includes(id)) ||
+      links.value.moments.some((id) => !onRole.moments.includes(id)) ||
+      links.value.places.some((id) => !onRole.places.includes(id));
+    if (missing) throw new WorkMapStoreError("link-missing");
+  }
   const row = db
     .prepare("SELECT achievements_json FROM work_history WHERE id = ? AND occupant_id = ?")
     .get(roleId, occupantId) as { achievements_json: string };
   const items = readRoleAchievements(row.achievements_json, randomUUID).items;
   const index = items.findIndex((item) => item.id === achievementId);
   if (index < 0) throw new WorkMapStoreError("achievement-missing");
-  const { date: _old, ...rest } = items[index]!;
-  items[index] = prepared.value ? { ...rest, date: prepared.value } : rest;
+  const current = items[index]!;
+  const nextDate = date?.ok ? date.value : current.date ?? "";
+  const nextLinks = links?.ok ? links.value : current.links;
+  const hasLinks = nextLinks && (nextLinks.people.length || nextLinks.moments.length || nextLinks.places.length || nextLinks.skills.length);
+  items[index] = {
+    id: current.id,
+    statement: current.statement,
+    ...(nextDate ? { date: nextDate } : {}),
+    ...(hasLinks ? { links: nextLinks } : {}),
+  };
   db.prepare("UPDATE work_history SET achievements_json = ? WHERE id = ? AND occupant_id = ?").run(
     JSON.stringify(items),
     roleId,
     occupantId,
   );
-  return { id: achievementId, date: prepared.value };
+  return { id: achievementId, date: nextDate, links: nextLinks ?? { people: [], moments: [], places: [], skills: [] } };
+}
+
+/** The people, moments, and places on a role, that its achievements can link to. */
+function roleLinkTargets(db: DatabaseSync, occupantId: string, roleId: string) {
+  const details = readDetails(db, occupantId, roleId);
+  return {
+    people: (
+      db.prepare("SELECT id FROM role_contacts WHERE occupant_id = ? AND role_id = ?").all(occupantId, roleId) as Array<{ id: string }>
+    ).map((row) => row.id),
+    moments: [...(details.milestones ?? []), ...(details.events ?? [])].map((moment) => moment.id),
+    places: readLocations(db, occupantId, roleId).map((location) => location.id),
+  };
 }
 
 function parseLocationKind(value: unknown): WorkMapLocation["kind"] {

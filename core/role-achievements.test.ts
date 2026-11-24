@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   achievementStatement,
   prepareAchievementDate,
+  prepareAchievementLinks,
   readRoleAchievements,
   reconcileRoleAchievements,
   roleAchievementStatements,
@@ -100,5 +101,33 @@ describe("role achievements", () => {
     expect(prepareAchievementDate(null)).toEqual({ ok: true, value: "" });
     expect(prepareAchievementDate("April")).toEqual({ ok: false, error: "date-invalid" });
     expect(prepareAchievementDate("2025-00")).toEqual({ ok: false, error: "date-invalid" });
+  });
+
+  it("keeps an achievement's links through reading and rewording, dropping what isn't a link", () => {
+    const stored = JSON.stringify([
+      {
+        id: "a",
+        statement: "Cut downtime",
+        links: { people: ["p1", 7], moments: ["m1"], places: ["s1"], skills: [" PLC troubleshooting ", "plc troubleshooting", ""] },
+      },
+    ]);
+    const read = readRoleAchievements(stored, () => "new");
+    expect(read.items[0]).toEqual({
+      id: "a",
+      statement: "Cut downtime",
+      links: { people: ["p1"], moments: ["m1"], places: ["s1"], skills: ["PLC troubleshooting"] },
+    });
+    const next = reconcileRoleAchievements(read.items, ["Cut downtime by a third"], () => "new");
+    expect(next[0]!.links).toEqual({ people: ["p1"], moments: ["m1"], places: ["s1"], skills: ["PLC troubleshooting"] });
+  });
+
+  it("reads links for an achievement", () => {
+    expect(prepareAchievementLinks({ people: ["p1", "p1"], skills: ["Swisslog robotics", " swisslog robotics "] })).toEqual({
+      ok: true,
+      value: { people: ["p1"], moments: [], places: [], skills: ["Swisslog robotics"] },
+    });
+    expect(prepareAchievementLinks({ skills: ["x".repeat(61)] })).toEqual({ ok: false, error: "links-invalid" });
+    expect(prepareAchievementLinks({ people: "p1" })).toEqual({ ok: false, error: "links-invalid" });
+    expect(prepareAchievementLinks(null)).toEqual({ ok: false, error: "links-invalid" });
   });
 });

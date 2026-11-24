@@ -305,7 +305,7 @@ import {
   saveWorkMapSettings,
   updateWorkMapLocation,
   updateWorkMapRole,
-  setRoleAchievementDate,
+  updateRoleAchievement,
   addLinkedEvidence,
   lookupLinkedPage,
   removeLinkedEvidence,
@@ -1433,7 +1433,7 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
   app.put("/api/work-map/roles/:id/achievements/:achievementId", async (c) => {
     const occupant = ensureOccupant(db);
     try {
-      const achievement = setRoleAchievementDate(
+      const achievement = updateRoleAchievement(
         db,
         occupant.id,
         c.req.param("id"),

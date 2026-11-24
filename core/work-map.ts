@@ -1,4 +1,5 @@
 import type { RolePerson } from "./role-people";
+import type { AchievementLinks } from "./role-achievements";
 import type { CanvasBoard } from "./canvas-board";
 import { formatHistoryPlace } from "./career-history";
 import type { ProjectionVisibility } from "./projection";
@@ -364,6 +365,8 @@ export type WorkMapRole = {
   achievementIds?: string[];
   /** The month each achievement happened (YYYY-MM), or "" when not set; same order as `achievements`. */
   achievementDates?: string[];
+  /** What each achievement is linked to on this role; same order as `achievements`. */
+  achievementLinks?: AchievementLinks[];
   factId: string | null;
   factVersion: number | null;
   evidenceIds: string[];

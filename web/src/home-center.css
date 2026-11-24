@@ -959,3 +959,31 @@
     border-radius: 8px;
   }
 }
+
+/*
+ * A role's card: the banner runs to the card's edges, so the card has no padding
+ * of its own; the role's name, tabs, and sections bring theirs.
+ */
+@media (min-width: 801px) {
+  .home-center:has(.home-role) > .home-stage {
+    padding: 0;
+  }
+
+  .home-center:has(.home-role) .home-story-layout {
+    margin-top: 0;
+  }
+
+  .home-center .home-story-layout > .home-role,
+  .home-sheet:not(.is-right-open) .home-center.is-split .home-story-layout > .home-role {
+    padding: 0;
+  }
+
+  /* The card still scrolls; its bar is hidden so the banner can reach the card's right edge. */
+  .home-center .home-story-layout > .home-role {
+    scrollbar-width: none;
+  }
+
+  .home-center .home-story-layout > .home-role::-webkit-scrollbar {
+    display: none;
+  }
+}

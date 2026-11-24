@@ -41,7 +41,8 @@
   flex: none;
   height: 168px;
   overflow: hidden;
-  border-radius: 14px 14px 0 0;
+  /* Meets the card's own corners (8 px, inside its 1 px border). */
+  border-radius: 7px 7px 0 0;
   background: #d8d2c8;
   color: #fff;
 }

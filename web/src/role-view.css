@@ -113,7 +113,20 @@
   color: var(--rv-ink);
 }
 
+/* The company's name, with its links on the same line. */
+.role-view-name-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+
+.role-view-name-row .role-view-links {
+  flex: none;
+}
+
 .role-view-names h1 {
+  min-width: 0;
   display: -webkit-box;
   margin: 0;
   overflow: hidden;

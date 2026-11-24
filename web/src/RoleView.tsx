@@ -190,7 +190,26 @@ export function RoleView({
       </header>
 
       <div className="role-view-names">
-        <h1>{name}</h1>
+        <div className="role-view-name-row">
+          <h1>{name}</h1>
+          {links.length > 0 ? (
+            <nav className="role-view-links" aria-label="Company links">
+              {links.map((link) =>
+                link.kind === "website" ? (
+                  <a key={link.kind} href={link.url} target="_blank" rel="noreferrer" title={link.url}>
+                    <SocialMark kind="site" />
+                    <span>{link.label}</span>
+                  </a>
+                ) : (
+                  // A network's logo says what it is; its name shows on hover and is read aloud.
+                  <a key={link.kind} className="is-logo" href={link.url} target="_blank" rel="noreferrer" title={link.label} aria-label={link.label}>
+                    <BrandLogo kind={link.kind} />
+                  </a>
+                ),
+              )}
+            </nav>
+          ) : null}
+        </div>
         {subtitle ? <p>{subtitle}</p> : null}
       </div>
 
@@ -200,23 +219,6 @@ export function RoleView({
           {role.isCurrent ? <mark>Current</mark> : null}
           {tenure ? <span className="role-view-tenure">({tenure})</span> : null}
         </p>
-        {links.length > 0 ? (
-          <nav className="role-view-links" aria-label="Company links">
-            {links.map((link) =>
-              link.kind === "website" ? (
-                <a key={link.kind} href={link.url} target="_blank" rel="noreferrer" title={link.url}>
-                  <SocialMark kind="site" />
-                  <span>{link.label}</span>
-                </a>
-              ) : (
-                // A network's logo says what it is; its name shows on hover and is read aloud.
-                <a key={link.kind} className="is-logo" href={link.url} target="_blank" rel="noreferrer" title={link.label} aria-label={link.label}>
-                  <BrandLogo kind={link.kind} />
-                </a>
-              ),
-            )}
-          </nav>
-        ) : null}
         <RolePeople role={role} roles={roles} onSaved={onSaved} openRequest={peopleRequest} />
       </div>
 

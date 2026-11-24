@@ -242,6 +242,25 @@
   font-size: 0.875rem;
 }
 
+/* The commute, beside the place it goes to; it opens Looking back. */
+.role-view-commute {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.role-view-commute:hover span {
+  text-decoration: underline;
+  text-decoration-color: var(--rv-gold);
+  text-underline-offset: 3px;
+}
+
 .role-view-meta mark {
   padding: 0 7px;
   border-radius: 999px;

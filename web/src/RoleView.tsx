@@ -5,7 +5,7 @@ import {
   formatTenureMonths,
   tenureMonths,
 } from "@core/career-history";
-import { roleGlance, type GlanceKind } from "@core/role-glance";
+import { commuteGlance, roleGlance, type GlanceKind } from "@core/role-glance";
 import { roleLinkList } from "@core/role-links";
 import { roleCoverPhoto, type WorkMapRole } from "@core/work-map";
 import { ArrowLeft, Banknote, BriefcaseBusiness, CalendarDays, Car, ChevronRight, Clock, ImagePlus, Images, Lock, MapPin, Pencil, Plus, Star, Trash2, UserRound, X, type LucideIcon } from "lucide-react";
@@ -31,7 +31,6 @@ const GLANCE_ICON: Record<GlanceKind, LucideIcon> = {
   manager: UserRound,
   pay: Banknote,
   rating: Star,
-  commute: Car,
 };
 
 /** A thing picked in the role's History, to show in the role. */
@@ -141,6 +140,7 @@ export function RoleView({
   const links = roleLinkList(details);
   const isJob = role.kind !== "school";
   const glance = isJob ? roleGlance(details) : [];
+  const commute = isJob ? commuteGlance(details.commute) : "";
   const tabs: Array<{ id: RoleTab; label: string; count?: number; locked?: boolean }> = [
     { id: "overview", label: "Overview" },
     { id: "achievements", label: "Achievements", count: role.achievements.length },
@@ -215,7 +215,15 @@ export function RoleView({
 
       <div className="role-view-meta">
         <p>
-          {[place, period].filter(Boolean).join(" · ")}
+          {place}
+          {commute ? (
+            <button type="button" className="role-view-commute" onClick={() => openTab("back")}>
+              <Car size={14} aria-hidden="true" />
+              <span>{commute}</span>
+            </button>
+          ) : null}
+          {place && period ? " · " : null}
+          {period}
           {role.isCurrent ? <mark>Current</mark> : null}
           {tenure ? <span className="role-view-tenure">({tenure})</span> : null}
         </p>

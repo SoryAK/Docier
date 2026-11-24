@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { prepareRoleGlance, roleGlance } from "./role-glance";
+import { commuteGlance, prepareRoleGlance, roleGlance } from "./role-glance";
 import { EMPTY_WORK_MAP_DETAILS, normalizeWorkMapDetails } from "./work-map";
 
 const details = (over: Partial<typeof EMPTY_WORK_MAP_DETAILS> = {}) => normalizeWorkMapDetails(over);
@@ -9,7 +9,7 @@ describe("a role at a glance", () => {
     expect(roleGlance(details())).toEqual([]);
   });
 
-  it("names the setup, hours, manager, rating, and commute, each with its tab", () => {
+  it("names the setup, hours, manager, and rating, each with its tab, and leaves the commute to the place", () => {
     const items = roleGlance(
       details({
         schedule: { type: "full-time", workMode: "onsite", daysOnSite: null, hoursPerWeek: 40, shift: "" },
@@ -23,7 +23,6 @@ describe("a role at a glance", () => {
       { kind: "hours", tab: "setup", text: "40 h/week" },
       { kind: "manager", tab: "setup", text: "Reports to Mike Reyes" },
       { kind: "rating", tab: "back", text: "4/5 overall" },
-      { kind: "commute", tab: "back", text: "22 min commute" },
     ]);
   });
 
@@ -44,9 +43,11 @@ describe("a role at a glance", () => {
     expect(roleGlance(details({ schedule: { ...schedule, workMode: "onsite" } }))).toEqual([]);
   });
 
-  it("says a commute by distance, or working from home", () => {
-    expect(roleGlance(details({ commute: { minutes: null, miles: 14, mode: "driving" } }))[0]?.text).toBe("14 mi commute");
-    expect(roleGlance(details({ commute: { minutes: null, miles: null, mode: "remote" } }))[0]?.text).toBe("Worked from home");
+  it("says a commute by time, by distance, or as working from home, beside the place", () => {
+    expect(commuteGlance({ minutes: 22, miles: 14, mode: "driving" })).toBe("22 min commute");
+    expect(commuteGlance({ minutes: null, miles: 14, mode: "driving" })).toBe("14 mi commute");
+    expect(commuteGlance({ minutes: null, miles: null, mode: "remote" })).toBe("Worked from home");
+    expect(commuteGlance({ minutes: null, miles: null, mode: "" })).toBe("");
   });
 
   it("is off for pay in a role saved before the switch existed", () => {

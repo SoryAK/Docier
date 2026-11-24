@@ -4,7 +4,7 @@
  */
 import { formatPay } from "./role-pay";
 import { SCHEDULE_TYPE_LABEL, workModeText } from "./role-work-setup";
-import { COMMUTE_MODE_LABEL } from "./role-reflection";
+import { COMMUTE_MODE_LABEL, type RoleCommute } from "./role-reflection";
 import type { WorkMapRoleDetails } from "./work-map";
 
 /** What shows at a glance by choice. Only pay is a choice; the rest shows when it is set. */
@@ -13,13 +13,13 @@ export type RoleGlanceChoice = { pay: boolean };
 export const EMPTY_GLANCE: RoleGlanceChoice = { pay: false };
 
 export type GlanceTab = "setup" | "pay" | "back";
-export type GlanceKind = "work" | "hours" | "manager" | "pay" | "rating" | "commute";
+export type GlanceKind = "work" | "hours" | "manager" | "pay" | "rating";
 export type GlanceItem = { kind: GlanceKind; tab: GlanceTab; text: string };
 
-type GlanceDetails = Pick<WorkMapRoleDetails, "schedule" | "team" | "compensation" | "workplaceRating" | "commute" | "glance">;
+type GlanceDetails = Pick<WorkMapRoleDetails, "schedule" | "team" | "compensation" | "workplaceRating" | "glance">;
 
 export function roleGlance(details: GlanceDetails): GlanceItem[] {
-  const { schedule, team, compensation, commute } = details;
+  const { schedule, team, compensation } = details;
   const items: GlanceItem[] = [];
 
   const mode = workModeText(schedule);
@@ -33,11 +33,15 @@ export function roleGlance(details: GlanceDetails): GlanceItem[] {
   if (details.glance?.pay && pay) items.push({ kind: "pay", tab: "pay", text: pay });
 
   if (details.workplaceRating) items.push({ kind: "rating", tab: "back", text: `${details.workplaceRating}/5 overall` });
-  if (commute.mode === "remote") items.push({ kind: "commute", tab: "back", text: COMMUTE_MODE_LABEL.remote });
-  else if (commute.minutes != null) items.push({ kind: "commute", tab: "back", text: `${commute.minutes} min commute` });
-  else if (commute.miles != null) items.push({ kind: "commute", tab: "back", text: `${commute.miles} mi commute` });
-
   return items;
+}
+
+/** The commute, short, for beside the role's place: "22 min commute"; "" when not set. */
+export function commuteGlance(commute: RoleCommute): string {
+  if (commute.mode === "remote") return COMMUTE_MODE_LABEL.remote;
+  if (commute.minutes != null) return `${commute.minutes} min commute`;
+  if (commute.miles != null) return `${commute.miles} mi commute`;
+  return "";
 }
 
 export function prepareRoleGlance(

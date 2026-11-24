@@ -261,19 +261,26 @@ export function RoleView({
 
           {tab === "overview" ? (
             <div className="role-view-pane" role="tabpanel">
-              {summary || description ? (
-                <div className="role-view-story">
-                  {summary ? <p className="role-view-lead">{summary}</p> : null}
-                  {description && description !== summary ? <p>{description}</p> : null}
+              <section className="role-view-section role-view-about" aria-labelledby={`${role.id}-about`}>
+                <div className="role-view-section-head">
+                  <h2 id={`${role.id}-about`}>Description</h2>
+                  {summary || description ? (
+                    <button type="button" className="role-view-text" onClick={() => setSettings("about")}>
+                      Edit
+                    </button>
+                  ) : null}
                 </div>
-              ) : (
-                <p className="role-view-empty">
-                  Nothing written about this job yet.{" "}
-                  <button type="button" className="role-view-text" onClick={() => setSettings("about")}>
-                    + Add a few lines
+                {summary || description ? (
+                  <div className="role-view-story">
+                    {summary ? <p className="role-view-lead">{summary}</p> : null}
+                    {description && description !== summary ? <p>{description}</p> : null}
+                  </div>
+                ) : (
+                  <button type="button" className="role-group-add" onClick={() => setSettings("about")}>
+                    + Add a few lines about what this {role.kind === "school" ? "was" : "job was"}
                   </button>
-                </p>
-              )}
+                )}
+              </section>
 
               {isJob ? <RoleReflectionSection role={role} onEdit={setSettings} /> : null}
 

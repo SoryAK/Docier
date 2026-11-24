@@ -200,13 +200,21 @@
   background: #d6d2cc;
 }
 
-/* Colleagues follow the links at the right of the name; alone, they take the right edge. */
-.role-view-name-row .role-view-people {
-  flex: none;
+/* Colleagues as a tab: the list sits in the page, not in a pop-up. */
+.role-view-pop.is-inline {
+  position: static;
+  width: auto;
+  max-width: 34rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
 
-.role-view-name-row h1 + .role-view-people {
-  margin-left: auto;
+.role-people.is-inline .role-people-head h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 650;
 }
 
 /*
@@ -332,29 +340,6 @@
   position: relative;
 }
 
-.role-view-faces {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 2px 8px 2px 2px;
-  border: 0;
-  border-radius: 999px;
-  background: none;
-  color: #3f3f46;
-  font: inherit;
-  font-size: 0.8125rem;
-  cursor: pointer;
-}
-
-.role-view-faces:hover {
-  background: var(--rv-soft);
-}
-
-.role-view-stack {
-  display: flex;
-}
-
-.role-view-stack span,
 .role-view-avatar {
   display: grid;
   place-items: center;
@@ -366,10 +351,6 @@
   color: var(--rv-gold-ink);
   font-size: 0.6875rem;
   font-weight: 650;
-}
-
-.role-view-stack span + span {
-  margin-left: -8px;
 }
 
 .role-view-pop {
@@ -493,6 +474,13 @@
   margin-top: 22px;
   padding-top: 16px;
   border-top: 1px solid var(--rv-line);
+}
+
+/* A section that opens its tab needs no line above it. */
+.role-view-pane > .role-view-section:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
 }
 
 .role-view-section-head {

@@ -23,7 +23,7 @@ import { BrandLogo } from "./BrandLogo";
 import { SocialMark } from "./SocialMark";
 import "./role-view.css";
 
-type RoleTab = "overview" | "achievements" | "setup" | "pay" | "gear" | "back";
+type RoleTab = "overview" | "achievements" | "setup" | "pay" | "colleagues";
 
 const GLANCE_ICON: Record<GlanceKind, LucideIcon> = {
   work: BriefcaseBusiness,
@@ -113,6 +113,7 @@ export function RoleView({
       return;
     }
     if (focusRequest.kind === "person") {
+      setTab("colleagues");
       setPeopleRequest({ linkId: focusRequest.id, nonce: focusRequest.nonce });
       return;
     }
@@ -147,10 +148,9 @@ export function RoleView({
       ? ([
           { id: "setup", label: "Work setup" },
           { id: "pay", label: "Pay & benefits", locked: true },
-          { id: "gear", label: "Gear" },
-          { id: "back", label: "Looking back" },
         ] as const)
       : []),
+    { id: "colleagues", label: "Colleagues", count: role.people?.length ?? 0 },
   ];
   function openTab(next: RoleTab) {
     setTab(next);
@@ -208,7 +208,6 @@ export function RoleView({
               )}
             </nav>
           ) : null}
-          <RolePeople role={role} roles={roles} onSaved={onSaved} openRequest={peopleRequest} />
         </div>
         <div className="role-view-title-row">
           {subtitle ? <p>{subtitle}</p> : null}
@@ -265,6 +264,8 @@ export function RoleView({
                 </p>
               )}
 
+              {isJob ? <RoleReflectionSection role={role} onEdit={setSettings} /> : null}
+
               <section className="role-view-section" aria-labelledby={`${role.id}-photos`}>
                 <div className="role-view-section-head">
                   <h2 id={`${role.id}-photos`}>Photos &amp; events</h2>
@@ -298,18 +299,15 @@ export function RoleView({
           ) : tab === "setup" ? (
             <div className="role-view-pane" role="tabpanel">
               <RoleWorkSetup role={role} onEdit={setSettings} />
+              <RoleGearSection role={role} onEdit={setSettings} />
             </div>
           ) : tab === "pay" ? (
             <div className="role-view-pane" role="tabpanel">
               <RolePaySection role={role} onEdit={setSettings} onSaved={onSaved} />
             </div>
-          ) : tab === "gear" ? (
+          ) : tab === "colleagues" ? (
             <div className="role-view-pane" role="tabpanel">
-              <RoleGearSection role={role} onEdit={setSettings} />
-            </div>
-          ) : tab === "back" ? (
-            <div className="role-view-pane" role="tabpanel">
-              <RoleReflectionSection role={role} onEdit={setSettings} />
+              <RolePeople role={role} roles={roles} onSaved={onSaved} openRequest={peopleRequest} />
             </div>
           ) : (
             <div className="role-view-pane" role="tabpanel">

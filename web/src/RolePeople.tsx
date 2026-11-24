@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { confirmedBothWays, matchContacts, suggestRolePeople, type RolePerson } from "@core/role-people";
 import type { WorkMapRole } from "@core/work-map";
 import { BadgeCheck, Copy, Mail, Pencil, Plus, Send, UserPlus, X } from "lucide-react";
@@ -23,8 +23,9 @@ type Draft = {
 };
 
 /**
- * The people worked with on a role. Each is a My Network contact linked to the
- * role; the note and the month belong to this job. Unlinking keeps them in My Network.
+ * The people worked with on a role: its Colleagues tab. Each is a My Network
+ * contact linked to the role; the note and the month belong to this job.
+ * Unlinking keeps them in My Network.
  */
 export function RolePeople({
   role,
@@ -35,23 +36,22 @@ export function RolePeople({
   role: WorkMapRole;
   roles: WorkMapRole[];
   onSaved: () => void;
-  /** Opens the list with this person marked, as when they're picked in History. */
+  /** Marks this person in the list, as when they're picked in History. */
   openRequest?: { linkId: string; nonce: number } | null;
 }) {
-  const [open, setOpen] = useState(false);
+  // The tab is the list: it reads fresh contacts and answers when it opens.
+  const open = true;
   const [query, setQuery] = useState("");
   const [contacts, setContacts] = useState<NetworkContact[] | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [ask, setAsk] = useState<Ask | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
-  const wrapRef = useRef<HTMLDivElement>(null);
   const [marked, setMarked] = useState<string | null>(null);
   useEffect(() => {
     if (!openRequest) return;
     setDraft(null);
     setAsk(null);
-    setOpen(true);
     setMarked(openRequest.linkId);
     const timer = window.setTimeout(() => setMarked(null), 1800);
     return () => window.clearTimeout(timer);
@@ -60,7 +60,6 @@ export function RolePeople({
   const name = role.organization.trim() || role.title.trim() || "this role";
 
   useEffect(() => {
-    setOpen(false);
     setDraft(null);
     setAsk(null);
     setQuery("");
@@ -102,23 +101,14 @@ export function RolePeople({
   }, [open, role.id]);
 
   useEffect(() => {
-    if (!open) return;
-    function onDown(event: PointerEvent) {
-      if (!wrapRef.current?.contains(event.target as Node)) setOpen(false);
-    }
     function onKey(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
       if (draft) setDraft(null);
       else if (ask) setAsk(null);
-      else setOpen(false);
     }
-    document.addEventListener("pointerdown", onDown);
     document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("pointerdown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open, draft, ask]);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [draft, ask]);
 
   const linkedIds = people.map((person) => person.contactId);
   const matches = useMemo(() => matchContacts(contacts ?? [], query, linkedIds), [contacts, query, linkedIds]);
@@ -267,24 +257,9 @@ export function RolePeople({
   }
 
   return (
-    <div className="role-view-people" ref={wrapRef}>
-      {people.length > 0 ? (
-        <button type="button" className="role-view-faces" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
-          <span className="role-view-stack" aria-hidden="true">
-            {people.slice(0, 3).map((person) => (
-              <Face key={person.linkId} person={person} confirmed={person.confirmation?.status === "approved"} />
-            ))}
-          </span>
-          Worked with {people.length}
-        </button>
-      ) : (
-        <button type="button" className="role-view-text" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
-          + Colleagues
-        </button>
-      )}
-
+    <section className="role-view-section role-view-people" aria-label={`Colleagues at ${name}`}>
       {open ? (
-        <div className="role-view-pop role-people" role="dialog" aria-label={`People at ${name}`}>
+        <div className="role-view-pop role-people is-inline">
           {ask ? (
             ask.link ? (
               <div className="role-people-form">
@@ -381,7 +356,7 @@ export function RolePeople({
           ) : (
             <>
               <div className="role-people-head">
-                <h3>Worked with</h3>
+                <h2>Colleagues</h2>
                 <small>Saved in My Network</small>
               </div>
               {people.length > 0 ? (
@@ -477,7 +452,7 @@ export function RolePeople({
           )}
         </div>
       ) : null}
-    </div>
+    </section>
   );
 }
 

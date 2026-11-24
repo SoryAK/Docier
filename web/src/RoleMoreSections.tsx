@@ -51,7 +51,7 @@ function monthYear(date: string): string {
   return new Date(Number(year), Number(month) - 1, 1).toLocaleString("en-US", { month: "short", year: "numeric" });
 }
 
-/** Equipment and uniform: the role's Gear tab. */
+/** Equipment and uniform: in the role's Work setup tab, under the setup. */
 export function RoleGearSection({ role, onEdit }: { role: WorkMapRole; onEdit: (panel: RoleSettingsPanel) => void }) {
   const d = role.details;
   const items = d.equipmentItems.length ? d.equipmentItems : null;
@@ -79,7 +79,7 @@ export function RoleGearSection({ role, onEdit }: { role: WorkMapRole; onEdit: (
   );
 }
 
-/** Ratings, leaving, commute, and the place: the role's Looking back tab. */
+/** Ratings, leaving, commute, and the place: on the role's Overview. */
 export function RoleReflectionSection({ role, onEdit }: { role: WorkMapRole; onEdit: (panel: RoleSettingsPanel) => void }) {
   const d = role.details;
   const summary = reflectionSummary(d);

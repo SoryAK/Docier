@@ -9,7 +9,7 @@ describe("a role at a glance", () => {
     expect(roleGlance(details())).toEqual([]);
   });
 
-  it("names the setup, hours, manager, and rating, each with its tab, and leaves the commute to Looking back", () => {
+  it("names the setup, hours, manager, and rating, each with its tab, and leaves the commute out", () => {
     const items = roleGlance(
       details({
         schedule: { type: "full-time", workMode: "onsite", daysOnSite: null, hoursPerWeek: 40, shift: "" },
@@ -22,7 +22,7 @@ describe("a role at a glance", () => {
       { kind: "work", tab: "setup", text: "Full-time, on site" },
       { kind: "hours", tab: "setup", text: "40 h/week" },
       { kind: "manager", tab: "setup", text: "Reports to Mike Reyes" },
-      { kind: "rating", tab: "back", text: "4/5 overall" },
+      { kind: "rating", tab: "overview", text: "4/5 overall" },
     ]);
   });
 

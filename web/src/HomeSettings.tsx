@@ -210,7 +210,7 @@ const SEARCHABLE_SETTINGS: SearchableSetting[] = [
   },
   {
     panel: "publication",
-    title: "Public slug",
+    title: "Page address",
     description: "The address of the published career.",
   },
   {

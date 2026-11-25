@@ -26,7 +26,6 @@ export function HomeBar({
   menuLabel,
   onMenu,
   onSettings,
-  onEditProfile,
   onTour,
   onSearch,
   onAssist,
@@ -48,7 +47,6 @@ export function HomeBar({
   menuLabel?: string;
   onMenu: () => void;
   onSettings: (section?: "profile" | "publication") => void;
-  onEditProfile?: () => void;
   /** Starts the tour of Home again. */
   onTour?: () => void;
   onSearch: () => void;
@@ -242,7 +240,7 @@ export function HomeBar({
 
   function publishFailure(code: string | undefined) {
     if (code === "slug-required") {
-      return "Save a public slug in publication settings before publishing.";
+      return "Save a page address in Publication settings before publishing.";
     }
     if (code === "sections-required") {
       return "Choose at least one section in publication settings before publishing.";
@@ -327,7 +325,7 @@ export function HomeBar({
     if (!slug) {
       slugDraftRef.current = current.settings.slug;
       setSlugDraft(current.settings.slug);
-      setVisibilityNote("A public slug is required.");
+      setVisibilityNote("A page address is required.");
       return;
     }
     if (slug === current.settings.slug) {
@@ -337,7 +335,7 @@ export function HomeBar({
       }
       return;
     }
-    await saveSettings({ ...current.settings, slug }, "Could not save the public slug.");
+    await saveSettings({ ...current.settings, slug }, "Could not save the page address.");
   }
 
   async function chooseVisibility(value: WorkMapPublicationSettings["visibility"]) {
@@ -635,7 +633,7 @@ export function HomeBar({
                 <div className="home-sync-slug-row">
                   <div className="home-sync-slug-field">
                   <TextInput
-                    label="Public slug"
+                    label="Page address"
                     size="sm"
                     width="100%"
                     value={slugDraft}
@@ -909,19 +907,6 @@ export function HomeBar({
                   {headline ? <p className="home-user-role">{headline}</p> : null}
                 </div>
               </div>
-              {onEditProfile ? (
-                <button
-                  type="button"
-                  className="home-user-item"
-                  role="menuitem"
-                  onClick={() => {
-                    setMenu(null);
-                    onEditProfile();
-                  }}
-                >
-                  Edit profile
-                </button>
-              ) : null}
               <button
                 type="button"
                 className="home-user-item"
@@ -991,7 +976,7 @@ const VISIBILITY_OPTIONS: Array<{
 function linkGap(reason: "private" | "access-controlled" | "slug" | "origin"): string {
   if (reason === "private") return "A private career has no public link.";
   if (reason === "access-controlled") return "An access-controlled career uses its own link.";
-  if (reason === "slug") return "Save a public slug to get a link.";
+  if (reason === "slug") return "Save a page address to get a link.";
   return "The link appears once the Relay is connected.";
 }
 

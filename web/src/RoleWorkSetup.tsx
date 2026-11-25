@@ -16,7 +16,7 @@ const GEAR_ICON: Record<EquipmentCategory, LucideIcon> = {
 };
 
 /**
- * How the work was set up, and the gear: the role's Work setup tab. Each group
+ * How the work was set up, and the gear: the role's Setup tab. Each group
  * opens its own part of the role's settings.
  */
 export function RoleWorkSetup({ role, onEdit }: { role: WorkMapRole; onEdit: (panel: RoleSettingsPanel) => void }) {
@@ -37,8 +37,8 @@ export function RoleWorkSetup({ role, onEdit }: { role: WorkMapRole; onEdit: (pa
   ].filter(Boolean) as string[];
 
   return (
-    <section className="role-view-section" aria-label="Work setup">
-      <RoleGroups label="Work setup">
+    <section className="role-view-section" aria-label="Setup">
+      <RoleGroups label="Setup">
         <RoleGroup title="Schedule" panel="schedule" onEdit={onEdit} empty={hasSchedule ? null : "Add the type, hours, and where you worked"} note={schedule.shift}>
           <GroupFacts
             rows={[

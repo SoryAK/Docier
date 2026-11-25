@@ -584,7 +584,7 @@ export function WorkMapPreviewPage() {
       const body = (await response.json()) as { error?: string };
       setError(
         body.error === "slug-required"
-          ? "Save a public slug in publication settings before previewing."
+          ? "Save a page address in Publication settings before previewing."
           : body.error === "sections-required"
             ? "Choose at least one section in publication settings before previewing."
             : "Could not build the preview.",

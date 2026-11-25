@@ -1832,7 +1832,7 @@ export function PublicationSettingsPanel() {
       : embed.reason === "access-controlled"
         ? "An access-controlled career uses its own link, so there is no frame to copy."
         : embed.reason === "slug"
-          ? "Save a public slug before copying a frame."
+          ? "Save a page address before copying a frame."
           : "The frame address appears once the relay is connected.";
 
   return (
@@ -1852,9 +1852,9 @@ export function PublicationSettingsPanel() {
       </SettingsCard>
       <SettingsCard title="Snapshot">
         <SettingsRow
-          title="Public slug"
+          title="Page address"
           icon={LinkIcon}
-          control={field("Public slug", settings.slug, (slug) => patch({ slug }))}
+          control={field("Page address", settings.slug, (slug) => patch({ slug }))}
         />
         <SettingsRow
           title="Target role"

@@ -227,7 +227,7 @@ export function RoleDocuments({ role, onSaved }: { role: WorkMapRole; onSaved: (
         </button>
       ) : null}
 
-      <p className="role-group-share">Kept in Documents too. Only you see these; they never go on your page.</p>
+      <p className="role-group-share">Kept in My Docs too. Only you see these; they never go on your page.</p>
     </section>
   );
 }

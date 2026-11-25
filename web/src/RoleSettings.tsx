@@ -104,7 +104,7 @@ function groupsFor(role: WorkMapRole): { label: string; panels: PanelConfig[] }[
   ];
   if (!school) {
     groups.push({
-      label: "Work setup",
+      label: "Setup",
       panels: [
         { id: "schedule", label: "Schedule", description: "Type, hours, and where you worked.", icon: CalendarDaysIcon },
         { id: "shifts", label: "Shifts", description: "The shifts you worked, with their times.", icon: ClockIcon },

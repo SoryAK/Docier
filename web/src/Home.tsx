@@ -447,7 +447,6 @@ export function Home({
             setSettingsSection(section);
             setSettingsOpen(true);
           }}
-          onEditProfile={goProfile}
           onTour={() => setTourRequest((count) => count + 1)}
           onSearch={() => setSearchOpen(true)}
           assistant={assistant}

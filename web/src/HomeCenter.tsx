@@ -724,15 +724,18 @@ export function liveUpdates(roles: WorkMapRole[], now = new Date()): LiveUpdate[
     role.achievements.forEach((text, index) => {
       const trimmed = text.trim();
       if (!trimmed) return;
+      // Only an achievement's own month is shown; without one it has no date, as on the role.
+      const date = role.achievementDates?.[index] ?? "";
+      const when = inboxStamp(date, now);
       items.push({
         id: `${role.id}-done-${index}`,
         organization,
         kind: "Achievement",
         text: trimmed,
-        stamp,
-        frame,
-        when: role.startDate,
-        ownDate: false,
+        stamp: when,
+        frame: when || frame,
+        when: when ? date : role.startDate,
+        ownDate: Boolean(when),
       });
     });
     return items;

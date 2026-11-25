@@ -496,3 +496,85 @@ describe("changing many tools at once", () => {
     expect(screen.getByRole("button", { name: "Open Drill" })).toBeTruthy();
   });
 });
+
+describe("small touches", () => {
+  it("changes whose it is from the card and keeps the draft mark", async () => {
+    const user = userEvent.setup();
+    const { container } = render(<ToolsPage />);
+    await screen.findByRole("button", { name: "Add a tool" });
+    await user.upload(pageFiles(container), photo("saw.png"));
+    await screen.findByRole("complementary", { name: "saw" });
+    window.location.hash = "#/tools";
+    await user.selectOptions(await screen.findByLabelText("Whose saw is"), "borrowed");
+    await waitFor(async () => expect((await server.tools())[0]).toMatchObject({ ownership: "borrowed", draft: true }));
+    expect(screen.getByText("Needs details", { selector: ".tools-draft" })).toBeTruthy();
+  });
+
+  it("changes condition from the card", async () => {
+    await addToolThroughApi("Drill");
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    const menu = (await screen.findByLabelText("Condition of Drill")) as HTMLSelectElement;
+    expect(menu.selectedOptions[0]!.textContent).toBe("Condition?");
+    await user.selectOptions(menu, "fair");
+    await waitFor(async () => expect((await server.tools())[0]!.condition).toBe("fair"));
+    expect(menu.value).toBe("fair");
+  });
+
+  it("a failed card change goes back", async () => {
+    await addToolThroughApi("Drill");
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    const menu = (await screen.findByLabelText("Whose Drill is")) as HTMLSelectElement;
+    server.failWhen((method, path) => method === "POST" && path === "/api/tools/bulk");
+    await user.selectOptions(menu, "rented");
+    expect((await screen.findByRole("alert")).textContent).toBe("Couldn't save. Try again.");
+    expect(menu.value).toBe("mine");
+    expect((await server.tools())[0]!.ownership).toBe("mine");
+  });
+
+  it("hides the card menus while choosing", async () => {
+    await addToolThroughApi("Drill");
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await screen.findByLabelText("Whose Drill is");
+    await user.click(screen.getByRole("button", { name: "Select" }));
+    expect(screen.queryByLabelText("Whose Drill is")).toBeNull();
+    expect(screen.queryByLabelText("Condition of Drill")).toBeNull();
+  });
+
+  it("marks what matches the search", async () => {
+    await addToolThroughApi("Fluke 87V", { maker: "Fluke", tags: ["fluid"] });
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await user.type(await screen.findByRole("searchbox"), "flu");
+    const card = screen.getByRole("button", { name: "Open Fluke 87V" });
+    expect([...card.querySelectorAll("mark")].map((mark) => mark.textContent)).toEqual(["Flu", "Flu", "flu"]);
+  });
+
+  it("slash goes to search and n opens a new tool", async () => {
+    await addToolThroughApi("Drill");
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await screen.findByLabelText("Whose Drill is");
+    await user.keyboard("/");
+    expect(document.activeElement).toBe(screen.getByRole("searchbox"));
+    expect((screen.getByRole("searchbox") as HTMLInputElement).value).toBe("");
+    (document.activeElement as HTMLElement).blur();
+    await user.keyboard("n");
+    await screen.findByRole("complementary", { name: "New tool" });
+    expect(screen.getByRole("button", { name: "Add a tool" }).getAttribute("title")).toBe("Add a tool (N)");
+  });
+
+  it("shortcuts don't fire while typing", async () => {
+    await addToolThroughApi("Drill");
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await user.type(await screen.findByRole("searchbox"), "n/");
+    expect((screen.getByRole("searchbox") as HTMLInputElement).value).toBe("n/");
+    expect(window.location.hash).toBe("#/tools");
+    (document.activeElement as HTMLElement).blur();
+    await user.keyboard("{Control>}n{/Control}");
+    expect(window.location.hash).toBe("#/tools");
+  });
+});

@@ -2,11 +2,16 @@ import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { Check, Download, ImagePlus, ListChecks, Plus, Search, Wrench } from "lucide-react";
 import { EQUIPMENT_CATEGORIES, EQUIPMENT_CATEGORY_LABEL, type EquipmentCategory } from "@core/role-gear";
 import {
+  TOOL_CONDITIONS,
+  TOOL_CONDITION_LABEL,
+  TOOL_OWNERSHIPS,
   TOOL_OWNERSHIP_LABEL,
   filterTools,
+  matchParts,
   toolPhotoProblem,
   toolTotals,
   toolsCsv,
+  type BulkChange,
   type PersonalTool,
   type ToolKit,
 } from "@core/personal-tools";
@@ -60,6 +65,23 @@ function totalsLine(tools: PersonalTool[]): string {
     .join(" · ");
 }
 
+/** Text with the parts that match the search marked. */
+function Highlight({ text, query }: { text: string; query: string }) {
+  return (
+    <>
+      {matchParts(text, query).map((part, index) => (part.match ? <mark key={index}>{part.text}</mark> : part.text))}
+    </>
+  );
+}
+
+/** Typing in a field, or a dialog open: page shortcuts stay out of the way. */
+function shortcutBlocked(event: KeyboardEvent): boolean {
+  if (event.ctrlKey || event.metaKey || event.altKey || event.defaultPrevented) return true;
+  const target = event.target as HTMLElement | null;
+  if (target?.closest?.("input, textarea, select, [contenteditable=''], [contenteditable='true']")) return true;
+  return Boolean(document.querySelector("[role='dialog']"));
+}
+
 /**
  * My Tools: your own tools and equipment, as a grid of cards with a panel for
  * adding and changing one. Add from photos turns each photo into a draft.
@@ -81,6 +103,9 @@ export function ToolsPage() {
   const [choosing, setChoosing] = useState(false);
   const [picked, setPicked] = useState<string[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  // The card whose quick change didn't save.
+  const [quickFailed, setQuickFailed] = useState<string | null>(null);
   // A tool added in the panel keeps that panel (and what it says) once saved.
   const [adopted, setAdopted] = useState<string | null>(null);
   // The card a tool was opened from gets focus back when its panel closes.
@@ -146,6 +171,44 @@ export function ToolsPage() {
     if (open && choosing) stopChoosing();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  function addTool() {
+    // A fresh panel: the tool added last time is no longer "the new one".
+    setAdopted(null);
+    openTool("new");
+  }
+
+  // `/` goes to search; `n` adds a tool.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (shortcutBlocked(event)) return;
+      if (event.key === "/" && searchRef.current) {
+        event.preventDefault();
+        searchRef.current.focus();
+      } else if (event.key === "n" || event.key === "N") {
+        event.preventDefault();
+        addTool();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+
+  /** Changes one field of one tool from its card. Only that field changes, so a draft stays a draft. */
+  async function quickChange(tool: PersonalTool, change: BulkChange) {
+    setQuickFailed(null);
+    try {
+      const response = await fetch("/api/tools/bulk", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ids: [tool.id], change }),
+      });
+      if (!response.ok) throw new Error("quick");
+      bulkDone((await response.json()) as BulkResult);
+    } catch {
+      setQuickFailed(tool.id);
+    }
+  }
 
   function bulkDone(result: BulkResult) {
     const changed = new Map(result.tools.map((tool) => [tool.id, tool]));
@@ -294,11 +357,8 @@ export function ToolsPage() {
           <button
             type="button"
             className="tools-btn is-primary"
-            onClick={() => {
-              // A fresh panel: the tool added last time is no longer "the new one".
-              setAdopted(null);
-              openTool("new");
-            }}
+            title="Add a tool (N)"
+            onClick={addTool}
           >
             <Plus size={16} aria-hidden="true" />
             Add a tool
@@ -341,7 +401,16 @@ export function ToolsPage() {
             <label className="tools-search">
               <Search size={15} aria-hidden="true" />
               <span className="sr-only">Search tools</span>
-              <input type="search" placeholder="Name, maker, model, or tag" value={query} onChange={(event) => setQuery(event.target.value)} />
+              <input
+                ref={searchRef}
+                type="search"
+                placeholder="Name, maker, model, or tag"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+              <kbd className="tools-search-key" title="Press / to search" aria-hidden="true">
+                /
+              </kbd>
             </label>
             {(["all", ...categories] as const).map((key) => (
               <button
@@ -420,15 +489,58 @@ export function ToolsPage() {
                       {tool.draft ? <span className="tools-draft">Needs details</span> : null}
                     </span>
                     <span className="tools-card-body">
-                      <strong>{tool.name}</strong>
-                      <span className="tools-muted">{[tool.maker, tool.model].filter(Boolean).join(" · ") || "No maker or model yet"}</span>
+                      <strong>
+                        <Highlight text={tool.name} query={query} />
+                      </strong>
+                      <span className="tools-muted">
+                        {[tool.maker, tool.model].filter(Boolean).length ? (
+                          <Highlight text={[tool.maker, tool.model].filter(Boolean).join(" · ")} query={query} />
+                        ) : (
+                          "No maker or model yet"
+                        )}
+                      </span>
                       <span className="tools-tags">
-                        <span>{TOOL_OWNERSHIP_LABEL[tool.ownership]}</span>
                         <span>{EQUIPMENT_CATEGORY_LABEL[tool.category]}</span>
+                        {tool.tags.map((tag) => (
+                          <span key={tag} className="is-own">
+                            <Highlight text={tag} query={query} />
+                          </span>
+                        ))}
                       </span>
                       <span className="tools-muted">{used.length ? `Used at ${used.join(", ")}` : "Not linked to a role"}</span>
                     </span>
                   </button>
+                  {choosing ? null : (
+                    <div className="tools-card-quick">
+                      <select
+                        aria-label={`Whose ${tool.name} is`}
+                        value={tool.ownership}
+                        onChange={(event) => void quickChange(tool, { kind: "ownership", ownership: event.target.value as never })}
+                      >
+                        {TOOL_OWNERSHIPS.map((key) => (
+                          <option key={key} value={key}>
+                            {TOOL_OWNERSHIP_LABEL[key]}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        aria-label={`Condition of ${tool.name}`}
+                        value={tool.condition}
+                        onChange={(event) => void quickChange(tool, { kind: "condition", condition: event.target.value as never })}
+                      >
+                        {TOOL_CONDITIONS.map((key) => (
+                          <option key={key || "none"} value={key}>
+                            {key ? TOOL_CONDITION_LABEL[key] : tool.condition ? "Not set" : "Condition?"}
+                          </option>
+                        ))}
+                      </select>
+                      {quickFailed === tool.id ? (
+                        <span className="tool-field-error" role="alert">
+                          Couldn't save. Try again.
+                        </span>
+                      ) : null}
+                    </div>
+                  )}
                 </li>
               );
             })}

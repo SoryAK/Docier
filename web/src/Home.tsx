@@ -407,6 +407,10 @@ export function Home({
         onPlace={openSearchPlace}
         onRole={openSearchRole}
         onUpdate={openSearchUpdate}
+        onTool={(id) => {
+          setEditing(false);
+          window.location.hash = `#/tools/${encodeURIComponent(id)}`;
+        }}
       />
       <HomeSettings
         open={settingsOpen}

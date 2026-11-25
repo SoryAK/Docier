@@ -611,3 +611,68 @@
     border-left: 0;
   }
 }
+
+/* ---- On a role's Setup: your own tools used there ---- */
+.role-own-tools-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.role-own-tools-list a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px;
+  border-radius: 8px;
+  color: #171717;
+  text-decoration: none;
+}
+
+.role-own-tools-list a:hover {
+  background: #f4f4f5;
+}
+
+.role-own-tools-list strong {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.role-own-tools-list small {
+  color: #6b6b70;
+  font-size: 0.75rem;
+}
+
+.role-own-tools-thumb {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  overflow: hidden;
+  border-radius: 7px;
+  background: #efebe5;
+  color: #8a8a90;
+}
+
+.role-own-tools-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.role-own-tools-more {
+  display: inline-block;
+  margin: 4px 6px 0;
+  color: #6b6b70;
+  font-size: 0.78rem;
+  text-decoration: none;
+}
+
+.role-own-tools .role-edit {
+  text-decoration: none;
+}

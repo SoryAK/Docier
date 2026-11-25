@@ -103,7 +103,6 @@ export function ToolPanel({
     if (window.matchMedia("(max-width: 800px)").matches) panelRef.current?.scrollIntoView({ block: "start" });
     if (!tool) nameRef.current?.focus({ preventScroll: true });
     // Only when the panel opens.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   // Previews of photos not yet uploaded are let go when the panel closes.
   const pendingRef = useRef(pending);

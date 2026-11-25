@@ -4,6 +4,8 @@ import type { SearchableItem, SearchSource } from "@astryxdesign/core/Typeahead"
 import { formatHistoryPlace } from "@core/career-history";
 import type { WorkMapRole } from "@core/work-map";
 import { roleSearchEntries, type RoleSearchTarget } from "@core/role-search";
+import { EQUIPMENT_CATEGORY_LABEL } from "@core/role-gear";
+import { TOOL_OWNERSHIP_LABEL, toolSearchText, type PersonalTool } from "@core/personal-tools";
 import { liveUpdates } from "./HomeCenter";
 
 const PLACES = [
@@ -29,6 +31,7 @@ export function HomeSearch({
   onPlace,
   onRole,
   onUpdate,
+  onTool,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -36,8 +39,11 @@ export function HomeSearch({
   /** Opens a role, at the thing that was found in it when there is one. */
   onRole: (id: string, target?: RoleSearchTarget) => void;
   onUpdate: (id: string, roleId: string) => void;
+  /** Opens a tool in My Tools. */
+  onTool: (id: string) => void;
 }) {
   const [roles, setRoles] = useState<WorkMapRole[]>([]);
+  const [tools, setTools] = useState<PersonalTool[]>([]);
 
   useEffect(() => {
     if (!open) return;
@@ -48,9 +54,15 @@ export function HomeSearch({
         setRoles(body.roles ?? []);
       })
       .catch(() => setRoles([]));
+    void fetch("/api/tools")
+      .then(async (response) => {
+        if (!response.ok) return;
+        setTools(((await response.json()) as { tools?: PersonalTool[] }).tools ?? []);
+      })
+      .catch(() => setTools([]));
   }, [open]);
 
-  const palette = useMemo(() => buildPalette(roles), [roles]);
+  const palette = useMemo(() => buildPalette(roles, tools), [roles, tools]);
   const targets = useMemo(
     () => new Map(roles.flatMap((role) => roleSearchEntries(role)).map((entry) => [entry.id, entry])),
     [roles],
@@ -65,6 +77,7 @@ export function HomeSearch({
       return;
     }
     if (kind === "role") onRole(target);
+    if (kind === "tool") onTool(target);
     if (kind === "inside") {
       const entry = targets.get(target);
       if (entry) onRole(entry.roleId, entry.target);
@@ -94,7 +107,7 @@ export function HomeSearch({
   );
 }
 
-function buildPalette(roles: WorkMapRole[]): SearchSource<PaletteHit> {
+function buildPalette(roles: WorkMapRole[], tools: PersonalTool[]): SearchSource<PaletteHit> {
   const places: PaletteHit[] = PLACES.map((item) => ({
     id: `place:${item.id}`,
     label: item.label,
@@ -136,7 +149,16 @@ function buildPalette(roles: WorkMapRole[]): SearchSource<PaletteHit> {
       auxiliaryData: { group: entry.group, detail: entry.detail, haystack: `${entry.label} ${entry.detail}` },
     })),
   );
-  const all = [...places, ...roleHits, ...insideHits, ...updateHits];
+  const toolHits: PaletteHit[] = tools.map((tool) => ({
+    id: `tool:${tool.id}`,
+    label: tool.name,
+    auxiliaryData: {
+      group: "Tools",
+      detail: `${TOOL_OWNERSHIP_LABEL[tool.ownership]} · ${EQUIPMENT_CATEGORY_LABEL[tool.category]}`,
+      haystack: toolSearchText(tool),
+    },
+  }));
+  const all = [...places, ...roleHits, ...insideHits, ...toolHits, ...updateHits];
   return {
     bootstrap: () => places,
     search: (query) => {

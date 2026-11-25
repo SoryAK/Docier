@@ -689,7 +689,7 @@
 /*
  * Wide screens: the cards sit in a centred band with room around them, a clear
  * gap between each, and the role about twice its side column's width. The top
- * bar keeps the full width.
+ * bar spans the same band.
  */
 @media (min-width: 1280px) {
   .home-sheet.is-home {
@@ -697,10 +697,6 @@
     margin: 0 0 1rem;
     padding-inline: var(--home-gutter);
     row-gap: 1rem;
-  }
-
-  .home-sheet.is-home > .home-bar {
-    margin-inline: calc(0.75rem - var(--home-gutter));
   }
 
   .home-sheet.is-home:has(.pch) {
@@ -755,10 +751,12 @@
   }
 }
 
+/* The top bar lines up with the cards: its first and last buttons sit on their outer edges. */
 .home-sheet > .home-bar {
   grid-column: 1 / -1;
   grid-row: 1;
   margin: 0 0 -0.5rem;
+  padding-inline: 0;
 }
 
 .home-public-preview {

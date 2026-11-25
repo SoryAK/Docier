@@ -649,4 +649,50 @@ describe("small touches", () => {
     expect((await screen.findByRole("button", { name: "Open Drill" })).textContent).toMatch(/Makita/);
     expect(screen.getByRole("button", { name: "Open Saw" }).textContent).not.toMatch(/No maker or model/);
   });
+
+  it("shows the category only when it isn't Tool", async () => {
+    await addToolThroughApi("Drill");
+    await addToolThroughApi("Hard hat", { category: "safety" });
+    render(<ToolsPage />);
+    const drill = await screen.findByRole("button", { name: "Open Drill" });
+    expect(drill.querySelector(".tools-tags")?.textContent ?? "").not.toMatch(/Tool/);
+    expect(screen.getByRole("button", { name: "Open Hard hat" }).querySelector(".tools-tags")?.textContent).toMatch(/Safety/);
+  });
+
+  it("counts photos only when there's more than one", async () => {
+    const one = await addToolThroughApi("Drill");
+    const two = await addToolThroughApi("Saw");
+    const send = (id: string, names: string[]) => {
+      const form = new FormData();
+      for (const name of names) form.append("photos", photo(name));
+      return fetch(`/api/tools/${id}/photos`, { method: "POST", body: form });
+    };
+    await send(one, ["a.png"]);
+    await send(two, ["b.png", "c.png"]);
+    render(<ToolsPage />);
+    expect((await screen.findByRole("button", { name: "Open Drill" })).textContent).not.toMatch(/1 photo/);
+    expect(screen.getByRole("button", { name: "Open Saw" }).textContent).toMatch(/2 photos/);
+  });
+
+  it("keeps the kits row out of the way until there's a kit", async () => {
+    await addToolThroughApi("Drill");
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await screen.findByRole("button", { name: "Open Drill" });
+    expect(screen.queryByRole("group", { name: "Kits" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "All tools" })).toBeNull();
+
+    // + New kit sits with the page's buttons, and opens the name field.
+    await user.click(screen.getByRole("button", { name: "+ New kit" }));
+    const field = screen.getByRole("textbox", { name: "Kit name" });
+    expect(document.activeElement).toBe(field);
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("textbox", { name: "Kit name" })).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "+ New kit" }));
+    await user.type(screen.getByRole("textbox", { name: "Kit name" }), "Van{Enter}");
+    expect(await screen.findByRole("group", { name: "Kits" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "All tools" })).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "+ New kit" })).toHaveLength(1);
+  });
 });

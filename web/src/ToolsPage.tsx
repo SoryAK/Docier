@@ -108,6 +108,9 @@ export function ToolsPage() {
   const [picked, setPicked] = useState<string[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  // With no kits yet, "+ New kit" sits with the page's buttons and asks the kits row to open its name field.
+  const [newKitRequest, setNewKitRequest] = useState(0);
+  const newKitRef = useRef<HTMLButtonElement>(null);
   // The card whose quick change didn't save.
   const [quickFailed, setQuickFailed] = useState<string | null>(null);
   // A tool added in the panel keeps that panel (and what it says) once saved.
@@ -350,6 +353,11 @@ export function ToolsPage() {
               Select
             </button>
           ) : null}
+          {all.length > 0 && kits.length === 0 ? (
+            <button ref={newKitRef} type="button" className="tools-btn" onClick={() => setNewKitRequest((count) => count + 1)}>
+              + New kit
+            </button>
+          ) : null}
           {all.length > 0 ? (
             <button type="button" className="tools-btn" disabled={visible.length === 0} onClick={exportCsv}>
               <Download size={16} aria-hidden="true" />
@@ -393,6 +401,8 @@ export function ToolsPage() {
             tools={all}
             selected={kit}
             onSelect={setKit}
+            newKitRequest={newKitRequest}
+            onNamingClosed={() => newKitRef.current?.focus()}
             onKits={(next, deleted) => {
               setKits(next);
               if (deleted) {
@@ -489,9 +499,8 @@ export function ToolsPage() {
                         </span>
                       ) : null}
                       {cover ? <FramedPhoto photo={cover} /> : <Wrench size={30} aria-hidden="true" />}
-                      {tool.photos.length ? (
-                        <span className="tools-count">{tool.photos.length === 1 ? "1 photo" : `${tool.photos.length} photos`}</span>
-                      ) : null}
+                      {/* One photo is what the cover shows; a count says there are more. */}
+                      {tool.photos.length > 1 ? <span className="tools-count">{tool.photos.length} photos</span> : null}
                       {tool.draft ? <span className="tools-draft">Needs details</span> : null}
                     </span>
                     <span className="tools-card-body">
@@ -503,14 +512,17 @@ export function ToolsPage() {
                           <Highlight text={[tool.maker, tool.model].filter(Boolean).join(" · ")} query={query} />
                         </span>
                       ) : null}
-                      <span className="tools-tags">
-                        <span>{EQUIPMENT_CATEGORY_LABEL[tool.category]}</span>
-                        {tool.tags.map((tag) => (
-                          <span key={tag} className="is-own">
-                            <Highlight text={tag} query={query} />
-                          </span>
-                        ))}
-                      </span>
+                      {/* Most tools are tools: the category shows only when it says something. */}
+                      {tool.category !== "tool" || tool.tags.length ? (
+                        <span className="tools-tags">
+                          {tool.category !== "tool" ? <span>{EQUIPMENT_CATEGORY_LABEL[tool.category]}</span> : null}
+                          {tool.tags.map((tag) => (
+                            <span key={tag} className="is-own">
+                              <Highlight text={tag} query={query} />
+                            </span>
+                          ))}
+                        </span>
+                      ) : null}
                       {used.length ? <span className="tools-muted">Used at {used.join(", ")}</span> : null}
                     </span>
                   </button>

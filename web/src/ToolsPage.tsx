@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
-import { Download, ImagePlus, Plus, Search, Wrench } from "lucide-react";
+import { Check, Download, ImagePlus, ListChecks, Plus, Search, Wrench } from "lucide-react";
 import { EQUIPMENT_CATEGORIES, EQUIPMENT_CATEGORY_LABEL, type EquipmentCategory } from "@core/role-gear";
 import {
   TOOL_OWNERSHIP_LABEL,
@@ -10,6 +10,7 @@ import {
   type PersonalTool,
   type ToolKit,
 } from "@core/personal-tools";
+import { ToolBulkBar, type BulkResult } from "./ToolBulkBar";
 import { ToolKits } from "./ToolKits";
 import { FramedPhoto } from "./ToolPhotoFrame";
 import { ToolPanel, type ToolRoleChoice } from "./ToolPanel";
@@ -76,6 +77,9 @@ export function ToolsPage() {
   const [note, setNote] = useState<{ added: number; skipped: string[] } | null>(null);
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
+  // Choosing: a click picks a card instead of opening it, for changing many at once.
+  const [choosing, setChoosing] = useState(false);
+  const [picked, setPicked] = useState<string[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
   // A tool added in the panel keeps that panel (and what it says) once saved.
   const [adopted, setAdopted] = useState<string | null>(null);
@@ -122,6 +126,28 @@ export function ToolsPage() {
       })
       .catch(() => setKits([]));
   }, []);
+
+  function stopChoosing() {
+    setChoosing(false);
+    setPicked([]);
+  }
+
+  useEffect(() => {
+    if (!choosing) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !event.defaultPrevented) stopChoosing();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [choosing]);
+
+  function bulkDone(result: BulkResult) {
+    const changed = new Map(result.tools.map((tool) => [tool.id, tool]));
+    const gone = new Set(result.deleted);
+    setTools((list) => (list ?? []).filter((tool) => !gone.has(tool.id)).map((tool) => changed.get(tool.id) ?? tool));
+    if (gone.size) setPicked((ids) => ids.filter((id) => !gone.has(id)));
+    if (result.kit) setKits((list) => [...list, result.kit!].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" })));
+  }
 
   const all = tools ?? [];
   const visible = useMemo(
@@ -232,6 +258,24 @@ export function ToolsPage() {
             onChange={(event) => void addFromPhotos(event.target.files)}
           />
           {all.length > 0 ? (
+            <button
+              type="button"
+              className="tools-btn"
+              aria-pressed={choosing}
+              onClick={() => {
+                if (choosing) {
+                  stopChoosing();
+                  return;
+                }
+                setChoosing(true);
+                openTool(null);
+              }}
+            >
+              <ListChecks size={16} aria-hidden="true" />
+              Select
+            </button>
+          ) : null}
+          {all.length > 0 ? (
             <button type="button" className="tools-btn" disabled={visible.length === 0} onClick={exportCsv}>
               <Download size={16} aria-hidden="true" />
               Export CSV
@@ -313,6 +357,17 @@ export function ToolsPage() {
           </div>
         ) : null}
 
+        {choosing && all.length > 0 ? (
+          <ToolBulkBar
+            picked={picked}
+            shownIds={visible.map((tool) => tool.id)}
+            kits={kits}
+            tools={all}
+            onPick={setPicked}
+            onDone={bulkDone}
+          />
+        ) : null}
+
         {failed ? (
           <p className="tools-empty">Your tools couldn't be loaded. Reload the page to try again.</p>
         ) : tools === null ? (
@@ -330,17 +385,28 @@ export function ToolsPage() {
             {visible.map((tool) => {
               const cover = tool.photos.find((photo) => photo.cover) ?? tool.photos[0];
               const used = tool.roleIds.map(roleName).filter(Boolean);
+              const isPicked = picked.includes(tool.id);
               return (
                 <li key={tool.id}>
                   <button
                     type="button"
-                    className="tools-card"
-                    aria-label={`Open ${tool.name}`}
+                    className={["tools-card", isPicked ? "is-picked" : ""].filter(Boolean).join(" ")}
+                    aria-label={choosing ? `Pick ${tool.name}` : `Open ${tool.name}`}
+                    aria-pressed={choosing ? isPicked : undefined}
                     data-tool-id={tool.id}
-                    aria-current={open === tool.id ? "true" : undefined}
-                    onClick={() => openTool(tool.id)}
+                    aria-current={!choosing && open === tool.id ? "true" : undefined}
+                    onClick={() =>
+                      choosing
+                        ? setPicked((ids) => (ids.includes(tool.id) ? ids.filter((id) => id !== tool.id) : [...ids, tool.id]))
+                        : openTool(tool.id)
+                    }
                   >
                     <span className="tools-cover">
+                      {choosing ? (
+                        <span className="tools-pick" aria-hidden="true">
+                          {isPicked ? <Check size={14} /> : null}
+                        </span>
+                      ) : null}
                       {cover ? <FramedPhoto photo={cover} /> : <Wrench size={30} aria-hidden="true" />}
                       {tool.photos.length ? (
                         <span className="tools-count">{tool.photos.length === 1 ? "1 photo" : `${tool.photos.length} photos`}</span>

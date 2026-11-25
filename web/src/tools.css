@@ -83,6 +83,11 @@
   background: #2b2b2e;
 }
 
+.tools-btn[aria-pressed="true"] {
+  border-color: #cd9f5b;
+  background: #fbf6ee;
+}
+
 .tools-btn:disabled {
   cursor: default;
   opacity: 0.6;
@@ -916,4 +921,100 @@
   width: 100cqh;
   height: 100cqw;
   translate: -50% -50%;
+}
+
+/* Changing many tools at once: the bar shown while choosing. */
+.tools-bulk {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid #e8d8bd;
+  border-radius: 10px;
+  background: #fbf6ee;
+}
+
+.tools-bulk-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  font-size: 0.8125rem;
+}
+
+.tools-bulk-row strong {
+  font-weight: 600;
+}
+
+.tools-bulk select,
+.tools-bulk input {
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid #d4d4d8;
+  border-radius: 8px;
+  background: #fff;
+  color: #171717;
+  font: inherit;
+  font-size: 0.8125rem;
+}
+
+.tools-bulk input {
+  width: 150px;
+}
+
+.tools-bulk .tools-btn {
+  height: 32px;
+}
+
+.tools-bulk-tags {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tools-btn.is-danger {
+  border-color: #f0c4bf;
+  color: #b42318;
+}
+
+.tools-bulk-confirm .tools-btn.is-danger {
+  border-color: #b42318;
+  background: #b42318;
+  color: #fff;
+}
+
+.tools-bulk-status:empty {
+  display: none;
+}
+
+.tools-bulk-status {
+  margin: 0;
+  color: #3f3f46;
+  font-size: 0.8125rem;
+}
+
+.tools-card.is-picked {
+  border-color: #cd9f5b;
+  box-shadow: 0 0 0 2px #f6ead3;
+}
+
+/* The pick box, in the cover's top-left corner while choosing. */
+.tools-pick {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid #a1a1aa;
+  border-radius: 5px;
+  background: #fff;
+  color: #fff;
+}
+
+.tools-card.is-picked .tools-pick {
+  border-color: #b07f3a;
+  background: #b07f3a;
 }

@@ -293,3 +293,152 @@ describe("photo framing", () => {
     expect((await framing()).framing).toMatchObject({ rotation: 0 });
   });
 });
+
+describe("changing many tools at once", () => {
+  const bar = () => screen.getByRole("toolbar", { name: "Picked tools" });
+  const status = () => within(bar()).getByRole("status");
+
+  async function choose(user: ReturnType<typeof userEvent.setup>, ...names: string[]) {
+    await user.click(await screen.findByRole("button", { name: "Select" }));
+    for (const name of names) await user.click(screen.getByRole("button", { name: `Pick ${name}` }));
+  }
+
+  it("picks tools and sets whose it is", async () => {
+    await addToolThroughApi("Drill");
+    await addToolThroughApi("Saw");
+    await addToolThroughApi("Ladder");
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await choose(user, "Drill", "Saw");
+    expect(within(bar()).getByText("2 picked")).toBeTruthy();
+
+    await user.selectOptions(within(bar()).getByLabelText("Set whose it is"), "borrowed");
+    await waitFor(() => expect(status().textContent).toBe("2 tools changed."));
+    const byName = Object.fromEntries((await server.tools()).map((tool) => [tool.name, tool.ownership]));
+    expect(byName).toEqual({ Drill: "borrowed", Saw: "borrowed", Ladder: "mine" });
+    // The picks stay for a second change.
+    expect(within(bar()).getByText("2 picked")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Pick Drill" }).getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("a click picks instead of opening while choosing", async () => {
+    await addToolThroughApi("Drill");
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await choose(user, "Drill");
+    expect(window.location.hash).toBe("#/tools");
+    expect(screen.queryByRole("complementary")).toBeNull();
+  });
+
+  it("closes an open tool when choosing starts", async () => {
+    const id = await addToolThroughApi("Drill");
+    window.location.hash = `#/tools/${id}`;
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await screen.findByRole("complementary", { name: "Drill" });
+    await user.click(screen.getByRole("button", { name: "Select" }));
+    await waitFor(() => expect(screen.queryByRole("complementary")).toBeNull());
+  });
+
+  it("hidden picks are counted and changed", async () => {
+    await addToolThroughApi("Drill");
+    await addToolThroughApi("Saw");
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await choose(user, "Drill", "Saw");
+    await user.type(screen.getByRole("searchbox"), "Drill");
+    expect(within(bar()).getByText("2 picked, 1 not shown")).toBeTruthy();
+
+    await user.selectOptions(within(bar()).getByLabelText("Set condition"), "good");
+    await waitFor(() => expect(status().textContent).toBe("2 tools changed."));
+    expect((await server.tools()).map((tool) => tool.condition)).toEqual(["good", "good"]);
+  });
+
+  it("picks all shown, and clears", async () => {
+    await addToolThroughApi("Drill");
+    await addToolThroughApi("Saw");
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await choose(user);
+    await user.click(within(bar()).getByRole("button", { name: "Pick all shown (2)" }));
+    expect(within(bar()).getByText("2 picked")).toBeTruthy();
+    await user.click(within(bar()).getByRole("button", { name: "Clear" }));
+    expect(within(bar()).getByText("0 picked")).toBeTruthy();
+  });
+
+  it("adds and removes tags", async () => {
+    await addToolThroughApi("Drill", { tags: ["Shop"] });
+    await addToolThroughApi("Saw");
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await choose(user, "Drill", "Saw");
+    await user.type(within(bar()).getByLabelText("Tags to add"), "Truck, Van");
+    await user.click(within(bar()).getByRole("button", { name: "Add tags" }));
+    await waitFor(() => expect(status().textContent).toBe("2 tools changed."));
+    expect((await server.tools()).map((tool) => [tool.name, tool.tags])).toEqual([
+      ["Saw", ["Truck", "Van"]],
+      ["Drill", ["Shop", "Truck", "Van"]],
+    ]);
+
+    await user.selectOptions(within(bar()).getByLabelText("Remove a tag"), "Truck");
+    await waitFor(async () => expect((await server.tools()).map((tool) => tool.tags)).toEqual([["Van"], ["Shop", "Van"]]));
+  });
+
+  it("adds the picked tools to a new kit, and takes them out", async () => {
+    await addToolThroughApi("Drill");
+    await addToolThroughApi("Saw");
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await choose(user, "Drill", "Saw");
+    await user.selectOptions(within(bar()).getByLabelText("Add to a kit"), "new");
+    await user.type(within(bar()).getByLabelText("New kit name"), "Truck toolbox{Enter}");
+    await waitFor(() => expect(status().textContent).toBe("2 tools moved to Truck toolbox."));
+    expect(screen.getByRole("button", { name: /Truck toolbox\s*2/ })).toBeTruthy();
+
+    await user.selectOptions(within(bar()).getByLabelText("Take out of a kit"), "Truck toolbox");
+    await waitFor(() => expect(status().textContent).toBe("2 tools taken out of Truck toolbox."));
+    expect((await server.tools()).every((tool) => tool.kitIds.length === 0)).toBe(true);
+  });
+
+  it("deletes after asking", async () => {
+    await addToolThroughApi("Drill");
+    await addToolThroughApi("Saw");
+    await addToolThroughApi("Ladder");
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await choose(user, "Drill", "Saw");
+    await user.click(within(bar()).getByRole("button", { name: "Delete" }));
+    expect(within(bar()).getByText("Delete 2 tools? Their photos go too.")).toBeTruthy();
+    await user.click(within(bar()).getByRole("button", { name: "Keep" }));
+    expect((await server.tools())).toHaveLength(3);
+
+    await user.click(within(bar()).getByRole("button", { name: "Delete" }));
+    await user.click(within(bar()).getByRole("button", { name: "Delete 2 tools" }));
+    await waitFor(() => expect(status().textContent).toBe("2 tools deleted."));
+    expect((await server.tools()).map((tool) => tool.name)).toEqual(["Ladder"]);
+    expect(within(bar()).getByText("0 picked")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Pick Drill" })).toBeNull();
+  });
+
+  it("a failed change says nothing changed", async () => {
+    await addToolThroughApi("Drill");
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await choose(user, "Drill");
+    server.failWhen((method, path) => method === "POST" && path === "/api/tools/bulk");
+    await user.selectOptions(within(bar()).getByLabelText("Set category"), "safety");
+    expect((await within(bar()).findByRole("alert")).textContent).toBe("The change couldn't be saved. Nothing was changed.");
+    expect(within(bar()).getByText("1 picked")).toBeTruthy();
+  });
+
+  it("Escape stops choosing", async () => {
+    await addToolThroughApi("Drill");
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await choose(user, "Drill");
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("toolbar", { name: "Picked tools" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Select" }).getAttribute("aria-pressed")).toBe("false");
+    expect(screen.getByRole("button", { name: "Open Drill" })).toBeTruthy();
+  });
+});

@@ -37,7 +37,11 @@ whatever page you're on, the way a site's help chat floats in the corner.
   the bar, its restore button, or the chat icon brings it back as it was. The ▾
   menu offers "Restore chat".
 - **Closed panel:** the main card takes its width.
-- Docked chat is exactly as wide as History, so switching doesn't move anything.
+- Switching between History and Chat moves nothing else. On screens wider than
+  800 px, docked chat lies over History's own place, which stays laid out
+  underneath and hidden. Chat follows that place's position and size, and is
+  cut off at the center card's edges when History sits below the main content
+  and scrolls. On phones, docked chat takes a row of its own as before.
 - The last state (where chat is, how it was last open, the panel's tab, whether
   the panel is open, whether chat is minimized, and the popped-out position and
   size) is remembered in the browser.

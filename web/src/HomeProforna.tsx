@@ -53,6 +53,7 @@ export function HomeProforna({
   float = null,
   size = null,
   minimized = false,
+  overRail = false,
   onAssist,
   onMove,
   onResize,
@@ -74,6 +75,8 @@ export function HomeProforna({
   size?: { width: number; height: number } | null;
   /** The popped-out chat is down to a bar at the bottom right. */
   minimized?: boolean;
+  /** Docked chat lies over History's place in the center, following its size. */
+  overRail?: boolean;
   onResize: (box: { x: number; y: number; width: number; height: number }) => void;
   /** The other side of the assistant panel's switch: "History" or "Updates". */
   historyLabel?: string;
@@ -87,6 +90,7 @@ export function HomeProforna({
   const open = place !== "closed";
   const floating = place === "floating";
   const floatBox = useFloatingBox(floating, float, size, onMove, onResize);
+  const railBox = useRailBox(place === "docked" && overRail);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selectedIdRef = useRef<string | null>(null);
@@ -468,14 +472,26 @@ export function HomeProforna({
             ? "home-proforna is-open is-floating is-minimized"
             : "home-proforna is-open is-floating"
           : open
-            ? "home-proforna is-open"
+            ? overRail
+              ? "home-proforna is-open is-over-rail"
+              : "home-proforna is-open"
             : "home-proforna is-closed"
       }
       aria-label="Chat"
       role={floating ? "dialog" : undefined}
       inert={!open}
       hidden={!open}
-      style={floating ? (minimized ? undefined : floatBox.style) : width ? { width } : undefined}
+      style={
+        floating
+          ? minimized
+            ? undefined
+            : floatBox.style
+          : overRail
+            ? (railBox ?? { visibility: "hidden" })
+            : width
+              ? { width }
+              : undefined
+      }
     >
       {open ? (
         <>
@@ -795,6 +811,51 @@ export function HomeProforna({
 }
 
 const FLOAT_MARGIN = 24;
+
+type Box = { left: number; top: number; width: number; height: number; clipPath?: string; visibility?: "hidden" };
+
+/**
+ * Where History sits in the center, followed frame by frame while docked chat
+ * lies over it: the page can scroll, resize, or swap a role's History for the
+ * story's Updates, and chat keeps to the same place.
+ */
+function useRailBox(active: boolean): Box | null {
+  const [box, setBox] = useState<Box | null>(null);
+  useEffect(() => {
+    if (!active) {
+      setBox(null);
+      return;
+    }
+    let frame = 0;
+    let last = "";
+    const read = () => {
+      const rail = document.querySelector<HTMLElement>(".home-story-recent");
+      const rect = rail?.getBoundingClientRect();
+      // When History sits below the main card's content, it scrolls inside the
+      // center card; chat is cut off at that card's edges the way History is.
+      const frameRect = rail?.closest(".home-center")?.getBoundingClientRect();
+      let next: Box | null = null;
+      if (rect && rect.width > 0 && rect.height > 0) {
+        next = { left: Math.round(rect.left), top: Math.round(rect.top), width: Math.round(rect.width), height: Math.round(rect.height) };
+        if (frameRect) {
+          const above = Math.max(0, Math.round(frameRect.top - rect.top));
+          const below = Math.max(0, Math.round(rect.bottom - frameRect.bottom));
+          if (above + below >= next.height) next.visibility = "hidden";
+          else if (above || below) next.clipPath = `inset(${above}px 0 ${below}px 0)`;
+        }
+      }
+      const key = next ? `${next.left},${next.top},${next.width},${next.height},${next.clipPath ?? ""},${next.visibility ?? ""}` : "";
+      if (key !== last) {
+        last = key;
+        setBox(next);
+      }
+      frame = window.requestAnimationFrame(read);
+    };
+    read();
+    return () => window.cancelAnimationFrame(frame);
+  }, [active]);
+  return box;
+}
 
 type Edge = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
 const EDGES: Edge[] = ["n", "s", "e", "w", "ne", "nw", "se", "sw"];

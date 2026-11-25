@@ -54,6 +54,7 @@ const NAV_COLLAPSED_KEY = "proforna.navCollapsed";
 const PANEL_OPEN_KEY = "proforna.panelOpen";
 const ASSISTANT_KEY = "proforna.assistant";
 const WORKBENCH = "(min-width: 760px)";
+const SPLIT_SCREEN = "(min-width: 801px)";
 
 export function Home({
   initialFocusJobId = null,
@@ -102,6 +103,10 @@ export function Home({
   const bioPopRef = useRef<HTMLDivElement>(null);
   const [assistant, setAssistant] = useState<AssistantState>(readAssistant);
   const chatDocked = chatInPanel(assistant);
+  // On wider screens docked chat sits over History's own place, so switching
+  // between them moves nothing else. Phones (and the old reserve page) give it a row of its own.
+  const [splitScreen, setSplitScreen] = useState(() => window.matchMedia(SPLIT_SCREEN).matches);
+  const chatOverRail = chatDocked && splitScreen && page !== "historyReserve";
   const [requests, setRequests] = useState<{ tab: RequestsTab; focusId: string | null } | null>(null);
   const [previewNote, setPreviewNote] = useState("");
   const [bioDialog, setBioDialog] = useState<"know" | "contact" | "place" | null>(null);
@@ -116,6 +121,13 @@ export function Home({
   const photoSrc = profile.avatarUrl
     ? `${profile.avatarUrl}?v=${photoTick}`
     : null;
+
+  useEffect(() => {
+    const mq = window.matchMedia(SPLIT_SCREEN);
+    const onChange = () => setSplitScreen(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
 
   useEffect(() => {
     const mq = window.matchMedia(WORKBENCH);
@@ -406,7 +418,8 @@ export function Home({
         className={[
           "home-sheet",
           leftClosed ? "is-left-closed" : "",
-          chatDocked ? "is-right-open" : "",
+          chatDocked && !chatOverRail ? "is-right-open" : "",
+          chatOverRail ? "is-chat-docked" : "",
           assistant.open || chatDocked ? "" : "is-panel-closed",
           page === "historyReserve" ? "" : "is-home",
           page === "history" && bioMode === "preview" ? "" : "is-bio-hidden",
@@ -630,6 +643,7 @@ export function Home({
           place={chatDocked ? "docked" : assistant.chat === "floating" ? "floating" : "closed"}
           float={assistant.float}
           size={assistant.size}
+          overRail={chatOverRail}
           minimized={assistant.minimized}
           onResize={resizeChat}
           onAssist={assist}

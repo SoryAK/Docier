@@ -366,3 +366,29 @@
     padding-top: 0;
   }
 }
+
+/*
+ * Docked on wider screens: chat lies over History's place (HomeProforna follows
+ * its box), so the cards around it don't move when you switch. History keeps its
+ * place underneath, hidden.
+ */
+.home-sheet.is-chat-docked .home-story-layout > .home-story-recent {
+  display: flex;
+  visibility: hidden;
+}
+
+.home-sheet > .home-proforna.is-over-rail {
+  position: fixed;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 1rem 1.05rem;
+  transform: none;
+  border: 1px solid #e4e4e7;
+  border-radius: 8px;
+  background: #fff;
+  color: #171717;
+  box-shadow: none;
+}

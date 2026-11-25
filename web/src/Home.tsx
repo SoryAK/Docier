@@ -33,6 +33,7 @@ import type { DetailTab } from "./RoleDetailPanel";
 import { WorkHistory } from "./WorkHistory";
 import { CareerHistoryCard } from "./CareerHistoryCard";
 import { CareerWorkspace } from "./CareerWorkspace";
+import { ToolsPage } from "./ToolsPage";
 import { HomeCenter } from "./HomeCenter";
 import { HomeProforna, type ChatRole } from "./HomeProforna";
 import {
@@ -661,7 +662,7 @@ export function Home({
             viewRequest={centerView}
             roleRequest={roleRequest}
             pageContent={
-              page !== "home" && page !== "history" ? <CareerWorkspace page={page} /> : null
+              page === "tools" ? <ToolsPage /> : page !== "home" && page !== "history" ? <CareerWorkspace page={page} /> : null
             }
             onSelectRole={(id) => {
               setEditing(false);
@@ -1198,6 +1199,7 @@ function readPage(): HomePage {
   const value = window.location.hash.replace(/^#\/?/, "").split("?")[0];
   if (value === "history-reserve") return "historyReserve";
   if (value.startsWith("history/")) return "history";
+  if (value === "tools" || value.startsWith("tools/")) return "tools";
   return value === "history" ||
     value === "resumes" ||
     value === "documents" ||

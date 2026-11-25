@@ -141,6 +141,12 @@ export function ToolsPage() {
     return () => document.removeEventListener("keydown", onKey);
   }, [choosing]);
 
+  // Opening a tool (by its address, or browser Back) ends choosing, so picks never outlive the tools they name.
+  useEffect(() => {
+    if (open && choosing) stopChoosing();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   function bulkDone(result: BulkResult) {
     const changed = new Map(result.tools.map((tool) => [tool.id, tool]));
     const gone = new Set(result.deleted);

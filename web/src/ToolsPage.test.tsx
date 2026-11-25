@@ -431,6 +431,60 @@ describe("changing many tools at once", () => {
     expect(within(bar()).getByText("1 picked")).toBeTruthy();
   });
 
+  it("going back to an open tool ends choosing", async () => {
+    const id = await addToolThroughApi("Drill");
+    await addToolThroughApi("Saw");
+    window.location.hash = `#/tools/${id}`;
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await screen.findByRole("complementary", { name: "Drill" });
+    await user.click(screen.getByRole("button", { name: "Select" }));
+    await user.click(screen.getByRole("button", { name: "Pick Drill" }));
+    // Browser Back returns to the tool's address.
+    window.location.hash = `#/tools/${id}`;
+    window.dispatchEvent(new HashChangeEvent("hashchange"));
+    await screen.findByRole("complementary", { name: "Drill" });
+    expect(screen.queryByRole("toolbar", { name: "Picked tools" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Select" }).getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("Escape backs out of the delete question and keeps the picks", async () => {
+    await addToolThroughApi("Drill");
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await choose(user, "Drill");
+    await user.click(within(bar()).getByRole("button", { name: "Delete" }));
+    await user.keyboard("{Escape}");
+    expect(within(bar()).queryByText("Delete 1 tool? Their photos go too.")).toBeNull();
+    expect(within(bar()).getByText("1 picked")).toBeTruthy();
+  });
+
+  it("Escape in a field of the bar keeps the picks", async () => {
+    await addToolThroughApi("Drill");
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await choose(user, "Drill");
+    await user.type(within(bar()).getByLabelText("Tags to add"), "Truck{Escape}");
+    expect((within(bar()).getByLabelText("Tags to add") as HTMLInputElement).value).toBe("");
+    await user.selectOptions(within(bar()).getByLabelText("Add to a kit"), "new");
+    await user.type(within(bar()).getByLabelText("New kit name"), "Van{Escape}");
+    expect(within(bar()).queryByLabelText("New kit name")).toBeNull();
+    expect(within(bar()).getByText("1 picked")).toBeTruthy();
+  });
+
+  it("says when a new kit's name is taken", async () => {
+    await addToolThroughApi("Drill");
+    await addKitThroughApi("Truck toolbox");
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await choose(user, "Drill");
+    await user.selectOptions(within(bar()).getByLabelText("Add to a kit"), "new");
+    await user.type(within(bar()).getByLabelText("New kit name"), "truck toolbox{Enter}");
+    expect((await within(bar()).findByRole("alert")).textContent).toBe(
+      "There's already a kit called that. Pick it from Add to a kit. Nothing was changed.",
+    );
+  });
+
   it("Escape stops choosing", async () => {
     await addToolThroughApi("Drill");
     const user = userEvent.setup();

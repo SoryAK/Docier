@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { EQUIPMENT_CATEGORIES, EQUIPMENT_CATEGORY_LABEL } from "@core/role-gear";
 import {
   TOOL_CONDITIONS,
@@ -11,6 +11,14 @@ import {
 } from "@core/personal-tools";
 
 export type BulkResult = { tools: PersonalTool[]; deleted: string[]; kit: ToolKit | null };
+
+/** What went wrong, where the person can do something about it. */
+const BULK_PROBLEM: Record<string, string> = {
+  "kit-name-taken": "There's already a kit called that. Pick it from Add to a kit.",
+  "kit-missing": "That kit is gone. Reload the page to see your kits.",
+  "not-found": "Some picked tools are gone. Reload the page to see your tools.",
+  "bulk-too-many": "Pick 500 tools or fewer at a time.",
+};
 
 const count = (n: number) => `${n} ${n === 1 ? "tool" : "tools"}`;
 
@@ -41,6 +49,7 @@ export function ToolBulkBar({
   const [naming, setNaming] = useState(false);
   const [kitName, setKitName] = useState("");
   const [confirming, setConfirming] = useState(false);
+  const tagRef = useRef<HTMLInputElement>(null);
 
   const shown = new Set(shownIds);
   const hidden = picked.filter((id) => !shown.has(id)).length;
@@ -61,14 +70,18 @@ export function ToolBulkBar({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ ids: picked, change }),
       });
-      if (!response.ok) throw new Error("bulk");
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error ?? "bulk");
+      }
       const result = (await response.json()) as BulkResult;
       const text = done(result);
       setMessage(text);
       onDone(result, text);
       return true;
-    } catch {
-      setError("The change couldn't be saved. Nothing was changed.");
+    } catch (failure) {
+      const problem = failure instanceof Error ? BULK_PROBLEM[failure.message] : undefined;
+      setError(problem ? `${problem} Nothing was changed.` : "The change couldn't be saved. Nothing was changed.");
       return false;
     } finally {
       setBusy(false);
@@ -78,7 +91,22 @@ export function ToolBulkBar({
   const changed = (result: BulkResult) => `${count(result.tools.length)} changed.`;
 
   return (
-    <div className="tools-bulk" role="toolbar" aria-label="Picked tools">
+    <div
+      className="tools-bulk"
+      role="toolbar"
+      aria-label="Picked tools"
+      onKeyDown={(event) => {
+        // Escape backs out of what's open in the bar; only outside it does Escape stop choosing.
+        if (event.key !== "Escape") return;
+        if (confirming) {
+          event.preventDefault();
+          setConfirming(false);
+        } else if (event.target === tagRef.current) {
+          event.preventDefault();
+          setTagDraft("");
+        }
+      }}
+    >
       <div className="tools-bulk-row">
         <strong>{hidden ? `${picked.length} picked, ${hidden} not shown` : `${picked.length} picked`}</strong>
         <button type="button" className="tools-link" disabled={shownIds.length === 0} onClick={() => onPick([...new Set([...picked, ...shownIds])])}>
@@ -140,6 +168,7 @@ export function ToolBulkBar({
           }}
         >
           <input
+            ref={tagRef}
             aria-label="Tags to add"
             placeholder="Tags, with commas"
             value={tagDraft}
@@ -192,7 +221,7 @@ export function ToolBulkBar({
               onKeyDown={(event) => {
                 if (event.key === "Escape") {
                   // Only the name field closes.
-                  event.stopPropagation();
+                  event.preventDefault();
                   setNaming(false);
                 }
               }}

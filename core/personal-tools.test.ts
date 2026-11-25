@@ -1,5 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { draftToolName, filterTools, readToolInput, toolPhotoProblem, toolsForRole, toolSearchText, type PersonalTool } from "./personal-tools";
+import {
+  DEFAULT_FRAMING,
+  draftToolName,
+  filterTools,
+  framingStyle,
+  readKitName,
+  readPhotoFraming,
+  readToolInput,
+  toolPhotoProblem,
+  toolsCsv,
+  toolsForRole,
+  toolSearchText,
+  toolTotals,
+  type PersonalTool,
+  type ToolKit,
+} from "./personal-tools";
 
 const roles = new Set(["r1", "r2"]);
 
@@ -22,6 +37,7 @@ function tool(over: Partial<PersonalTool> = {}): PersonalTool {
     notes: "",
     draft: false,
     roleIds: [],
+    kitIds: [],
     photos: [],
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
@@ -69,6 +85,7 @@ describe("reading a tool", () => {
         tags: ["electrical", "Meters"],
         notes: "True-RMS.",
         roleIds: ["r1"],
+        kitIds: [],
       },
     });
   });
@@ -155,5 +172,83 @@ describe("photos", () => {
     expect(toolPhotoProblem({ type: "text/plain", size: 5 })).toBe("photo-type");
     expect(toolPhotoProblem({ type: "image/png", size: 0 })).toBe("photo-empty");
     expect(toolPhotoProblem({ type: "image/png", size: 6 * 1024 * 1024 })).toBe("photo-too-large");
+  });
+});
+
+describe("kits", () => {
+  const kits: ToolKit[] = [
+    { id: "k1", name: "Electrical kit", createdAt: "" },
+    { id: "k2", name: "Truck toolbox", createdAt: "" },
+  ];
+
+  it("refuses a kit that isn't there", () => {
+    expect(readToolInput({ name: "A", kitIds: ["k9"] }, roles, new Set(["k1"]))).toEqual({ ok: false, error: "kit-missing" });
+    expect(readToolInput({ name: "A", kitIds: ["k1", "k1"] }, roles, new Set(["k1"]))).toMatchObject({ ok: true, value: { kitIds: ["k1"] } });
+  });
+
+  it("names a kit", () => {
+    expect(readKitName("  Plumbing  ", kits)).toEqual({ ok: true, name: "Plumbing" });
+    expect(readKitName(" ", kits)).toEqual({ ok: false, error: "kit-name-required" });
+    expect(readKitName("x".repeat(80), kits)).toEqual({ ok: true, name: "x".repeat(60) });
+    expect(readKitName("electrical KIT", kits)).toEqual({ ok: false, error: "kit-name-taken" });
+    expect(readKitName("electrical KIT", kits, "k1")).toEqual({ ok: true, name: "electrical KIT" });
+  });
+});
+
+describe("totals and export", () => {
+  it("adds up what's shown", () => {
+    expect(toolTotals([tool(), tool()])).toEqual({ count: 2, paid: null, worth: null, withPhotos: 0 });
+    expect(
+      toolTotals([
+        tool({ paid: 425.5, worth: 300, photos: [{ id: "p", url: "", cover: true, framing: DEFAULT_FRAMING }] }),
+        tool({ paid: 100 }),
+        tool(),
+      ]),
+    ).toEqual({ count: 3, paid: 525.5, worth: 300, withPhotos: 1 });
+  });
+
+  it("writes a CSV a spreadsheet reads safely", () => {
+    const csv = toolsCsv(
+      [
+        tool({
+          name: 'Meter, "87V"',
+          notes: "line one\nline two",
+          maker: "=HYPERLINK(1)",
+          tags: ["a", "b"],
+          roleIds: ["r1"],
+          kitIds: ["k1"],
+          paid: 425.5,
+          skill: 4,
+          draft: true,
+        }),
+      ],
+      { role: (id) => (id === "r1" ? "Giants Direct" : undefined), kit: (id) => (id === "k1" ? "Electrical kit" : undefined) },
+    );
+    const [header, row] = csv.split("\r\n");
+    expect(header).toBe(
+      "Name,Category,Whose it is,Maker,Model,Serial,Condition,How well you use it,When you got it,Paid,Worth now,Where it's kept,Tags,Used on,Kits,Notes,Needs details",
+    );
+    // The line break inside the notes stays inside its quoted cell.
+    expect(row).toBe('"Meter, ""87V""",Tool,Mine,\'=HYPERLINK(1),,,,4,,425.5,,,a; b,Giants Direct,Electrical kit,"line one\nline two",Yes');
+    expect(csv.endsWith("\r\n")).toBe(true);
+  });
+});
+
+describe("photo framing", () => {
+  it("reads a framing", () => {
+    const good = { rotation: 90, flipH: true, flipV: false, zoom: 2, focusX: 30, focusY: 70 };
+    expect(readPhotoFraming(good)).toEqual({ ok: true, value: good });
+    expect(readPhotoFraming({ ...good, rotation: 45 })).toEqual({ ok: false, error: "framing-invalid" });
+    expect(readPhotoFraming({ ...good, zoom: 9 })).toEqual({ ok: false, error: "framing-invalid" });
+    expect(readPhotoFraming({ ...good, focusX: 120 })).toEqual({ ok: false, error: "framing-invalid" });
+    expect(readPhotoFraming(null)).toEqual({ ok: false, error: "framing-invalid" });
+  });
+
+  it("turns a framing into CSS", () => {
+    expect(framingStyle(DEFAULT_FRAMING)).toEqual({ objectPosition: "50% 50%", transform: undefined });
+    expect(framingStyle({ rotation: 90, flipH: true, flipV: false, zoom: 2, focusX: 30, focusY: 70 })).toEqual({
+      objectPosition: "30% 70%",
+      transform: "rotate(90deg) scaleX(-1) scale(2)",
+    });
   });
 });

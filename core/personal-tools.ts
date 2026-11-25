@@ -237,6 +237,105 @@ export function readToolInput(
   };
 }
 
+// ---- Changing many tools at once ----
+
+export const BULK_TOOLS_MAX = 500;
+
+/** One change applied to every picked tool. Only fields one value can fit for many tools. */
+export type BulkChange =
+  | { kind: "category"; category: EquipmentCategory }
+  | { kind: "ownership"; ownership: ToolOwnership }
+  | { kind: "condition"; condition: ToolCondition }
+  | { kind: "addTags"; tags: string[] }
+  | { kind: "removeTags"; tags: string[] }
+  | { kind: "addKit"; kitId: string }
+  | { kind: "addKit"; newKitName: string }
+  | { kind: "removeKit"; kitId: string }
+  | { kind: "delete" };
+
+export type BulkError = "bulk-ids" | "bulk-too-many" | "bulk-change" | "not-found" | "kit-missing" | "kit-name-required" | "kit-name-taken";
+
+export type BulkFields = Pick<PersonalTool, "category" | "ownership" | "condition" | "tags" | "kitIds">;
+
+function readBulkChange(raw: unknown, kits: ToolKit[]): { ok: true; change: BulkChange } | { ok: false; error: BulkError } {
+  if (!raw || typeof raw !== "object") return { ok: false, error: "bulk-change" };
+  const value = raw as Record<string, unknown>;
+  const bad = { ok: false, error: "bulk-change" } as const;
+  const kitKnown = (id: unknown) => typeof id === "string" && kits.some((kit) => kit.id === id);
+  switch (value.kind) {
+    case "category":
+      return EQUIPMENT_CATEGORIES.includes(value.category as EquipmentCategory)
+        ? { ok: true, change: { kind: "category", category: value.category as EquipmentCategory } }
+        : bad;
+    case "ownership":
+      return TOOL_OWNERSHIPS.includes(value.ownership as ToolOwnership)
+        ? { ok: true, change: { kind: "ownership", ownership: value.ownership as ToolOwnership } }
+        : bad;
+    case "condition":
+      return TOOL_CONDITIONS.includes(value.condition as ToolCondition)
+        ? { ok: true, change: { kind: "condition", condition: value.condition as ToolCondition } }
+        : bad;
+    case "addTags":
+    case "removeTags": {
+      const tags = readTags(value.tags);
+      return tags.length ? { ok: true, change: { kind: value.kind, tags } } : bad;
+    }
+    case "addKit": {
+      if (value.newKitName !== undefined) {
+        const name = readKitName(value.newKitName, kits);
+        return name.ok ? { ok: true, change: { kind: "addKit", newKitName: name.name } } : name;
+      }
+      return kitKnown(value.kitId) ? { ok: true, change: { kind: "addKit", kitId: value.kitId as string } } : { ok: false, error: "kit-missing" };
+    }
+    case "removeKit":
+      return kitKnown(value.kitId) ? { ok: true, change: { kind: "removeKit", kitId: value.kitId as string } } : { ok: false, error: "kit-missing" };
+    case "delete":
+      return { ok: true, change: { kind: "delete" } };
+    default:
+      return bad;
+  }
+}
+
+/** Reads `{ ids, change }`. Every id must be one of the occupant's tools, or nothing changes. */
+export function readBulkRequest(
+  raw: unknown,
+  known: { toolIds: Set<string>; kits: ToolKit[] },
+): { ok: true; ids: string[]; change: BulkChange } | { ok: false; error: BulkError } {
+  const body = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  if (!Array.isArray(body.ids)) return { ok: false, error: "bulk-ids" };
+  const ids = [...new Set(body.ids.filter((id): id is string => typeof id === "string" && id !== ""))];
+  if (ids.length === 0) return { ok: false, error: "bulk-ids" };
+  if (ids.length > BULK_TOOLS_MAX) return { ok: false, error: "bulk-too-many" };
+  if (ids.some((id) => !known.toolIds.has(id))) return { ok: false, error: "not-found" };
+  const change = readBulkChange(body.change, known.kits);
+  return change.ok ? { ok: true, ids, change: change.change } : change;
+}
+
+/** A tool's shared fields after one change. `newKitId` is the kit just made for `newKitName`. */
+export function applyBulkChange(fields: BulkFields, change: Exclude<BulkChange, { kind: "delete" }>, newKitId?: string): BulkFields {
+  switch (change.kind) {
+    case "category":
+      return { ...fields, category: change.category };
+    case "ownership":
+      return { ...fields, ownership: change.ownership };
+    case "condition":
+      return { ...fields, condition: change.condition };
+    case "addTags":
+      return { ...fields, tags: readTags([...fields.tags, ...change.tags]) };
+    case "removeTags": {
+      const gone = new Set(change.tags.map((tag) => tag.toLowerCase()));
+      return { ...fields, tags: fields.tags.filter((tag) => !gone.has(tag.toLowerCase())) };
+    }
+    case "addKit": {
+      const kitId = "kitId" in change ? change.kitId : newKitId;
+      if (!kitId || fields.kitIds.includes(kitId)) return fields;
+      return { ...fields, kitIds: [...fields.kitIds, kitId] };
+    }
+    case "removeKit":
+      return { ...fields, kitIds: fields.kitIds.filter((id) => id !== change.kitId) };
+  }
+}
+
 /** A draft added from a photo is named after its file, so the drafts can be told apart. */
 export function draftToolName(fileName: string): string {
   const dot = fileName.lastIndexOf(".");

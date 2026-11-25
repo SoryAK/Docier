@@ -1608,32 +1608,9 @@ button.home-nav-item:focus-visible {
   cursor: pointer;
 }
 
-.home-request-node {
-  width: 7px;
-  height: 7px;
-  flex: none;
-  border-radius: 50%;
-  background: #3b3b3b;
-}
-
-.home-request-btn .home-request-link {
-  width: 22px;
-  height: 7px;
-  margin: 0 0 0 2px;
-  flex: none;
-  overflow: visible;
-}
-
-.home-request-btn .home-request-link path {
-  stroke: #6b6b70;
-  stroke-width: 2;
-  stroke-dasharray: 3 12 3 40;
-}
-
+/* The paper plane points up and to the right, as drawn. */
 .home-request-plane {
   display: inline-flex;
-  margin-left: -7px;
-  transform: rotate(45deg);
 }
 
 .home-request-btn .home-request-plane svg {

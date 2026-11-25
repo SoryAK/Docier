@@ -31,6 +31,7 @@ export function HomeNav({
   page,
   width,
   onCloseMobile,
+  onExpand,
   onGoHome,
   onGoHistory,
   onGoPage,
@@ -43,6 +44,8 @@ export function HomeNav({
   page: HomePage;
   width?: number;
   onCloseMobile: () => void;
+  /** Opens the full menu from the icons-only one, for what needs the room. */
+  onExpand?: () => void;
   onGoHome: () => void;
   onGoHistory: (jobId?: string) => void;
   onGoPage: (page: HomePage) => void;
@@ -177,7 +180,7 @@ export function HomeNav({
           slim={slim}
           onSelect={() => go("documents")}
         />
-        <GalleryResource slim={slim} onOpenRole={openGalleryRole} />
+        <GalleryResource slim={slim} onExpand={onExpand} onOpenRole={openGalleryRole} />
         </>
         )}
         </div>
@@ -259,9 +262,12 @@ function NavRow({
 
 function GalleryResource({
   slim,
+  onExpand,
   onOpenRole,
 }: {
   slim: boolean;
+  /** Icons only: the photos need the full menu's width, so Gallery opens it first. */
+  onExpand?: () => void;
   onOpenRole: (id: string) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -304,6 +310,10 @@ function GalleryResource({
         aria-expanded={open}
         title={slim ? "Gallery" : undefined}
         onClick={() => {
+          if (slim && onExpand) {
+            onExpand();
+            return;
+          }
           if (!open) setStatus("loading");
           setOpen((value) => !value);
         }}

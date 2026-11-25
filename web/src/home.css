@@ -3083,3 +3083,70 @@ a.home-user-item {
 }
 .home-pub-menu .home-sync-share:hover,
 .home-pub-menu .home-sync-share:focus-visible { border-color: var(--color-text-primary, #171717); }
+
+/*
+ * The left column closed: an icons-only rail stays in its place, so every page
+ * is still one click away. Phones keep the menu button and its drawer.
+ */
+.home-rail {
+  display: none;
+}
+
+@media (min-width: 801px) {
+  .home-sheet.has-rail,
+  .home-sheet.is-home.is-left-closed.has-rail {
+    grid-template-columns: 3.75rem minmax(0, 1fr);
+  }
+
+  .home-sheet.has-rail.is-right-open,
+  .home-sheet.is-home.is-left-closed.is-right-open.has-rail {
+    grid-template-columns: 3.75rem minmax(12rem, 1fr) minmax(14rem, 26rem);
+  }
+
+  .home-sheet.has-rail > .home-center,
+  .home-sheet.has-rail > .home-stage,
+  .home-sheet.has-rail .home-media {
+    grid-column: 2;
+    margin-left: 0.4rem;
+  }
+
+  .home-sheet.is-left-closed.is-right-open.has-rail > .home-proforna {
+    grid-column: 3;
+  }
+
+  .home-rail {
+    display: flex;
+    grid-column: 1;
+    grid-row: 2 / -1;
+    align-self: stretch;
+  }
+
+  .home-rail .home-nav,
+  .home-rail .home-nav.is-collapsed {
+    display: flex;
+    position: relative;
+    inset: auto;
+    flex: 1;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    margin: 0;
+    padding: 0.55rem 0.4rem;
+    overflow: auto;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .home-rail .home-nav-foot::before {
+    right: 6px;
+    left: 6px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .home-sheet.is-home.has-rail > .home-center,
+  .home-sheet.is-home.has-rail > .home-stage {
+    margin-left: 0.75rem;
+  }
+}

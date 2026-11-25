@@ -417,7 +417,7 @@ export function Home({
       <div
         className={[
           "home-sheet",
-          leftClosed ? "is-left-closed" : "",
+          leftClosed ? "is-left-closed has-rail" : "",
           chatDocked && !chatOverRail ? "is-right-open" : "",
           chatOverRail ? "is-chat-docked" : "",
           assistant.open || chatDocked ? "" : "is-panel-closed",
@@ -593,6 +593,35 @@ export function Home({
             </section>
           </>
         )}
+        {leftClosed ? (
+          <section className="home-card home-rail" aria-label="Menu">
+            <HomeNav
+              collapsed
+              mobileOpen={false}
+              page={page}
+              onCloseMobile={() => setMobileOpen(false)}
+              onExpand={showLeft}
+              onGoHome={goHome}
+              onGoHistory={() => {
+                setEditing(false);
+                // Already on Career history: the icon brings the list back.
+                if (page === "history") {
+                  showLeft();
+                  return;
+                }
+                setFocusJobId(null);
+                goPage("history", null);
+              }}
+              onGoPage={(next) => {
+                setEditing(false);
+                setFocusJobId(null);
+                goPage(next);
+              }}
+              onCanvas={setCanvasFromNav}
+              canvasOpen={canvasFromNav}
+            />
+          </section>
+        ) : null}
         {page === "historyReserve" ? (
           <main className="home-card home-stage">
             <WorkHistory

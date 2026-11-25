@@ -641,4 +641,12 @@ describe("small touches", () => {
     await waitFor(() => expect(drill.textContent).toMatch(/Used at /));
     expect(screen.getByRole("button", { name: "Open Saw" }).textContent).not.toMatch(/Used at|Not linked/);
   });
+
+  it("shows maker and model only when there are some", async () => {
+    await addToolThroughApi("Drill", { maker: "Makita" });
+    await addToolThroughApi("Saw");
+    render(<ToolsPage />);
+    expect((await screen.findByRole("button", { name: "Open Drill" })).textContent).toMatch(/Makita/);
+    expect(screen.getByRole("button", { name: "Open Saw" }).textContent).not.toMatch(/No maker or model/);
+  });
 });

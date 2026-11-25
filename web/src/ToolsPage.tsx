@@ -498,13 +498,11 @@ export function ToolsPage() {
                       <strong>
                         <Highlight text={tool.name} query={query} />
                       </strong>
-                      <span className="tools-muted">
-                        {[tool.maker, tool.model].filter(Boolean).length ? (
+                      {tool.maker || tool.model ? (
+                        <span className="tools-muted">
                           <Highlight text={[tool.maker, tool.model].filter(Boolean).join(" · ")} query={query} />
-                        ) : (
-                          "No maker or model yet"
-                        )}
-                      </span>
+                        </span>
+                      ) : null}
                       <span className="tools-tags">
                         <span>{EQUIPMENT_CATEGORY_LABEL[tool.category]}</span>
                         {tool.tags.map((tag) => (

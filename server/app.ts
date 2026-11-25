@@ -4,6 +4,7 @@ import { linkRoleDocument, RoleDocumentError, unlinkRoleDocument, uploadRoleDocu
 import {
   ToolError,
   addToolPhotos,
+  bulkChangeTools,
   createTool,
   listTools,
   loadToolPhoto,
@@ -2676,6 +2677,14 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
     try {
       removeKit(db, occupant.id, c.req.param("kitId"));
       return c.json({ ok: true });
+    } catch (error) {
+      return toolFailure(c, error);
+    }
+  });
+  app.post("/api/tools/bulk", async (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      return c.json(bulkChangeTools(db, occupant.id, uploadsDir, await c.req.json().catch(() => null)));
     } catch (error) {
       return toolFailure(c, error);
     }

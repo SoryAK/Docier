@@ -4,7 +4,9 @@ import type { DatabaseSync } from "node:sqlite";
 import { avatarExtension, isAvatarType } from "../core/profile";
 import {
   TOOL_PHOTO_LIMIT,
+  applyBulkChange,
   draftToolName,
+  readBulkRequest,
   readKitName,
   readPhotoFraming,
   readToolInput,
@@ -32,7 +34,10 @@ export type ToolErrorCode =
   | "photo-limit"
   | "kit-name-required"
   | "kit-name-taken"
-  | "framing-invalid";
+  | "framing-invalid"
+  | "bulk-ids"
+  | "bulk-too-many"
+  | "bulk-change";
 
 export class ToolError extends Error {
   constructor(readonly code: ToolErrorCode) {
@@ -254,14 +259,19 @@ function deleteFile(uploadsDir: string, storedName: string) {
   }
 }
 
-export function removeTool(db: DatabaseSync, occupantId: string, uploadsDir: string, toolId: string): void {
-  readTool(db, occupantId, toolId);
+/** Deletes a tool's rows and returns its photo files' names, for deleting once the rows are gone for good. */
+function deleteToolRows(db: DatabaseSync, occupantId: string, toolId: string): string[] {
   const photos = photoRows(db, occupantId, toolId);
   db.prepare("DELETE FROM personal_tool_photos WHERE occupant_id = ? AND tool_id = ?").run(occupantId, toolId);
   db.prepare("DELETE FROM personal_tool_roles WHERE occupant_id = ? AND tool_id = ?").run(occupantId, toolId);
   db.prepare("DELETE FROM tool_kit_items WHERE occupant_id = ? AND tool_id = ?").run(occupantId, toolId);
   db.prepare("DELETE FROM personal_tools WHERE occupant_id = ? AND id = ?").run(occupantId, toolId);
-  for (const photo of photos) deleteFile(uploadsDir, photo.stored_name);
+  return photos.map((photo) => photo.stored_name);
+}
+
+export function removeTool(db: DatabaseSync, occupantId: string, uploadsDir: string, toolId: string): void {
+  readTool(db, occupantId, toolId);
+  for (const storedName of deleteToolRows(db, occupantId, toolId)) deleteFile(uploadsDir, storedName);
 }
 
 function photoProblem(file: ToolPhotoFile): ToolErrorCode | null {
@@ -441,4 +451,57 @@ export function removeKit(db: DatabaseSync, occupantId: string, kitId: string): 
   readKit(db, occupantId, kitId);
   db.prepare("DELETE FROM tool_kit_items WHERE occupant_id = ? AND kit_id = ?").run(occupantId, kitId);
   db.prepare("DELETE FROM tool_kits WHERE occupant_id = ? AND id = ?").run(occupantId, kitId);
+}
+
+// ---- Changing many tools at once ----
+
+/**
+ * Applies one change to every picked tool, all or nothing. A bulk change never
+ * touches a tool's other fields, so a draft stays a draft. Photo files of
+ * deleted tools go only after the change is saved.
+ */
+export function bulkChangeTools(
+  db: DatabaseSync,
+  occupantId: string,
+  uploadsDir: string,
+  raw: unknown,
+): { tools: PersonalTool[]; deleted: string[]; kit: ToolKit | null } {
+  const current = new Map(listTools(db, occupantId).map((tool) => [tool.id, tool]));
+  const read = readBulkRequest(raw, { toolIds: new Set(current.keys()), kits: listKits(db, occupantId) });
+  if (!read.ok) throw new ToolError(read.error);
+  const { ids, change } = read;
+  const now = new Date().toISOString();
+  const files: string[] = [];
+  let kit: ToolKit | null = null;
+  db.exec("BEGIN");
+  try {
+    if (change.kind === "delete") {
+      for (const id of ids) files.push(...deleteToolRows(db, occupantId, id));
+    } else {
+      let newKitId: string | undefined;
+      if (change.kind === "addKit" && "newKitName" in change) {
+        newKitId = randomUUID();
+        db.prepare("INSERT INTO tool_kits (id, occupant_id, name, created_at) VALUES (?, ?, ?, ?)").run(newKitId, occupantId, change.newKitName, now);
+      }
+      const write = db.prepare(
+        "UPDATE personal_tools SET category = ?, ownership = ?, condition = ?, tags = ?, updated_at = ? WHERE id = ? AND occupant_id = ?",
+      );
+      const unkit = db.prepare("DELETE FROM tool_kit_items WHERE occupant_id = ? AND tool_id = ?");
+      const inKit = db.prepare("INSERT INTO tool_kit_items (id, occupant_id, kit_id, tool_id, created_at) VALUES (?, ?, ?, ?, ?)");
+      for (const id of ids) {
+        const next = applyBulkChange(current.get(id)!, change, newKitId);
+        write.run(next.category, next.ownership, next.condition, JSON.stringify(next.tags), now, id, occupantId);
+        unkit.run(occupantId, id);
+        for (const kitId of next.kitIds) inKit.run(randomUUID(), occupantId, kitId, id, now);
+      }
+      if (newKitId) kit = readKit(db, occupantId, newKitId);
+    }
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+  for (const storedName of files) deleteFile(uploadsDir, storedName);
+  if (change.kind === "delete") return { tools: [], deleted: ids, kit: null };
+  return { tools: ids.map((id) => readTool(db, occupantId, id)), deleted: [], kit };
 }

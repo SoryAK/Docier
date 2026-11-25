@@ -262,3 +262,86 @@ describe("my tools", () => {
     expect(served.status).toBe(200);
   });
 });
+
+describe("changing many tools at once", () => {
+  const bulk = (send: ReturnType<typeof setup>["send"], ids: string[], change: unknown) => send("POST", "/api/tools/bulk", { ids, change });
+
+  it("sets ownership on every picked tool and keeps drafts", async () => {
+    const { send, photos, png, tools } = setup();
+    const a = (await send("POST", "/api/tools", { name: "Drill" })).body.tool.id as string;
+    const draft = (await photos("/api/tools/from-photos", [png("saw.png")])).body.tools[0].id as string;
+    const other = (await send("POST", "/api/tools", { name: "Ladder" })).body.tool.id as string;
+
+    const done = await bulk(send, [a, draft], { kind: "ownership", ownership: "borrowed" });
+    expect(done.status).toBe(200);
+    expect(done.body.tools.map((tool: any) => tool.id).sort()).toEqual([a, draft].sort());
+    expect(done.body).toMatchObject({ deleted: [], kit: null });
+
+    const byId = Object.fromEntries((await tools()).map((tool) => [tool.id, tool]));
+    expect(byId[a]).toMatchObject({ ownership: "borrowed", draft: false });
+    expect(byId[draft]).toMatchObject({ ownership: "borrowed", draft: true, name: "saw" });
+    expect(byId[other]).toMatchObject({ ownership: "mine" });
+  });
+
+  it("unknown id changes nothing", async () => {
+    const { send, tools } = setup();
+    const a = (await send("POST", "/api/tools", { name: "Drill" })).body.tool.id as string;
+    const refused = await bulk(send, [a, "nope"], { kind: "category", category: "safety" });
+    expect(refused).toEqual({ status: 404, body: { error: "not-found" } });
+    expect((await tools())[0].category).toBe("tool");
+  });
+
+  it("a failure part-way leaves every tool as it was", async () => {
+    const { app, db, send, tools } = setup();
+    const a = (await send("POST", "/api/tools", { name: "Drill", tags: ["old"] })).body.tool.id as string;
+    const b = (await send("POST", "/api/tools", { name: "Saw", tags: ["old"] })).body.tool.id as string;
+    // The second tool's write fails inside the transaction.
+    db.exec(`CREATE TRIGGER fail_second BEFORE UPDATE ON personal_tools WHEN NEW.id = '${b}' BEGIN SELECT RAISE(ABORT, 'boom'); END`);
+    const failed = await app.request("/api/tools/bulk", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ids: [a, b], change: { kind: "addTags", tags: ["new"] } }),
+    });
+    expect(failed.status).toBe(500);
+    db.exec("DROP TRIGGER fail_second");
+    expect((await tools()).map((tool) => tool.tags)).toEqual([["old"], ["old"]]);
+  });
+
+  it("add to a new kit makes it once", async () => {
+    const { send, tools } = setup();
+    const a = (await send("POST", "/api/tools", { name: "Drill" })).body.tool.id as string;
+    const b = (await send("POST", "/api/tools", { name: "Saw" })).body.tool.id as string;
+    const done = await bulk(send, [a, b], { kind: "addKit", newKitName: "Truck toolbox" });
+    expect(done.status).toBe(200);
+    expect(done.body.kit).toMatchObject({ name: "Truck toolbox" });
+    for (const tool of await tools()) expect(tool.kitIds).toEqual([done.body.kit.id]);
+    const kits = (await send("GET", "/api/tools/kits")).body.kits as any[];
+    expect(kits.filter((kit) => kit.name === "Truck toolbox")).toHaveLength(1);
+
+    const out = await bulk(send, [a], { kind: "removeKit", kitId: done.body.kit.id });
+    expect(out.body.tools[0].kitIds).toEqual([]);
+  });
+
+  it("delete removes rows and files", async () => {
+    const { db, send, photos, png, tools, files, addRole } = setup();
+    const roleId = await addRole("Technician");
+    const kit = (await send("POST", "/api/tools/kits", { name: "Van" })).body.kit.id as string;
+    const a = (await send("POST", "/api/tools", { name: "Drill", roleIds: [roleId], kitIds: [kit] })).body.tool.id as string;
+    await photos(`/api/tools/${a}/photos`, [png("drill.png")]);
+    const keep = (await send("POST", "/api/tools", { name: "Saw" })).body.tool.id as string;
+    expect(files()).toHaveLength(1);
+
+    const done = await bulk(send, [a], { kind: "delete" });
+    expect(done.body).toEqual({ tools: [], deleted: [a], kit: null });
+    expect((await tools()).map((tool) => tool.id)).toEqual([keep]);
+    expect(files()).toEqual([]);
+    for (const table of ["personal_tool_photos", "personal_tool_roles", "tool_kit_items"]) {
+      expect(db.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE tool_id = ?`).get(a)).toEqual({ n: 0 });
+    }
+  });
+
+  it("refuses an empty pick", async () => {
+    const { send } = setup();
+    expect(await bulk(send, [], { kind: "delete" })).toEqual({ status: 400, body: { error: "bulk-ids" } });
+  });
+});

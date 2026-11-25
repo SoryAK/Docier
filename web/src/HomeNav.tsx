@@ -378,6 +378,7 @@ type IconName =
   | "proforna"
   | "panel"
   | "panelOff"
+  | "chat"
   | "request";
 
 export function Icon({ name }: { name: IconName }) {
@@ -468,6 +469,12 @@ export function Icon({ name }: { name: IconName }) {
         <>
           <rect x="3" y="4" width="18" height="16" rx="1.5" />
           <path d="M14.5 4v16" />
+        </>
+      ) : null}
+      {name === "chat" ? (
+        <>
+          <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z" />
+          <path className="home-panel-fill" d="M12 8.5l.9 1.8 1.8.9-1.8.9-.9 1.8-.9-1.8-1.8-.9 1.8-.9z" />
         </>
       ) : null}
       {name === "request" ? (

@@ -165,8 +165,8 @@ export function RoleHistoryPanel({
           <span className="role-history-mark is-cream" aria-hidden="true">{name[0]?.toUpperCase()}</span>
         )}
         <div>
-          <h2>History</h2>
-          <p>{[name, span].filter(Boolean).join(" · ")}</p>
+          <h2>{name}</h2>
+          {span ? <p>{span}</p> : null}
         </div>
       </header>
 

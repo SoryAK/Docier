@@ -6,6 +6,8 @@ import type { OccupantNoticeHref } from "@core/notices";
 import type { RelayStatus } from "@core/projection";
 import { normalizeSlug, publicationLink, type WorkMapPublicationSettings } from "@core/work-map";
 import { HOME_NAV_ID, Icon } from "./HomeNav";
+import { AssistantTools } from "./AssistantPanel";
+import type { AssistantAction, AssistantState } from "@core/assistant-panel";
 import { HomeNotices } from "./HomeNotices";
 import { RequestsMenu, useRequestsWaiting, type RequestsTab } from "./Requests";
 import { Share2 } from "lucide-react";
@@ -27,9 +29,9 @@ export function HomeBar({
   onEditProfile,
   onTour,
   onSearch,
-  onProforna,
+  onAssist,
   onRequests,
-  profornaOpen,
+  assistant,
   bioMode,
   onBioMode,
   onPreview,
@@ -50,10 +52,11 @@ export function HomeBar({
   /** Starts the tour of Home again. */
   onTour?: () => void;
   onSearch: () => void;
-  onProforna?: () => void;
+  /** The chat icon, its menu, and the assistant panel button. */
+  onAssist?: (action: AssistantAction) => void;
   /** Opens the full Requests dialog on a tab, optionally on one request. */
   onRequests?: (tab: RequestsTab, id?: string) => void;
-  profornaOpen?: boolean;
+  assistant?: AssistantState;
   bioMode: HomeBioMode;
   onBioMode: (mode: HomeBioMode) => void;
   onPreview: (where: "here" | "window") => void;
@@ -843,26 +846,13 @@ export function HomeBar({
             />
           </div>
         ) : null}
-        {onRequests && onProforna ? (
+        {onRequests && onAssist ? (
           <span className="home-bar-request-divider">
             <Divider orientation="vertical" variant="strong" />
           </span>
         ) : null}
-        {onProforna ? (
-          <button
-            type="button"
-            className={
-              profornaOpen
-                ? "home-notice-btn home-proforna-toggle is-current"
-                : "home-notice-btn home-proforna-toggle"
-            }
-            aria-label={profornaOpen ? "Hide chat" : "Show chat"}
-            title={profornaOpen ? "Hide chat" : "Show chat"}
-            aria-pressed={profornaOpen}
-            onClick={onProforna}
-          >
-            <Icon name={profornaOpen ? "panel" : "panelOff"} />
-          </button>
+        {onAssist && assistant ? (
+          <AssistantTools state={assistant} onAssist={onAssist} />
         ) : null}
         <HomeNotices
           open={menu === "notices"}

@@ -707,8 +707,9 @@
     grid-template-columns: 22rem minmax(0, 1fr);
   }
 
+  /* Chat docked in the assistant panel is as wide as History is (the rail, plus the gap before it). */
   .home-sheet.is-home.is-right-open:has(.pch) {
-    grid-template-columns: 22rem minmax(20rem, 1fr) minmax(14rem, 26rem);
+    grid-template-columns: 22rem minmax(20rem, 1fr) minmax(14rem, 24.75rem);
   }
 
   .home-sheet.is-home:not(.is-left-closed) > .home-center,
@@ -724,7 +725,7 @@
     }
 
     .home-sheet.is-home.is-right-open:has(.pch) {
-      grid-template-columns: 20rem minmax(20rem, 1fr) minmax(14rem, 26rem);
+      grid-template-columns: 20rem minmax(20rem, 1fr) minmax(14rem, 22.75rem);
     }
   }
 
@@ -741,7 +742,7 @@
     }
 
     .home-sheet.is-home.is-right-open:has(.pch) {
-      grid-template-columns: 24rem minmax(20rem, 1fr) minmax(14rem, 26rem);
+      grid-template-columns: 24rem minmax(20rem, 1fr) minmax(14rem, 26.75rem);
     }
 
     .home-sheet.is-home .home-center {

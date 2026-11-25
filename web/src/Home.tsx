@@ -35,6 +35,14 @@ import { CareerHistoryCard } from "./CareerHistoryCard";
 import { CareerWorkspace } from "./CareerWorkspace";
 import { HomeCenter } from "./HomeCenter";
 import { HomeProforna, type ChatRole } from "./HomeProforna";
+import {
+  assistantReducer,
+  chatInPanel,
+  chatShowing,
+  readAssistantState,
+  type AssistantAction,
+  type AssistantState,
+} from "@core/assistant-panel";
 import { RoleCanvasEntry } from "./RoleCanvas";
 import type { OnboardingProfileValue } from "./OnboardingProfile";
 import { WelcomeTour, type FirstRunMarks } from "./WelcomeTour";
@@ -44,6 +52,7 @@ import "./home.css";
 
 const NAV_COLLAPSED_KEY = "proforna.navCollapsed";
 const PANEL_OPEN_KEY = "proforna.panelOpen";
+const ASSISTANT_KEY = "proforna.assistant";
 const WORKBENCH = "(min-width: 760px)";
 
 export function Home({
@@ -91,7 +100,8 @@ export function Home({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => (isCareerPreview() ? false : readCollapsed()));
   const bioPopRef = useRef<HTMLDivElement>(null);
-  const [profornaOpen, setProfornaOpen] = useState(readPanelOpen);
+  const [assistant, setAssistant] = useState<AssistantState>(readAssistant);
+  const chatDocked = chatInPanel(assistant);
   const [requests, setRequests] = useState<{ tab: RequestsTab; focusId: string | null } | null>(null);
   const [previewNote, setPreviewNote] = useState("");
   const [bioDialog, setBioDialog] = useState<"know" | "contact" | "place" | null>(null);
@@ -205,10 +215,18 @@ export function Home({
     goPage("home");
   }
 
-  function togglePanel() {
-    setProfornaOpen((open) => {
-      const next = !open;
-      writePanelOpen(next);
+  function assist(action: AssistantAction) {
+    setAssistant((current) => {
+      const next = assistantReducer(current, action);
+      writeAssistant(next);
+      return next;
+    });
+  }
+
+  function moveChat(float: { x: number; y: number }) {
+    setAssistant((current) => {
+      const next = { ...current, float };
+      writeAssistant(next);
       return next;
     });
   }
@@ -302,8 +320,7 @@ export function Home({
       showCenter();
       return;
     }
-    setProfornaOpen(true);
-    writePanelOpen(true);
+    assist("openChat");
   }
 
   function openSearchRole(id: string) {
@@ -381,7 +398,8 @@ export function Home({
         className={[
           "home-sheet",
           leftClosed ? "is-left-closed" : "",
-          profornaOpen ? "is-right-open" : "",
+          chatDocked ? "is-right-open" : "",
+          assistant.open || chatDocked ? "" : "is-panel-closed",
           page === "historyReserve" ? "" : "is-home",
           page === "history" && bioMode === "preview" ? "" : "is-bio-hidden",
         ]
@@ -409,9 +427,9 @@ export function Home({
           onEditProfile={goProfile}
           onTour={() => setTourRequest((count) => count + 1)}
           onSearch={() => setSearchOpen(true)}
-          onProforna={togglePanel}
+          assistant={assistant}
+          onAssist={assist}
           onRequests={openRequests}
-          profornaOpen={profornaOpen}
           bioMode={bioMode}
           onBioMode={chooseBioMode}
           notice={previewNote}
@@ -528,7 +546,7 @@ export function Home({
                       onImport={() => setImportOpen(true)}
                       addRequest={addRequest}
                       onAsk={() => {
-                        if (!profornaOpen) togglePanel();
+                        if (!chatShowing(assistant)) assist("openChat");
                       }}
                       onAdded={() => setCareerRevision((n) => n + 1)}
                       onRemoved={(ids) => {
@@ -574,6 +592,7 @@ export function Home({
             revision={careerRevision}
             focusRoleId={focusJobId}
             roleView={page === "history"}
+            assistant={{ chatPopped: assistant.chat === "floating", onAssist: assist }}
             onRoleSaved={() => setCareerRevision((n) => n + 1)}
             viewRequest={centerView}
             pageContent={
@@ -600,8 +619,11 @@ export function Home({
           />
         )}
         <HomeProforna
-          open={profornaOpen}
-          onToggle={togglePanel}
+          place={chatDocked ? "docked" : assistant.chat === "floating" ? "floating" : "closed"}
+          float={assistant.float}
+          onAssist={assist}
+          onMove={moveChat}
+          historyLabel={page === "history" && focusJobId ? "History" : "Updates"}
           roles={chatRoles}
           focusRoleId={focusJobId}
           careerRevision={careerRevision}
@@ -1147,18 +1169,20 @@ function writeCollapsed(collapsed: boolean) {
   }
 }
 
-function readPanelOpen(): boolean {
+/** The assistant panel and chat as last left; the older chat-column choice carries over once. */
+function readAssistant(): AssistantState {
   try {
-    const value = window.localStorage.getItem(PANEL_OPEN_KEY);
-    return value !== "0";
+    const saved = window.localStorage.getItem(ASSISTANT_KEY);
+    if (saved) return readAssistantState(JSON.parse(saved));
+    return readAssistantState(null, window.localStorage.getItem(PANEL_OPEN_KEY) !== "0");
   } catch {
-    return true;
+    return readAssistantState(null);
   }
 }
 
-function writePanelOpen(open: boolean) {
+function writeAssistant(state: AssistantState) {
   try {
-    window.localStorage.setItem(PANEL_OPEN_KEY, open ? "1" : "0");
+    window.localStorage.setItem(ASSISTANT_KEY, JSON.stringify(state));
   } catch {
     /* ignore quota / private mode */
   }

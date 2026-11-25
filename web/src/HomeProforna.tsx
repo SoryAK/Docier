@@ -15,6 +15,9 @@ import { Icon } from "@astryxdesign/core/Icon";
 import { Markdown } from "@astryxdesign/core/Markdown";
 import { formatHistoryPeriod } from "@core/career-history";
 import { ArrowLeft, AtSign, Check, ChevronDown, Copy, Paperclip, Pencil, Plus, Trash2 } from "lucide-react";
+import type { AssistantAction } from "@core/assistant-panel";
+import { clampFloat } from "@core/assistant-panel";
+import { AssistantPanelHead, FloatingChatHead } from "./AssistantPanel";
 import "./home-chat.css";
 
 export type ChatRole = {
@@ -46,8 +49,11 @@ type LocalEdit = {
 };
 
 export function HomeProforna({
-  open,
-  onToggle,
+  place,
+  float = null,
+  onAssist,
+  onMove,
+  historyLabel = "History",
   width,
   roles = [],
   focusRoleId = null,
@@ -55,8 +61,14 @@ export function HomeProforna({
   onReleaseRole,
   onAttachRole,
 }: {
-  open: boolean;
-  onToggle: () => void;
+  /** Closed, docked in the assistant panel, or popped out over the page. */
+  place: "closed" | "docked" | "floating";
+  /** Where the popped-out chat sits; null puts it at the bottom right. */
+  float?: { x: number; y: number } | null;
+  onAssist: (action: AssistantAction) => void;
+  onMove: (point: { x: number; y: number }) => void;
+  /** The other side of the assistant panel's switch: "History" or "Updates". */
+  historyLabel?: string;
   width?: number;
   roles?: ChatRole[];
   focusRoleId?: string | null;
@@ -64,6 +76,9 @@ export function HomeProforna({
   onReleaseRole?: (id: string) => void;
   onAttachRole?: (role: ChatRole) => void;
 }) {
+  const open = place !== "closed";
+  const floating = place === "floating";
+  const floatBox = useFloatingBox(floating, float, onMove);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selectedIdRef = useRef<string | null>(null);
@@ -126,14 +141,14 @@ export function HomeProforna({
     syncThreadScroll(scroller, false);
     scroller.addEventListener("scroll", read, { passive: true });
     return () => scroller.removeEventListener("scroll", read);
-  }, [open, sessionsOpen, messages]);
+  }, [open, place, sessionsOpen, messages]);
 
   useEffect(() => {
     if (!open || sessionsOpen || !pinned.current) return;
     const scroller = threadRef.current?.parentElement;
     if (!scroller) return;
     scroller.scrollTop = scroller.scrollHeight;
-  }, [open, messages, busy, sessionsOpen]);
+  }, [open, place, messages, busy, sessionsOpen]);
 
   function syncThreadScroll(scroller: HTMLElement, fromUser: boolean) {
     const distance = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
@@ -439,13 +454,20 @@ export function HomeProforna({
 
   return (
     <aside
-      className={open ? "home-proforna is-open" : "home-proforna is-collapsed"}
-      aria-label="Conversations"
+      className={floating ? "home-proforna is-open is-floating" : open ? "home-proforna is-open" : "home-proforna is-closed"}
+      aria-label="Chat"
+      role={floating ? "dialog" : undefined}
       inert={!open}
-      style={width ? { width } : undefined}
+      hidden={!open}
+      style={floating ? floatBox.style : width ? { width } : undefined}
     >
       {open ? (
         <>
+          {floating ? (
+            <FloatingChatHead onAssist={onAssist} onGrab={floatBox.grab} />
+          ) : (
+            <AssistantPanelHead tab="chat" historyLabel={historyLabel} chatPopped={false} onAssist={onAssist} />
+          )}
           <div className="home-chat-sessions">
             {sessionsOpen ? null : (
               <button
@@ -748,15 +770,69 @@ export function HomeProforna({
             )}
           </ChatLayout>
         </>
-      ) : (
-        <h2>
-          <button type="button" onClick={onToggle}>
-            Chat
-          </button>
-        </h2>
-      )}
+      ) : null}
     </aside>
   );
+}
+
+const FLOAT_SIZE = { width: 380, height: 540 };
+const FLOAT_MARGIN = 24;
+
+/**
+ * Where the popped-out chat sits, kept on screen: bottom right until it's
+ * dragged by its top, then where it was left. Phones show it full screen (CSS).
+ */
+function useFloatingBox(
+  active: boolean,
+  saved: { x: number; y: number } | null,
+  onMove: (point: { x: number; y: number }) => void,
+) {
+  const [screen, setScreen] = useState(() => ({ width: window.innerWidth, height: window.innerHeight }));
+  const [drag, setDrag] = useState<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    if (!active) return;
+    const onResize = () => setScreen({ width: window.innerWidth, height: window.innerHeight });
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [active]);
+
+  const size = {
+    width: Math.min(FLOAT_SIZE.width, screen.width - 16),
+    height: Math.min(FLOAT_SIZE.height, screen.height - 16),
+  };
+  const start = saved ?? {
+    x: screen.width - size.width - FLOAT_MARGIN,
+    y: screen.height - size.height - FLOAT_MARGIN,
+  };
+  const at = clampFloat(drag ?? start, size, screen);
+
+  function grab(event: React.PointerEvent<HTMLDivElement>) {
+    if (event.button !== 0 || (event.target as HTMLElement).closest("button")) return;
+    const head = event.currentTarget;
+    head.setPointerCapture(event.pointerId);
+    const from = { x: event.clientX, y: event.clientY };
+    let last = at;
+    const move = (next: PointerEvent) => {
+      last = clampFloat({ x: at.x + next.clientX - from.x, y: at.y + next.clientY - from.y }, size, screen);
+      setDrag(last);
+    };
+    const up = () => {
+      head.removeEventListener("pointermove", move);
+      head.removeEventListener("pointerup", up);
+      head.removeEventListener("pointercancel", up);
+      setDrag(null);
+      onMove(last);
+    };
+    head.addEventListener("pointermove", move);
+    head.addEventListener("pointerup", up);
+    head.addEventListener("pointercancel", up);
+  }
+
+  return {
+    style: { left: at.x, top: at.y, width: size.width, height: size.height },
+    grab,
+  };
 }
 
 function sessionWhen(iso: string): string {

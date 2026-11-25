@@ -19,6 +19,8 @@ import { AchievementPopout } from "./AchievementPopout";
 import { RoleHistoryPanel } from "./RoleHistoryPanel";
 import { RoleView, type RoleFocusRequest } from "./RoleView";
 import { RoleScrollbar } from "./RoleScrollbar";
+import { AssistantPanelHead } from "./AssistantPanel";
+import type { AssistantAction } from "@core/assistant-panel";
 import "./home-center.css";
 
 export function HomeCenter({
@@ -31,6 +33,7 @@ export function HomeCenter({
   onStart,
   roleView = false,
   onRoleSaved,
+  assistant,
 }: {
   revision?: number;
   focusRoleId: string | null;
@@ -44,6 +47,8 @@ export function HomeCenter({
   /** On Career History, a focused role is shown here, with its History in place of Recent. */
   roleView?: boolean;
   onRoleSaved?: () => void;
+  /** The assistant panel's switch and close, at the top of History and Updates. */
+  assistant?: { chatPopped: boolean; onAssist: (action: AssistantAction) => void };
 }) {
   const [roles, setRoles] = useState<WorkMapRole[]>([]);
   const [settings, setSettings] = useState<MapSettings | null>(null);
@@ -293,6 +298,9 @@ export function HomeCenter({
               )}
                 {showRole && focus ? (
                   <section className="home-story-recent home-role-history">
+                    {assistant ? (
+                      <AssistantPanelHead tab="history" historyLabel="History" chatPopped={assistant.chatPopped} onAssist={assistant.onAssist} />
+                    ) : null}
                     <RoleHistoryPanel
                       role={focus}
                       onSaved={() => onRoleSaved?.()}
@@ -312,6 +320,9 @@ export function HomeCenter({
                   </section>
                 ) : (
                 <section className="home-story-recent" aria-label="Recent events">
+                  {assistant ? (
+                    <AssistantPanelHead tab="history" historyLabel="Updates" chatPopped={assistant.chatPopped} onAssist={assistant.onAssist} />
+                  ) : null}
                   <div className="home-story-recent-switch">
                     <SegmentedControl
                       label="Recent views"

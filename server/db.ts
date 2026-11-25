@@ -732,6 +732,53 @@ export function openDatabase(path: string): DatabaseSync {
       UNIQUE (occupant_id, role_id, document_id)
     )
   `);
+  // My Tools: the occupant's own tools, their photos (files in uploads), and
+  // the roles each was used on. Never published.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS personal_tools (
+      id TEXT PRIMARY KEY,
+      occupant_id TEXT NOT NULL REFERENCES occupants(id),
+      name TEXT NOT NULL,
+      category TEXT NOT NULL,
+      ownership TEXT NOT NULL,
+      maker TEXT NOT NULL DEFAULT '',
+      model TEXT NOT NULL DEFAULT '',
+      serial TEXT NOT NULL DEFAULT '',
+      condition TEXT NOT NULL DEFAULT '',
+      skill INTEGER,
+      acquired TEXT NOT NULL DEFAULT '',
+      paid REAL,
+      worth REAL,
+      kept_at TEXT NOT NULL DEFAULT '',
+      tags TEXT NOT NULL DEFAULT '[]',
+      notes TEXT NOT NULL DEFAULT '',
+      draft INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )
+  `);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS personal_tool_photos (
+      id TEXT PRIMARY KEY,
+      occupant_id TEXT NOT NULL REFERENCES occupants(id),
+      tool_id TEXT NOT NULL,
+      stored_name TEXT NOT NULL,
+      media_type TEXT NOT NULL,
+      is_cover INTEGER NOT NULL DEFAULT 0,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL
+    )
+  `);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS personal_tool_roles (
+      id TEXT PRIMARY KEY,
+      occupant_id TEXT NOT NULL REFERENCES occupants(id),
+      tool_id TEXT NOT NULL,
+      role_id TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      UNIQUE (occupant_id, tool_id, role_id)
+    )
+  `);
   // A record of changes to a role. The role's own fields and its details keep
   // what each change replaced, so it can be undone; the rest is only logged.
   db.exec(`

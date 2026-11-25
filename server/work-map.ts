@@ -1,5 +1,6 @@
 import { moveColleaguesToNetwork, readRolePeople } from "./role-people";
 import { forgetRoleDocumentLinks, readRoleDocuments } from "./role-documents";
+import { forgetToolRoleLinks } from "./personal-tools";
 import { prepareRoleLinks, type RoleLinkKind } from "../core/role-links";
 import { prepareRoleGlance } from "../core/role-glance";
 import {
@@ -636,6 +637,7 @@ export function removeWorkMapRole(
       `DELETE FROM role_contacts WHERE role_id = ? AND occupant_id = ?`,
     ).run(id, occupantId);
     forgetRoleDocumentLinks(db, occupantId, id);
+    forgetToolRoleLinks(db, occupantId, id);
     removeRoleEdits(db, occupantId, id);
     db.prepare(
       `DELETE FROM career_facts

@@ -5,6 +5,7 @@ import {
   DEFAULT_FRAMING,
   draftToolName,
   filterTools,
+  matchParts,
   framingStyle,
   readKitName,
   readBulkRequest,
@@ -343,5 +344,35 @@ describe("bulk changes", () => {
       ids: ["a"],
       change: { kind: "removeTags", tags: ["Shop"] },
     });
+  });
+});
+
+describe("search highlight", () => {
+  it("splits text into matching and other parts, ignoring case", () => {
+    expect(matchParts("Fluke 87V", "flu")).toEqual([
+      { text: "Flu", match: true },
+      { text: "ke 87V", match: false },
+    ]);
+  });
+
+  it("marks each match once, left to right", () => {
+    expect(matchParts("aaaa", "aa")).toEqual([
+      { text: "aa", match: true },
+      { text: "aa", match: true },
+    ]);
+  });
+
+  it("treats the query as plain text", () => {
+    expect(matchParts('1/2" (13mm) bit', "(13MM)")).toEqual([
+      { text: '1/2" ', match: false },
+      { text: "(13mm)", match: true },
+      { text: " bit", match: false },
+    ]);
+  });
+
+  it("leaves text alone for an empty or missing query", () => {
+    expect(matchParts("Drill", "  ")).toEqual([{ text: "Drill", match: false }]);
+    expect(matchParts("Drill", "saw")).toEqual([{ text: "Drill", match: false }]);
+    expect(matchParts("", "saw")).toEqual([]);
   });
 });

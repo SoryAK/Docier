@@ -360,6 +360,23 @@ export function filterTools(tools: PersonalTool[], filter: ToolFilter): Personal
   );
 }
 
+/** Splits text into the parts that match a search and the rest, ignoring case. The query is plain text. */
+export function matchParts(text: string, query: string): Array<{ text: string; match: boolean }> {
+  if (!text) return [];
+  const needle = query.trim().toLowerCase();
+  if (!needle) return [{ text, match: false }];
+  const lower = text.toLowerCase();
+  const parts: Array<{ text: string; match: boolean }> = [];
+  let from = 0;
+  for (let at = lower.indexOf(needle); at !== -1; at = lower.indexOf(needle, from)) {
+    if (at > from) parts.push({ text: text.slice(from, at), match: false });
+    parts.push({ text: text.slice(at, at + needle.length), match: true });
+    from = at + needle.length;
+  }
+  if (from < text.length) parts.push({ text: text.slice(from), match: false });
+  return parts;
+}
+
 /** The tools used on a role, by name. */
 export function toolsForRole(tools: PersonalTool[], roleId: string): PersonalTool[] {
   return tools.filter((tool) => tool.roleIds.includes(roleId)).sort((a, b) => a.name.localeCompare(b.name));

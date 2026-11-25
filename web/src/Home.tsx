@@ -432,9 +432,11 @@ export function Home({
           headline={profile.headline}
           photoSrc={photoSrc}
           menuExpanded={desktop ? !collapsed : mobileOpen}
-          menuLabel={page === "history" ? "Home" : undefined}
+          menuLabel={page === "history" && !desktop ? "Home" : undefined}
           onMenu={() => {
-            if (page === "history") {
+            // On narrow screens Career history has no side column to close, so
+            // the button goes home; on wider ones it closes the column in place.
+            if (page === "history" && !desktop) {
               setEditing(false);
               goHome();
               return;

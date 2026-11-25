@@ -40,7 +40,7 @@ function setup() {
       .id as string;
   const tools = async () => (await send("GET", "/api/tools")).body.tools as any[];
   const files = () => readdirSync(uploadsDir);
-  return { app, send, photos, png, addRole, tools, files, uploadsDir };
+  return { app, db, send, photos, png, addRole, tools, files, uploadsDir };
 }
 
 describe("my tools", () => {
@@ -116,6 +116,37 @@ describe("my tools", () => {
     ]);
     for (const photo of removed.body.tool.photos) await send("DELETE", `/api/tools/${id}/photos/${photo.id}`);
     expect((await send("GET", "/api/tools")).body.tools[0].photos).toEqual([]);
+  });
+
+  it("takes ordinary phone photos, and names a photo that's too large", async () => {
+    const { photos, files } = setup();
+    const big = (name: string, bytes: number) => {
+      const data = new Uint8Array(bytes);
+      data.set(PNG);
+      return new File([data], name, { type: "image/png" });
+    };
+    const made = await photos("/api/tools/from-photos", [big("phone.png", 3 * 1024 * 1024), big("huge.png", 6 * 1024 * 1024)]);
+    expect(made.status).toBe(201);
+    expect(made.body.tools.map((tool: any) => tool.name)).toEqual(["phone"]);
+    expect(made.body.skipped).toEqual([{ name: "huge.png", error: "photo-too-large" }]);
+    expect(files()).toHaveLength(1);
+  });
+
+  it("takes a 3 MB photo on a tool", async () => {
+    const { send, photos } = setup();
+    const id = (await send("POST", "/api/tools", { name: "Drill" })).body.tool.id;
+    const data = new Uint8Array(3 * 1024 * 1024);
+    data.set(PNG);
+    expect((await photos(`/api/tools/${id}/photos`, [new File([data], "a.png", { type: "image/png" })])).status).toBe(201);
+  });
+
+  it("serves only photos, and never lets the browser guess the type", async () => {
+    const { app, db, photos, png } = setup();
+    const tool = (await photos("/api/tools/from-photos", [png("a.png")])).body.tools[0];
+    const ok = await app.request(tool.photos[0].url);
+    expect(ok.headers.get("x-content-type-options")).toBe("nosniff");
+    db.prepare("UPDATE personal_tool_photos SET media_type = 'text/html'").run();
+    expect((await app.request(tool.photos[0].url)).status).toBe(404);
   });
 
   it("refuses a 21st photo", async () => {

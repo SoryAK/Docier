@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { ImagePlus, Plus, Search, Wrench } from "lucide-react";
 import { EQUIPMENT_CATEGORIES, EQUIPMENT_CATEGORY_LABEL, type EquipmentCategory } from "@core/role-gear";
-import { TOOL_OWNERSHIP_LABEL, filterTools, type PersonalTool } from "@core/personal-tools";
+import { TOOL_OWNERSHIP_LABEL, filterTools, toolPhotoProblem, type PersonalTool } from "@core/personal-tools";
 import { ToolPanel, type ToolRoleChoice } from "./ToolPanel";
 import "./tools.css";
 
@@ -23,9 +23,12 @@ function openTool(id: string | null) {
 
 const SKIP_REASON: Record<string, string> = {
   "photo-type": "isn't a photo",
-  "photo-too-large": "is too large",
+  "photo-too-large": "is over 5 MB",
   "photo-empty": "is empty",
 };
+
+/** Photos go up a few at a time, so one request never grows too large. */
+const BATCH = 5;
 
 /**
  * My Tools: your own tools and equipment, as a grid of cards with a panel for
@@ -43,6 +46,22 @@ export function ToolsPage() {
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  // A tool added in the panel keeps that panel (and what it says) once saved.
+  const [adopted, setAdopted] = useState<string | null>(null);
+  // Each "Add a tool" starts a fresh panel.
+  const [newSession, setNewSession] = useState(0);
+  // The card a tool was opened from gets focus back when its panel closes.
+  const openedFrom = useRef<string | null>(null);
+  useEffect(() => {
+    if (open && open !== "new") {
+      openedFrom.current = open;
+      return;
+    }
+    if (open === null && openedFrom.current) {
+      document.querySelector<HTMLElement>(`.tools-card[data-tool-id="${CSS.escape(openedFrom.current)}"]`)?.focus();
+      openedFrom.current = null;
+    }
+  }, [open]);
 
   useEffect(() => {
     const onRoute = () => setOpen(readOpenTool());
@@ -92,20 +111,33 @@ export function ToolsPage() {
     if (list.length === 0) return;
     setBusy(true);
     setNote(null);
+    const added: PersonalTool[] = [];
+    const skipped: string[] = [];
+    // Files that can't be photos are named here and never sent.
+    const good = list.filter((file) => {
+      const problem = toolPhotoProblem({ type: file.type, size: file.size });
+      if (problem) skipped.push(`${file.name} ${SKIP_REASON[problem]}.`);
+      return !problem;
+    });
     try {
-      const form = new FormData();
-      for (const file of list) form.append("photos", file);
-      const response = await fetch("/api/tools/from-photos", { method: "POST", body: form });
-      if (!response.ok) throw new Error("from-photos");
-      const body = (await response.json()) as { tools: PersonalTool[]; skipped: Array<{ name: string; error: string }> };
-      setTools((current) => [...body.tools, ...(current ?? [])]);
-      setNote({
-        added: body.tools.length,
-        skipped: body.skipped.map((item) => `${item.name} ${SKIP_REASON[item.error] ?? "couldn't be added"}.`),
-      });
-      if (body.tools[0]) openTool(body.tools[0].id);
-    } catch {
-      setNote({ added: 0, skipped: ["The photos couldn't be added. Try again."] });
+      for (let start = 0; start < good.length; start += BATCH) {
+        const batch = good.slice(start, start + BATCH);
+        const form = new FormData();
+        for (const file of batch) form.append("photos", file);
+        try {
+          const response = await fetch("/api/tools/from-photos", { method: "POST", body: form });
+          if (!response.ok) throw new Error("from-photos");
+          const body = (await response.json()) as { tools: PersonalTool[]; skipped: Array<{ name: string; error: string }> };
+          added.push(...body.tools);
+          skipped.push(...body.skipped.map((item) => `${item.name} ${SKIP_REASON[item.error] ?? "couldn't be added"}.`));
+        } catch {
+          skipped.push(`${batch.map((file) => file.name).join(", ")} couldn't be added. Try again.`);
+        }
+      }
+      setTools((current) => [...added.slice().reverse(), ...(current ?? [])]);
+      setNote({ added: added.length, skipped });
+      // An unsaved new tool isn't swapped out for the first draft.
+      if (added[0] && open !== "new") openTool(added[0].id);
     } finally {
       setBusy(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -150,7 +182,15 @@ export function ToolsPage() {
             <ImagePlus size={16} aria-hidden="true" />
             {busy ? "Adding…" : "Add from photos"}
           </button>
-          <button type="button" className="tools-btn is-primary" onClick={() => openTool("new")}>
+          <button
+            type="button"
+            className="tools-btn is-primary"
+            onClick={() => {
+              setAdopted(null);
+              setNewSession((n) => n + 1);
+              openTool("new");
+            }}
+          >
             <Plus size={16} aria-hidden="true" />
             Add a tool
           </button>
@@ -219,6 +259,7 @@ export function ToolsPage() {
                   <button
                     type="button"
                     className="tools-card"
+                    data-tool-id={tool.id}
                     aria-current={open === tool.id ? "true" : undefined}
                     onClick={() => openTool(tool.id)}
                   >
@@ -248,12 +289,15 @@ export function ToolsPage() {
 
       {panelOpen ? (
         <ToolPanel
-          key={current?.id ?? "new"}
+          key={current && current.id !== adopted ? current.id : `new-${newSession}`}
           tool={current}
           roles={roles}
           onSaved={(tool) => {
             saved(tool);
-            if (open === "new") openTool(tool.id);
+            if (open === "new") {
+              setAdopted(tool.id);
+              openTool(tool.id);
+            }
           }}
           onRemoved={(id) => {
             setTools((list) => (list ?? []).filter((item) => item.id !== id));

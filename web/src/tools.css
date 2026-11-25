@@ -1,22 +1,25 @@
 /* My Tools: a grid of your own tools, and a panel for adding and changing one. */
 /* The grid and the panel scroll on their own, so the heading stays put. */
 .home-story-page:has(> .tools-page) {
-  overflow: hidden;
+  overflow: auto;
+  container: tools / inline-size;
 }
 
 .tools-page {
   position: relative;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: stretch;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   height: 100%;
   background: #fff;
   color: #171717;
 }
 
+.tools-page.has-panel {
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 400px);
+}
+
 .tools-main {
   display: flex;
-  flex: 999 1 520px;
   flex-direction: column;
   gap: 16px;
   min-width: 0;
@@ -311,8 +314,7 @@
 
 /* ---- The panel ---- */
 .tool-panel {
-  flex: 1 1 360px;
-  max-width: 440px;
+  min-width: 0;
   max-height: 100%;
   overflow: auto;
   box-sizing: border-box;
@@ -585,13 +587,12 @@
   outline-offset: 1px;
 }
 
-/* Phones: the panel takes the full width under the grid. */
-@media (max-width: 800px) {
-  .home-story-page:has(> .tools-page) {
-    overflow: auto;
-  }
-
-  .tools-page {
+/* A narrow page (a phone, or a small window beside the menus): the panel goes
+   under the grid and the whole page scrolls, so Save is always reachable. */
+@container tools (max-width: 760px) {
+  .tools-page,
+  .tools-page.has-panel {
+    grid-template-columns: minmax(0, 1fr);
     height: auto;
   }
 
@@ -606,10 +607,13 @@
   }
 
   .tool-panel {
-    max-width: none;
     border-top: 1px solid #e4e4e7;
     border-left: 0;
   }
+}
+
+.tool-panel-head h2:focus:not(:focus-visible) {
+  outline: none;
 }
 
 /* ---- On a role's Setup: your own tools used there ---- */

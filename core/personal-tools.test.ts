@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { draftToolName, filterTools, readToolInput, toolsForRole, toolSearchText, type PersonalTool } from "./personal-tools";
+import { draftToolName, filterTools, readToolInput, toolPhotoProblem, toolsForRole, toolSearchText, type PersonalTool } from "./personal-tools";
 
 const roles = new Set(["r1", "r2"]);
 
@@ -146,5 +146,14 @@ describe("finding tools", () => {
 
   it("searches name, maker, model, and tags", () => {
     expect(toolSearchText(tools[0]!)).toBe("Fluke 87V Fluke electrical");
+  });
+});
+
+describe("photos", () => {
+  it("says why a file can't be a tool photo", () => {
+    expect(toolPhotoProblem({ type: "image/jpeg", size: 3 * 1024 * 1024 })).toBeNull();
+    expect(toolPhotoProblem({ type: "text/plain", size: 5 })).toBe("photo-type");
+    expect(toolPhotoProblem({ type: "image/png", size: 0 })).toBe("photo-empty");
+    expect(toolPhotoProblem({ type: "image/png", size: 6 * 1024 * 1024 })).toBe("photo-too-large");
   });
 });

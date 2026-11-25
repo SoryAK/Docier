@@ -1,11 +1,12 @@
 import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
-import { PROFILE_AVATAR_MAX_BYTES, avatarExtension, isAvatarType } from "../core/profile";
+import { avatarExtension, isAvatarType } from "../core/profile";
 import {
   TOOL_PHOTO_LIMIT,
   draftToolName,
   readToolInput,
+  toolPhotoProblem,
   type PersonalTool,
   type ToolInput,
   type ToolInputError,
@@ -206,12 +207,8 @@ export function removeTool(db: DatabaseSync, occupantId: string, uploadsDir: str
   for (const photo of photos) deleteFile(uploadsDir, photo.stored_name);
 }
 
-/** Why a file can't be a tool photo, or null when it can. */
 function photoProblem(file: ToolPhotoFile): ToolErrorCode | null {
-  if (!isAvatarType(file.type) || !avatarExtension(file.type)) return "photo-type";
-  if (file.bytes.byteLength === 0) return "photo-empty";
-  if (file.bytes.byteLength > PROFILE_AVATAR_MAX_BYTES) return "photo-too-large";
-  return null;
+  return toolPhotoProblem({ type: file.type, size: file.bytes.byteLength });
 }
 
 function storePhoto(db: DatabaseSync, occupantId: string, uploadsDir: string, toolId: string, file: ToolPhotoFile, now: string) {
@@ -320,6 +317,8 @@ export function loadToolPhoto(
   photoId: string,
 ): { bytes: Uint8Array; type: string } | null {
   const photo = photoRow(db, occupantId, toolId, photoId);
+  // A restored backup can name any type: only photo types are ever served.
+  if (!isAvatarType(photo.media_type)) return null;
   try {
     return { bytes: new Uint8Array(readFileSync(uploadPath(uploadsDir, photo.stored_name))), type: photo.media_type };
   } catch {

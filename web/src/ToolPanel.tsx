@@ -7,6 +7,7 @@ import {
   TOOL_OWNERSHIPS,
   TOOL_OWNERSHIP_LABEL,
   TOOL_PHOTO_LIMIT,
+  toolPhotoProblem,
   type PersonalTool,
 } from "@core/personal-tools";
 
@@ -64,10 +65,28 @@ const FIELD_ERROR: Record<string, { field: keyof Draft | "form"; text: string }>
 
 const PHOTO_ERROR: Record<string, string> = {
   "photo-type": "That file isn't a photo.",
-  "photo-too-large": "That photo is too large.",
+  "photo-too-large": "That photo is over 5 MB.",
   "photo-empty": "That photo is empty.",
   "photo-limit": `A tool keeps at most ${TOOL_PHOTO_LIMIT} photos.`,
 };
+
+const PHOTO_REASON: Record<string, string> = {
+  "photo-type": "isn't a photo",
+  "photo-too-large": "is over 5 MB",
+  "photo-empty": "is empty",
+};
+
+/** Splits picked files into photos that can be sent and a line naming the ones that can't. */
+function checkPhotos(files: File[]): { good: File[]; note: string } {
+  const good: File[] = [];
+  const bad: string[] = [];
+  for (const file of files) {
+    const problem = toolPhotoProblem({ type: file.type, size: file.size });
+    if (problem) bad.push(`${file.name} ${PHOTO_REASON[problem]}`);
+    else good.push(file);
+  }
+  return { good, note: bad.length ? `Not added: ${bad.join("; ")}.` : "" };
+}
 
 /**
  * One tool, for adding or changing: every field, its photos, the roles it was
@@ -98,10 +117,17 @@ export function ToolPanel({
   const nameRef = useRef<HTMLInputElement>(null);
 
   const panelRef = useRef<HTMLElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
-    // On a narrow screen the panel sits under the grid: bring it into view.
-    if (window.matchMedia("(max-width: 800px)").matches) panelRef.current?.scrollIntoView({ block: "start" });
-    if (!tool) nameRef.current?.focus({ preventScroll: true });
+    // When the panel sits under the grid (a narrow page), bring it into view.
+    const panel = panelRef.current;
+    const grid = panel?.previousElementSibling;
+    if (panel && grid && panel.getBoundingClientRect().top >= grid.getBoundingClientRect().bottom - 1) {
+      panel.scrollIntoView({ block: "start" });
+    }
+    // Keyboard users land in the panel: on the name for a new tool, else on its heading.
+    if (tool) headingRef.current?.focus({ preventScroll: true });
+    else nameRef.current?.focus({ preventScroll: true });
     // Only when the panel opens.
   }, []);
   // Previews of photos not yet uploaded are let go when the panel closes.
@@ -124,30 +150,35 @@ export function ToolPanel({
       </span>
     ) : null;
 
-  async function uploadPhotos(id: string, files: File[]): Promise<PersonalTool | null> {
-    const form = new FormData();
-    for (const file of files) form.append("photos", file);
-    const response = await fetch(`/api/tools/${encodeURIComponent(id)}/photos`, { method: "POST", body: form });
-    if (!response.ok) {
-      const body = (await response.json().catch(() => ({}))) as { error?: string };
-      setPhotoNote(PHOTO_ERROR[body.error ?? ""] ?? "The photos couldn't be added.");
-      return null;
+  /** Sends photos to a saved tool. Returns the tool, or the reason they weren't added. */
+  async function uploadPhotos(id: string, files: File[]): Promise<{ tool: PersonalTool } | { failed: string }> {
+    try {
+      const form = new FormData();
+      for (const file of files) form.append("photos", file);
+      const response = await fetch(`/api/tools/${encodeURIComponent(id)}/photos`, { method: "POST", body: form });
+      if (!response.ok) {
+        const body = (await response.json().catch(() => ({}))) as { error?: string };
+        return { failed: PHOTO_ERROR[body.error ?? ""] ?? "The photos couldn't be added. Try again." };
+      }
+      return { tool: ((await response.json()) as { tool: PersonalTool }).tool };
+    } catch {
+      return { failed: "The photos couldn't be added. Try again." };
     }
-    setPhotoNote("");
-    return ((await response.json()) as { tool: PersonalTool }).tool;
   }
 
   async function addPhotos(files: FileList | null) {
-    const list = files ? Array.from(files) : [];
+    const { good, note } = checkPhotos(files ? Array.from(files) : []);
     if (fileRef.current) fileRef.current.value = "";
-    if (list.length === 0) return;
+    setPhotoNote(note);
+    if (good.length === 0) return;
     if (!tool) {
-      setPending((current) => [...current, ...list.map((file) => ({ file, url: URL.createObjectURL(file) }))]);
+      setPending((current) => [...current, ...good.map((file) => ({ file, url: URL.createObjectURL(file) }))]);
       return;
     }
     setBusy(true);
-    const next = await uploadPhotos(tool.id, list).finally(() => setBusy(false));
-    if (next) onSaved(next);
+    const result = await uploadPhotos(tool.id, good).finally(() => setBusy(false));
+    if ("tool" in result) onSaved(result.tool);
+    else setPhotoNote([note, result.failed].filter(Boolean).join(" "));
   }
 
   async function photoAction(method: "DELETE" | "PUT", path: string) {
@@ -169,6 +200,7 @@ export function ToolPanel({
     event.preventDefault();
     setBusy(true);
     setError(null);
+    let savedTool: PersonalTool;
     try {
       const response = await fetch(tool ? `/api/tools/${encodeURIComponent(tool.id)}` : "/api/tools", {
         method: tool ? "PUT" : "POST",
@@ -178,19 +210,27 @@ export function ToolPanel({
       const body = (await response.json().catch(() => ({}))) as { tool?: PersonalTool; error?: string };
       if (!response.ok || !body.tool) {
         setError(FIELD_ERROR[body.error ?? ""] ?? { field: "form", text: "The tool couldn't be saved. Try again." });
+        setBusy(false);
         return;
       }
-      let savedTool = body.tool;
-      if (!tool && pending.length) {
-        savedTool = (await uploadPhotos(savedTool.id, pending.map((item) => item.file))) ?? savedTool;
-      }
-      onSaved(savedTool);
-      if (tool) onClose();
+      savedTool = body.tool;
     } catch {
       setError({ field: "form", text: "The tool couldn't be saved. Try again." });
-    } finally {
       setBusy(false);
+      return;
     }
+    // The tool is saved. Photos picked before saving go up now; if they can't,
+    // the tool stays saved and the panel says what happened to the photos.
+    if (!tool && pending.length) {
+      const result = await uploadPhotos(savedTool.id, pending.map((item) => item.file));
+      pending.forEach((item) => URL.revokeObjectURL(item.url));
+      setPending([]);
+      if ("tool" in result) savedTool = result.tool;
+      else setPhotoNote(`The tool is saved, but its photos weren't added. ${result.failed}`);
+    }
+    setBusy(false);
+    onSaved(savedTool);
+    if (tool) onClose();
   }
 
   async function remove() {
@@ -216,7 +256,9 @@ export function ToolPanel({
     <aside ref={panelRef} className="tool-panel" aria-label={title}>
       <form onSubmit={save} noValidate>
         <div className="tool-panel-head">
-          <h2>{title}</h2>
+          <h2 ref={headingRef} tabIndex={-1}>
+            {title}
+          </h2>
           <button type="button" className="tool-icon-btn" aria-label="Close" onClick={onClose}>
             <X size={17} aria-hidden="true" />
           </button>

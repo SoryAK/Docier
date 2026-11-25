@@ -2712,6 +2712,7 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
       return c.body(Buffer.from(photo.bytes), 200, {
         "content-type": photo.type,
         "cache-control": "private, max-age=31536000, immutable",
+        "x-content-type-options": "nosniff",
       });
     } catch (error) {
       return toolFailure(c, error);

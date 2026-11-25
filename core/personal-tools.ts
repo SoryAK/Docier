@@ -4,6 +4,7 @@
  * yours (or shared, borrowed, rented). Never published.
  */
 import { EQUIPMENT_CATEGORIES, type EquipmentCategory } from "./role-gear";
+import { PROFILE_AVATAR_MAX_BYTES, avatarExtension, isAvatarType } from "./profile";
 
 export const TOOL_OWNERSHIPS = ["mine", "shared", "borrowed", "rented"] as const;
 export type ToolOwnership = (typeof TOOL_OWNERSHIPS)[number];
@@ -28,6 +29,16 @@ export const TOOL_CONDITION_LABEL: Record<ToolCondition, string> = {
 export const TOOL_PHOTO_LIMIT = 20;
 
 export type ToolPhoto = { id: string; url: string; cover: boolean };
+
+export type ToolPhotoProblem = "photo-type" | "photo-empty" | "photo-too-large";
+
+/** Why a file can't be a tool photo, or null when it can. Checked in the browser before sending, and again on the server. */
+export function toolPhotoProblem(file: { type: string; size: number }): ToolPhotoProblem | null {
+  if (!isAvatarType(file.type) || !avatarExtension(file.type)) return "photo-type";
+  if (file.size === 0) return "photo-empty";
+  if (file.size > PROFILE_AVATAR_MAX_BYTES) return "photo-too-large";
+  return null;
+}
 
 export type PersonalTool = {
   id: string;

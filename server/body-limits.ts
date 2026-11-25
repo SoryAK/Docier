@@ -1,6 +1,7 @@
 import type { MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { PROFILE_AVATAR_MAX_BYTES } from "../core/profile";
+import { TOOL_PHOTO_LIMIT } from "../core/personal-tools";
 import { UPLOAD_MAX_BYTES } from "./documents";
 import { MAX_RESTORE_ARCHIVE_BYTES } from "./portability";
 
@@ -20,6 +21,11 @@ const uploadRoutes: Array<{ path: RegExp; maxSize: number }> = [
   {
     path: /^\/api\/work-map\/roles\/[^/]+\/photos$/,
     maxSize: PROFILE_AVATAR_MAX_BYTES + FORM_OVERHEAD,
+  },
+  // My Tools takes several photos at once, each up to the profile photo's size.
+  {
+    path: /^\/api\/tools\/(from-photos|[^/]+\/photos)$/,
+    maxSize: TOOL_PHOTO_LIMIT * PROFILE_AVATAR_MAX_BYTES + FORM_OVERHEAD,
   },
 ];
 

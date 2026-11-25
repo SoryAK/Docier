@@ -577,4 +577,58 @@ describe("small touches", () => {
     await user.keyboard("{Control>}n{/Control}");
     expect(window.location.hash).toBe("#/tools");
   });
+
+  it("shortcuts leave an open tool's panel alone", async () => {
+    const id = await addToolThroughApi("Drill");
+    window.location.hash = `#/tools/${id}`;
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    const name = within(await screen.findByRole("complementary", { name: "Drill" })).getByLabelText("Name");
+    await user.clear(name);
+    await user.type(name, "Drill press");
+    within(panel("Drill")).getByRole("button", { name: "Save" }).focus();
+    await user.keyboard("n/");
+    expect(window.location.hash).toBe(`#/tools/${id}`);
+    expect((within(panel("Drill")).getByLabelText("Name") as HTMLInputElement).value).toBe("Drill press");
+  });
+
+  it("shortcuts wait while one of the app's dialogs is open", async () => {
+    await addToolThroughApi("Drill");
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await screen.findByLabelText("Whose Drill is");
+    const dialog = document.createElement("dialog");
+    dialog.setAttribute("open", "");
+    const button = document.createElement("button");
+    dialog.append(button);
+    document.body.append(dialog);
+    button.focus();
+    await user.keyboard("n");
+    expect(window.location.hash).toBe("#/tools");
+    dialog.remove();
+  });
+
+  it("n doesn't drop the picks while choosing", async () => {
+    await addToolThroughApi("Drill");
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await user.click(await screen.findByRole("button", { name: "Select" }));
+    await user.click(screen.getByRole("button", { name: "Pick Drill" }));
+    await user.keyboard("n");
+    expect(window.location.hash).toBe("#/tools");
+    expect(within(screen.getByRole("toolbar", { name: "Picked tools" })).getByText("1 picked")).toBeTruthy();
+    // Search still works, to narrow what's shown.
+    await user.keyboard("/");
+    expect(document.activeElement).toBe(screen.getByRole("searchbox"));
+  });
+
+  it("the open tool's card has no quick menus, so the panel's save can't undo them", async () => {
+    const id = await addToolThroughApi("Drill");
+    await addToolThroughApi("Saw");
+    window.location.hash = `#/tools/${id}`;
+    render(<ToolsPage />);
+    await screen.findByRole("complementary", { name: "Drill" });
+    expect(screen.queryByLabelText("Whose Drill is")).toBeNull();
+    expect(screen.getByLabelText("Whose Saw is")).toBeTruthy();
+  });
 });

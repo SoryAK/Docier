@@ -74,12 +74,16 @@ function Highlight({ text, query }: { text: string; query: string }) {
   );
 }
 
-/** Typing in a field, or a dialog open: page shortcuts stay out of the way. */
+/**
+ * Page shortcuts stay out of the way while typing, inside an open tool's panel
+ * or the picked-tools bar (where a stray key could lose edits or picks), and
+ * while any dialog is open.
+ */
 function shortcutBlocked(event: KeyboardEvent): boolean {
   if (event.ctrlKey || event.metaKey || event.altKey || event.defaultPrevented) return true;
   const target = event.target as HTMLElement | null;
-  if (target?.closest?.("input, textarea, select, [contenteditable=''], [contenteditable='true']")) return true;
-  return Boolean(document.querySelector("[role='dialog']"));
+  if (target?.isContentEditable || target?.closest?.("input, textarea, select, .tool-panel, .tools-bulk")) return true;
+  return Boolean(document.querySelector("[role='dialog'], dialog[open]"));
 }
 
 /**
@@ -178,14 +182,16 @@ export function ToolsPage() {
     openTool("new");
   }
 
-  // `/` goes to search; `n` adds a tool.
+  // `/` goes to search; `n` adds a tool, but not while choosing, where opening a tool would drop the picks.
+  const choosingRef = useRef(choosing);
+  choosingRef.current = choosing;
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (shortcutBlocked(event)) return;
       if (event.key === "/" && searchRef.current) {
         event.preventDefault();
         searchRef.current.focus();
-      } else if (event.key === "n" || event.key === "N") {
+      } else if ((event.key === "n" || event.key === "N") && !choosingRef.current) {
         event.preventDefault();
         addTool();
       }
@@ -510,7 +516,8 @@ export function ToolsPage() {
                       <span className="tools-muted">{used.length ? `Used at ${used.join(", ")}` : "Not linked to a role"}</span>
                     </span>
                   </button>
-                  {choosing ? null : (
+                  {/* The open tool is changed in its panel, whose save would undo a change made here. */}
+                  {choosing || open === tool.id ? null : (
                     <div className="tools-card-quick">
                       <select
                         aria-label={`Whose ${tool.name} is`}

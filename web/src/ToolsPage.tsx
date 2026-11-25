@@ -184,12 +184,17 @@ export function ToolsPage() {
   /** Downloads the tools shown as my-tools.csv. */
   function exportCsv() {
     const csv = toolsCsv(visible, { role: roleName, kit: (id) => kits.find((item) => item.id === id)?.name });
-    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    // A byte-order mark first, so spreadsheets read accented names as UTF-8.
+    const url = URL.createObjectURL(new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" }));
     const link = document.createElement("a");
     link.href = url;
     link.download = "my-tools.csv";
+    link.hidden = true;
+    document.body.append(link);
     link.click();
-    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    link.remove();
+    // Some browsers start the download after the click returns: let go of the file a moment later.
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   function onDrop(event: DragEvent) {

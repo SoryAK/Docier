@@ -204,7 +204,9 @@ describe("kits, totals, and export", () => {
     HTMLAnchorElement.prototype.click = click;
 
     expect(downloaded).toBe("my-tools.csv");
-    const text = await blobs[0]!.text();
+    // A byte-order mark first, so spreadsheets read accented names as UTF-8.
+    expect([...new Uint8Array(await blobs[0]!.arrayBuffer()).slice(0, 3)]).toEqual([0xef, 0xbb, 0xbf]);
+    const text = (await blobs[0]!.text()).replace(/^\uFEFF/, "");
     expect(text.split("\r\n")[0]).toMatch(/^Name,Category,Whose it is,Maker/);
     expect(text).toContain("Meter,Tool,Mine,Fluke");
     expect(text).not.toContain("Drill");
@@ -236,7 +238,7 @@ describe("photo framing", () => {
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Adjust photo" })).toBeNull());
     expect((await framing()).framing).toMatchObject({ rotation: 90, flipH: true, zoom: 2 });
     const cover = screen.getByRole("button", { name: "Open Meter" }).querySelector("img")!;
-    expect(cover.style.transform).toBe("rotate(90deg) scaleX(-1) scale(2)");
+    expect(cover.style.transform).toBe("scaleX(-1) rotate(90deg) scale(2)");
   });
 
   it("moves what stays in view with the arrow keys", async () => {
@@ -249,6 +251,33 @@ describe("photo framing", () => {
     await user.keyboard("{ArrowLeft}{ArrowLeft}{ArrowDown}");
     await user.click(within(dialog).getByRole("button", { name: "Save" }));
     await waitFor(async () => expect((await framing()).framing).toMatchObject({ focusX: 40, focusY: 55 }));
+  });
+
+  it("keeps keyboard focus inside the dialog, and Escape closes only the dialog", async () => {
+    await toolWithPhoto("Meter");
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await user.click(await within(await screen.findByRole("complementary", { name: "Meter" })).findByRole("button", { name: "Adjust photo 1" }));
+    const dialog = screen.getByRole("dialog", { name: "Adjust photo" });
+    within(dialog).getByRole("button", { name: "Save" }).focus();
+    await user.tab();
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    await user.tab({ shift: true });
+    expect(document.activeElement).toBe(within(dialog).getByRole("button", { name: "Save" }));
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog", { name: "Adjust photo" })).toBeNull();
+    expect(screen.getByRole("complementary", { name: "Meter" })).toBeTruthy();
+  });
+
+  it("shows the framing in a card-shaped preview while you adjust", async () => {
+    await toolWithPhoto("Meter");
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await user.click(await within(await screen.findByRole("complementary", { name: "Meter" })).findByRole("button", { name: "Adjust photo 1" }));
+    const dialog = screen.getByRole("dialog", { name: "Adjust photo" });
+    await user.click(within(dialog).getByRole("button", { name: "Rotate right" }));
+    const preview = within(dialog).getByRole("img", { name: "How the card will show it" });
+    expect(preview.style.transform).toBe("rotate(90deg)");
   });
 
   it("cancel leaves the photo as it was", async () => {

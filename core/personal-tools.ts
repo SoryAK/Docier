@@ -65,15 +65,20 @@ export function readPhotoFraming(raw: unknown): { ok: true; value: PhotoFraming 
   };
 }
 
-/** The CSS that shows a photo framed: where it sits in its box, and how it's turned and scaled. */
-export function framingStyle(framing: PhotoFraming): { objectPosition: string; transform: string | undefined } {
+/**
+ * The CSS that shows a photo framed. The chosen point (a point on the photo as
+ * taken) is lined up in its box, and the photo turns and zooms around it, so it
+ * stays in view. Flips come before the turn, so "across" means across on screen.
+ */
+export function framingStyle(framing: PhotoFraming): { objectPosition: string; transformOrigin: string; transform: string | undefined } {
   const parts = [
-    framing.rotation ? `rotate(${framing.rotation}deg)` : "",
     framing.flipH ? "scaleX(-1)" : "",
     framing.flipV ? "scaleY(-1)" : "",
+    framing.rotation ? `rotate(${framing.rotation}deg)` : "",
     framing.zoom !== 1 ? `scale(${framing.zoom})` : "",
   ].filter(Boolean);
-  return { objectPosition: `${framing.focusX}% ${framing.focusY}%`, transform: parts.length ? parts.join(" ") : undefined };
+  const point = `${framing.focusX}% ${framing.focusY}%`;
+  return { objectPosition: point, transformOrigin: point, transform: parts.length ? parts.join(" ") : undefined };
 }
 
 export type ToolPhoto = { id: string; url: string; cover: boolean; framing: PhotoFraming };

@@ -245,10 +245,12 @@ describe("photo framing", () => {
   });
 
   it("turns a framing into CSS", () => {
-    expect(framingStyle(DEFAULT_FRAMING)).toEqual({ objectPosition: "50% 50%", transform: undefined });
+    expect(framingStyle(DEFAULT_FRAMING)).toEqual({ objectPosition: "50% 50%", transformOrigin: "50% 50%", transform: undefined });
+    // Flips come first, so "across" stays across on screen after a turn; everything turns and zooms around the chosen point.
     expect(framingStyle({ rotation: 90, flipH: true, flipV: false, zoom: 2, focusX: 30, focusY: 70 })).toEqual({
       objectPosition: "30% 70%",
-      transform: "rotate(90deg) scaleX(-1) scale(2)",
+      transformOrigin: "30% 70%",
+      transform: "scaleX(-1) rotate(90deg) scale(2)",
     });
   });
 });

@@ -17,7 +17,7 @@ export function FramedPhoto({ photo, alt = "" }: { photo: Pick<ToolPhoto, "url" 
       src={photo.url}
       alt={alt}
       loading="lazy"
-      style={{ objectPosition: style.objectPosition, transform: style.transform }}
+      style={{ objectPosition: style.objectPosition, transformOrigin: style.transformOrigin, transform: style.transform }}
     />
   );
 }
@@ -41,6 +41,7 @@ export function ToolPhotoFrame({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const firstRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
 
   useEffect(() => {
@@ -52,7 +53,25 @@ export function ToolPhotoFrame({
   const change = (next: Partial<PhotoFraming>) => setFraming((current) => ({ ...current, ...next }));
   const turn = (by: 90 | -90) => change({ rotation: (((framing.rotation + by) % 360) + 360) % 360 as PhotoFraming["rotation"] });
 
-  function aim(event: PointerEvent<HTMLDivElement>) {
+  /** Tab and Shift-Tab go round the dialog's own controls, never to the page behind. */
+  function keepFocus(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key !== "Tab" || !dialogRef.current) return;
+    const stops = [...dialogRef.current.querySelectorAll<HTMLElement>("button, input, [tabindex='0']")].filter(
+      (element) => !(element as HTMLButtonElement).disabled,
+    );
+    const first = stops[0];
+    const last = stops[stops.length - 1];
+    if (!first || !last) return;
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
+  function aim(event: PointerEvent<HTMLElement>) {
     const box = event.currentTarget.getBoundingClientRect();
     if (!box.width || !box.height) return;
     change({
@@ -95,11 +114,13 @@ export function ToolPhotoFrame({
   return (
     <div className="tool-frame-backdrop">
       <div
+        ref={dialogRef}
         className="tool-frame"
         role="dialog"
         aria-modal="true"
         aria-label="Adjust photo"
         onKeyDown={(event) => {
+          keepFocus(event);
           if (event.key === "Escape") {
             // The panel underneath stays open.
             event.preventDefault();
@@ -109,26 +130,36 @@ export function ToolPhotoFrame({
         }}
       >
         <h3>Adjust photo</h3>
-        <div
-          className="tool-frame-view"
-          role="group"
-          tabIndex={0}
-          aria-label={`What stays in view: ${framing.focusX}% across, ${framing.focusY}% down. Use the arrow keys, or drag on the photo.`}
-          onKeyDown={nudge}
-          onPointerDown={(event) => {
-            dragging.current = true;
-            event.currentTarget.setPointerCapture?.(event.pointerId);
-            aim(event);
-          }}
-          onPointerMove={(event) => {
-            if (dragging.current) aim(event);
-          }}
-          onPointerUp={() => {
-            dragging.current = false;
-          }}
-        >
-          <FramedPhoto photo={{ url: photo.url, framing }} />
-          <span className="tool-frame-dot" style={{ left: `${framing.focusX}%`, top: `${framing.focusY}%` }} aria-hidden="true" />
+        <p className="tool-frame-hint">Point to what should stay in view. The card turns and zooms around it.</p>
+        {/* The whole photo as taken: the point picked here is a point on the photo. */}
+        <div className="tool-frame-pick">
+          <div
+            className="tool-frame-photo"
+            role="group"
+            tabIndex={0}
+            aria-label={`What stays in view: ${framing.focusX}% across, ${framing.focusY}% down. Use the arrow keys, or drag on the photo.`}
+            onKeyDown={nudge}
+            onPointerDown={(event) => {
+              dragging.current = true;
+              event.currentTarget.setPointerCapture?.(event.pointerId);
+              aim(event);
+            }}
+            onPointerMove={(event) => {
+              if (dragging.current) aim(event);
+            }}
+            onPointerUp={() => {
+              dragging.current = false;
+            }}
+            onPointerCancel={() => {
+              dragging.current = false;
+            }}
+          >
+            <img src={photo.url} alt="" draggable={false} />
+            <span className="tool-frame-dot" style={{ left: `${framing.focusX}%`, top: `${framing.focusY}%` }} aria-hidden="true" />
+          </div>
+        </div>
+        <div className="tool-frame-view">
+          <FramedPhoto photo={{ url: photo.url, framing }} alt="How the card will show it" />
         </div>
         <div className="tool-frame-tools">
           <button ref={firstRef} type="button" className="tool-icon-btn" aria-label="Rotate left" title="Rotate left" onClick={() => turn(-90)}>

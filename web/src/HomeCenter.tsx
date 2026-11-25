@@ -29,6 +29,7 @@ export function HomeCenter({
   onSelectRole,
   onCloseRole,
   viewRequest = null,
+  roleRequest = null,
   pageContent = null,
   onStart,
   roleView = false,
@@ -43,6 +44,8 @@ export function HomeCenter({
   /** A first step when the story is empty: add a job or school, or import a resume. */
   onStart?: (action: "job" | "school" | "import") => void;
   viewRequest?: { id: number; updates: boolean; updateId: string | null } | null;
+  /** Something on the focused role to show, such as a search hit. */
+  roleRequest?: RoleFocusRequest | null;
   pageContent?: ReactNode;
   /** On Career History, a focused role is shown here, with its History in place of Recent. */
   roleView?: boolean;
@@ -65,6 +68,11 @@ export function HomeCenter({
   // An entry picked in a role's History, shown in the role beside it.
   const [roleFocus, setRoleFocus] = useState<RoleFocusRequest | null>(null);
   const [popoutAchievement, setPopoutAchievement] = useState<string | null>(null);
+  // A request is for the role it came with: another role starts fresh.
+  useEffect(() => setRoleFocus(null), [focusRoleId]);
+  useEffect(() => {
+    if (roleRequest) setRoleFocus(roleRequest);
+  }, [roleRequest]);
   // A different role closes an achievement left open.
   useEffect(() => setPopoutAchievement(null), [focusRoleId]);
 

@@ -48,6 +48,8 @@ import type { OnboardingProfileValue } from "./OnboardingProfile";
 import { WelcomeTour, type FirstRunMarks } from "./WelcomeTour";
 import { clearEvidenceRole } from "./onboarding-evidence";
 import { careerPreviewWindowUrl, isCareerPreview } from "./preview-placement";
+import type { RoleSearchTarget } from "@core/role-search";
+import type { RoleFocusRequest } from "./RoleView";
 import "./home.css";
 
 const NAV_COLLAPSED_KEY = "proforna.navCollapsed";
@@ -99,6 +101,8 @@ export function Home({
   const [photoTick, setPhotoTick] = useState(0);
   const [mapRevision, setMapRevision] = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
+  // Something found by search inside a role, shown when the role opens.
+  const [roleRequest, setRoleRequest] = useState<RoleFocusRequest | null>(null);
   const [collapsed, setCollapsed] = useState(() => (isCareerPreview() ? false : readCollapsed()));
   const bioPopRef = useRef<HTMLDivElement>(null);
   const [assistant, setAssistant] = useState<AssistantState>(readAssistant);
@@ -343,11 +347,20 @@ export function Home({
     assist("openChat");
   }
 
-  function openSearchRole(id: string) {
+  function openSearchRole(id: string, target?: RoleSearchTarget) {
     showLeft();
     setEditing(false);
     setFocusJobId(id);
     goPage("history", id);
+    if (!target) return;
+    const nonce = Date.now();
+    setRoleRequest(
+      "tab" in target
+        ? { kind: "tab", id: target.tab, nonce }
+        : "achievement" in target
+          ? { kind: "achievement", id: target.achievement, nonce }
+          : { kind: "person", id: target.person, nonce },
+    );
   }
 
   function openSearchUpdate(id: string, roleId: string) {
@@ -646,6 +659,7 @@ export function Home({
             assistant={{ chatPopped: assistant.chat === "floating", onAssist: assist }}
             onRoleSaved={() => setCareerRevision((n) => n + 1)}
             viewRequest={centerView}
+            roleRequest={roleRequest}
             pageContent={
               page !== "home" && page !== "history" ? <CareerWorkspace page={page} /> : null
             }

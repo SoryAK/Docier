@@ -34,7 +34,8 @@ const GLANCE_ICON: Record<GlanceKind, LucideIcon> = {
 };
 
 /** A thing picked in the role's History, to show in the role. */
-export type RoleFocusRequest = { kind: "achievement" | "person" | "overview"; id: string; nonce: number };
+/** What to show on a role: an achievement, a person, the start, or a tab (`id` is the tab). */
+export type RoleFocusRequest = { kind: "achievement" | "person" | "overview" | "tab"; id: string; nonce: number };
 
 /**
  * One role, opened from Career History: its photo as a banner (or a cream band),
@@ -110,6 +111,11 @@ export function RoleView({
     setSettings(null);
     if (focusRequest.kind === "overview") {
       setTab("overview");
+      return;
+    }
+    if (focusRequest.kind === "tab") {
+      setTab(focusRequest.id as RoleTab);
+      setOpenAchievement(null);
       return;
     }
     if (focusRequest.kind === "person") {

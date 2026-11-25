@@ -631,4 +631,14 @@ describe("small touches", () => {
     expect(screen.queryByLabelText("Whose Drill is")).toBeNull();
     expect(screen.getByLabelText("Whose Saw is")).toBeTruthy();
   });
+
+  it("says where a tool was used only when it's linked to a role", async () => {
+    const roleId = await server.addRole("Technician");
+    await addToolThroughApi("Drill", { roleIds: [roleId] });
+    await addToolThroughApi("Saw");
+    render(<ToolsPage />);
+    const drill = await screen.findByRole("button", { name: "Open Drill" });
+    await waitFor(() => expect(drill.textContent).toMatch(/Used at /));
+    expect(screen.getByRole("button", { name: "Open Saw" }).textContent).not.toMatch(/Used at|Not linked/);
+  });
 });

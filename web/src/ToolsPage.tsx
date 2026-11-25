@@ -513,7 +513,7 @@ export function ToolsPage() {
                           </span>
                         ))}
                       </span>
-                      <span className="tools-muted">{used.length ? `Used at ${used.join(", ")}` : "Not linked to a role"}</span>
+                      {used.length ? <span className="tools-muted">Used at {used.join(", ")}</span> : null}
                     </span>
                   </button>
                   {/* The open tool is changed in its panel, whose save would undo a change made here. */}

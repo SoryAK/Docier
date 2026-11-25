@@ -48,8 +48,6 @@ export function ToolsPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   // A tool added in the panel keeps that panel (and what it says) once saved.
   const [adopted, setAdopted] = useState<string | null>(null);
-  // Each "Add a tool" starts a fresh panel.
-  const [newSession, setNewSession] = useState(0);
   // The card a tool was opened from gets focus back when its panel closes.
   const openedFrom = useRef<string | null>(null);
   useEffect(() => {
@@ -186,8 +184,8 @@ export function ToolsPage() {
             type="button"
             className="tools-btn is-primary"
             onClick={() => {
+              // A fresh panel: the tool added last time is no longer "the new one".
               setAdopted(null);
-              setNewSession((n) => n + 1);
               openTool("new");
             }}
           >
@@ -289,7 +287,7 @@ export function ToolsPage() {
 
       {panelOpen ? (
         <ToolPanel
-          key={current && current.id !== adopted ? current.id : `new-${newSession}`}
+          key={current && current.id !== adopted ? current.id : "new"}
           tool={current}
           roles={roles}
           onSaved={(tool) => {

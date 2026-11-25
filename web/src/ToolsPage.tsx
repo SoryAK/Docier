@@ -1,7 +1,16 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
-import { ImagePlus, Plus, Search, Wrench } from "lucide-react";
+import { Download, ImagePlus, Plus, Search, Wrench } from "lucide-react";
 import { EQUIPMENT_CATEGORIES, EQUIPMENT_CATEGORY_LABEL, type EquipmentCategory } from "@core/role-gear";
-import { TOOL_OWNERSHIP_LABEL, filterTools, toolPhotoProblem, type PersonalTool } from "@core/personal-tools";
+import {
+  TOOL_OWNERSHIP_LABEL,
+  filterTools,
+  toolPhotoProblem,
+  toolTotals,
+  toolsCsv,
+  type PersonalTool,
+  type ToolKit,
+} from "@core/personal-tools";
+import { ToolKits } from "./ToolKits";
 import { ToolPanel, type ToolRoleChoice } from "./ToolPanel";
 import "./tools.css";
 
@@ -30,6 +39,25 @@ const SKIP_REASON: Record<string, string> = {
 /** Photos go up a few at a time, so one request never grows too large. */
 const BATCH = 5;
 
+/** Dollars, with cents only when there are some: $300, $525.50. */
+function money(amount: number): string {
+  const whole = Number.isInteger(amount);
+  return `$${amount.toLocaleString("en-US", { minimumFractionDigits: whole ? 0 : 2, maximumFractionDigits: 2 })}`;
+}
+
+/** "2 tools · $525.50 paid · worth $300 now · 1 with photos", for the tools shown. */
+function totalsLine(tools: PersonalTool[]): string {
+  const totals = toolTotals(tools);
+  return [
+    `${totals.count} ${totals.count === 1 ? "tool" : "tools"}`,
+    totals.paid === null ? "" : `${money(totals.paid)} paid`,
+    totals.worth === null ? "" : `worth ${money(totals.worth)} now`,
+    `${totals.withPhotos} with photos`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 /**
  * My Tools: your own tools and equipment, as a grid of cards with a panel for
  * adding and changing one. Add from photos turns each photo into a draft.
@@ -37,6 +65,8 @@ const BATCH = 5;
 export function ToolsPage() {
   const [tools, setTools] = useState<PersonalTool[] | null>(null);
   const [roles, setRoles] = useState<ToolRoleChoice[]>([]);
+  const [kits, setKits] = useState<ToolKit[]>([]);
+  const [kit, setKit] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const [open, setOpen] = useState<string | null>(readOpenTool);
   const [query, setQuery] = useState("");
@@ -85,10 +115,18 @@ export function ToolsPage() {
         );
       })
       .catch(() => setRoles([]));
+    void fetch("/api/tools/kits")
+      .then(async (response) => {
+        if (response.ok) setKits(((await response.json()) as { kits: ToolKit[] }).kits);
+      })
+      .catch(() => setKits([]));
   }, []);
 
   const all = tools ?? [];
-  const visible = useMemo(() => filterTools(all, { query, category, draftsOnly }), [all, query, category, draftsOnly]);
+  const visible = useMemo(
+    () => filterTools(all, { query, category, draftsOnly }).filter((tool) => kit === null || tool.kitIds.includes(kit)),
+    [all, query, category, draftsOnly, kit],
+  );
   const roleName = (id: string) => roles.find((role) => role.id === id)?.name;
   const drafts = all.filter((tool) => tool.draft).length;
   const categories = EQUIPMENT_CATEGORIES.filter((key) => all.some((tool) => tool.category === key));
@@ -142,6 +180,17 @@ export function ToolsPage() {
     }
   }
 
+  /** Downloads the tools shown as my-tools.csv. */
+  function exportCsv() {
+    const csv = toolsCsv(visible, { role: roleName, kit: (id) => kits.find((item) => item.id === id)?.name });
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "my-tools.csv";
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
+
   function onDrop(event: DragEvent) {
     event.preventDefault();
     setDragging(false);
@@ -176,6 +225,12 @@ export function ToolsPage() {
             hidden
             onChange={(event) => void addFromPhotos(event.target.files)}
           />
+          {all.length > 0 ? (
+            <button type="button" className="tools-btn" disabled={visible.length === 0} onClick={exportCsv}>
+              <Download size={16} aria-hidden="true" />
+              Export CSV
+            </button>
+          ) : null}
           <button type="button" className="tools-btn" disabled={busy} onClick={() => fileRef.current?.click()}>
             <ImagePlus size={16} aria-hidden="true" />
             {busy ? "Adding…" : "Add from photos"}
@@ -206,6 +261,23 @@ export function ToolsPage() {
               <p key={line}>{line}</p>
             ))}
           </div>
+        ) : null}
+
+        {all.length > 0 ? <p className="tools-totals">{totalsLine(visible)}</p> : null}
+
+        {tools !== null && !failed ? (
+          <ToolKits
+            kits={kits}
+            tools={all}
+            selected={kit}
+            onSelect={setKit}
+            onKits={(next, deleted) => {
+              setKits(next);
+              if (deleted) {
+                setTools((list) => (list ?? []).map((tool) => ({ ...tool, kitIds: tool.kitIds.filter((id) => id !== deleted) })));
+              }
+            }}
+          />
         ) : null}
 
         {all.length > 0 ? (
@@ -257,6 +329,7 @@ export function ToolsPage() {
                   <button
                     type="button"
                     className="tools-card"
+                    aria-label={`Open ${tool.name}`}
                     data-tool-id={tool.id}
                     aria-current={open === tool.id ? "true" : undefined}
                     onClick={() => openTool(tool.id)}
@@ -290,6 +363,7 @@ export function ToolsPage() {
           key={current && current.id !== adopted ? current.id : "new"}
           tool={current}
           roles={roles}
+          kits={kits}
           onSaved={(tool) => {
             saved(tool);
             if (open === "new") {

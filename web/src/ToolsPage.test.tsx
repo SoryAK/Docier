@@ -22,14 +22,25 @@ afterEach(() => {
   server.close();
 });
 
-async function addToolThroughApi(name: string): Promise<string> {
+async function addToolThroughApi(name: string, fields: Record<string, unknown> = {}): Promise<string> {
   const response = await fetch("/api/tools", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ name, ...fields }),
+  });
+  return ((await response.json()) as { tool: { id: string } }).tool.id;
+}
+
+async function addKitThroughApi(name: string): Promise<string> {
+  const response = await fetch("/api/tools/kits", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ name }),
   });
-  return ((await response.json()) as { tool: { id: string } }).tool.id;
+  return ((await response.json()) as { kit: { id: string } }).kit.id;
 }
+
+const cardNames = () => screen.queryAllByRole("button", { name: /^Open / }).map((card) => card.getAttribute("aria-label"));
 
 const panel = (name: string | RegExp) => screen.getByRole("complementary", { name });
 const pageFiles = (container: HTMLElement) => container.querySelector<HTMLInputElement>(".tools-head input[type=file]")!;
@@ -112,5 +123,90 @@ describe("My Tools", () => {
     expect(screen.getByText("notes.txt isn't a photo.")).toBeTruthy();
     expect((within(panel("New tool")).getByLabelText("Name") as HTMLInputElement).value).toBe("Half typed");
     expect((await server.tools()).map((tool) => [tool.name, tool.draft])).toEqual([["IMG_1", true]]);
+  });
+});
+
+describe("kits, totals, and export", () => {
+  it("makes a kit, puts a tool in it, and shows only its tools", async () => {
+    await addToolThroughApi("Meter");
+    await addToolThroughApi("Drill");
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await screen.findByRole("button", { name: "Open Meter" });
+
+    await user.click(screen.getByRole("button", { name: "+ New kit" }));
+    await user.type(screen.getByRole("textbox", { name: "Kit name" }), "Electrical{Enter}");
+    expect(await screen.findByRole("button", { name: "Electrical 0" })).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "Open Meter" }));
+    await user.selectOptions(within(panel("Meter")).getByRole("combobox", { name: "Add to a kit" }), "Electrical");
+    await user.click(within(panel("Meter")).getByRole("button", { name: "Save" }));
+
+    await user.click(await screen.findByRole("button", { name: "Electrical 1" }));
+    expect(cardNames()).toEqual(["Open Meter"]);
+    await user.click(screen.getByRole("button", { name: "All tools" }));
+    expect(cardNames()).toEqual(["Open Drill", "Open Meter"]);
+  });
+
+  it("renames and deletes a kit, keeping its tools", async () => {
+    const kit = await addKitThroughApi("Truck");
+    await addToolThroughApi("Jack", { kitIds: [kit] });
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await user.click(await screen.findByRole("button", { name: "Truck 1" }));
+
+    await user.click(screen.getByRole("button", { name: "Rename kit" }));
+    const field = screen.getByRole("textbox", { name: "Kit name" });
+    await user.clear(field);
+    await user.type(field, "Truck toolbox{Enter}");
+    expect(await screen.findByRole("button", { name: "Truck toolbox 1" })).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "Delete kit" }));
+    expect(screen.getByText("Delete Truck toolbox? Its tools stay.")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+    await waitFor(() => expect(screen.queryByRole("button", { name: /Truck toolbox/ })).toBeNull());
+    expect(cardNames()).toEqual(["Open Jack"]);
+    expect((await server.tools()).map((tool) => tool.name)).toEqual(["Jack"]);
+    // The tool no longer lists the deleted kit, so it saves cleanly.
+    await user.click(screen.getByRole("button", { name: "Open Jack" }));
+    expect(within(panel("Jack")).queryByText("A deleted kit")).toBeNull();
+    await user.click(within(panel("Jack")).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(screen.queryByRole("complementary", { name: "Jack" })).toBeNull());
+  });
+
+  it("adds up the tools shown", async () => {
+    await addToolThroughApi("Meter", { paid: 425.5, worth: 300 });
+    await addToolThroughApi("Drill", { paid: 100 });
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    expect(await screen.findByText("2 tools · $525.50 paid · worth $300 now · 0 with photos")).toBeTruthy();
+    await user.type(screen.getByRole("searchbox", { name: "Search tools" }), "drill");
+    expect(await screen.findByText("1 tool · $100 paid · 0 with photos")).toBeTruthy();
+  });
+
+  it("exports the tools shown as CSV", async () => {
+    await addToolThroughApi("Meter", { maker: "Fluke" });
+    await addToolThroughApi("Drill");
+    const blobs: Blob[] = [];
+    URL.createObjectURL = (blob: Blob | MediaSource) => {
+      blobs.push(blob as Blob);
+      return "blob:docier-test/csv";
+    };
+    let downloaded = "";
+    const click = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function () {
+      downloaded = this.download;
+    };
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await user.type(await screen.findByRole("searchbox", { name: "Search tools" }), "fluke");
+    await user.click(screen.getByRole("button", { name: "Export CSV" }));
+    HTMLAnchorElement.prototype.click = click;
+
+    expect(downloaded).toBe("my-tools.csv");
+    const text = await blobs[0]!.text();
+    expect(text.split("\r\n")[0]).toMatch(/^Name,Category,Whose it is,Maker/);
+    expect(text).toContain("Meter,Tool,Mine,Fluke");
+    expect(text).not.toContain("Drill");
   });
 });

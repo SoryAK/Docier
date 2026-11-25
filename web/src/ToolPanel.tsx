@@ -9,6 +9,7 @@ import {
   TOOL_PHOTO_LIMIT,
   toolPhotoProblem,
   type PersonalTool,
+  type ToolKit,
 } from "@core/personal-tools";
 
 export type ToolRoleChoice = { id: string; name: string };
@@ -29,6 +30,7 @@ type Draft = {
   tags: string;
   notes: string;
   roleIds: string[];
+  kitIds: string[];
 };
 
 function draftOf(tool: PersonalTool | null): Draft {
@@ -48,6 +50,7 @@ function draftOf(tool: PersonalTool | null): Draft {
     tags: tool?.tags.join(", ") ?? "",
     notes: tool?.notes ?? "",
     roleIds: tool?.roleIds ?? [],
+    kitIds: tool?.kitIds ?? [],
   };
 }
 
@@ -61,6 +64,7 @@ const FIELD_ERROR: Record<string, { field: keyof Draft | "form"; text: string }>
   "acquired-invalid": { field: "acquired", text: "Pick a month." },
   "amount-invalid": { field: "paid", text: "Use a number, like 425 or 425.50." },
   "role-missing": { field: "roleIds", text: "One of these roles is gone. Take it off and save again." },
+  "kit-missing": { field: "kitIds", text: "One of these kits is gone. Take it off and save again." },
 };
 
 const PHOTO_ERROR: Record<string, string> = {
@@ -95,6 +99,7 @@ function checkPhotos(files: File[]): { good: File[]; note: string } {
 export function ToolPanel({
   tool,
   roles,
+  kits = [],
   onSaved,
   onRemoved,
   onClose,
@@ -102,6 +107,7 @@ export function ToolPanel({
   /** The tool to change; null to add one. */
   tool: PersonalTool | null;
   roles: ToolRoleChoice[];
+  kits?: ToolKit[];
   onSaved: (tool: PersonalTool) => void;
   onRemoved: (id: string) => void;
   onClose: () => void;
@@ -251,6 +257,7 @@ export function ToolPanel({
   const title = tool ? tool.name : "New tool";
   const photoCount = (tool?.photos.length ?? 0) + pending.length;
   const unlinked = roles.filter((role) => !draft.roleIds.includes(role.id));
+  const otherKits = kits.filter((kit) => !draft.kitIds.includes(kit.id));
 
   return (
     <aside ref={panelRef} className="tool-panel" aria-label={title}>
@@ -454,6 +461,47 @@ export function ToolPanel({
           </div>
           {fieldError("roleIds")}
         </div>
+
+        {kits.length > 0 || draft.kitIds.length > 0 ? (
+          <div className="tool-roles">
+            <p className="tool-label">Kits</p>
+            <div className="tool-role-row">
+              {draft.kitIds.map((id) => {
+                const name = kits.find((kit) => kit.id === id)?.name ?? "A deleted kit";
+                return (
+                  <span key={id} className="tool-role is-kit">
+                    {name}
+                    <button
+                      type="button"
+                      aria-label={`Take out of ${name}`}
+                      onClick={() => set("kitIds", draft.kitIds.filter((other) => other !== id))}
+                    >
+                      <X size={11} aria-hidden="true" />
+                    </button>
+                  </span>
+                );
+              })}
+              {otherKits.length ? (
+                <select
+                  aria-label="Add to a kit"
+                  className="tool-role-add"
+                  value=""
+                  onChange={(event) => {
+                    if (event.target.value) set("kitIds", [...draft.kitIds, event.target.value]);
+                  }}
+                >
+                  <option value="">+ Add to a kit</option>
+                  {otherKits.map((kit) => (
+                    <option key={kit.id} value={kit.id}>
+                      {kit.name}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
+            </div>
+            {fieldError("kitIds")}
+          </div>
+        ) : null}
 
         <label className="tool-field">
           Notes

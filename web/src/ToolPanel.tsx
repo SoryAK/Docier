@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { ImagePlus, Star, X } from "lucide-react";
+import { Crop, ImagePlus, Star, X } from "lucide-react";
+import { FramedPhoto, ToolPhotoFrame } from "./ToolPhotoFrame";
 import { EQUIPMENT_CATEGORIES, EQUIPMENT_CATEGORY_LABEL } from "@core/role-gear";
 import {
   TOOL_CONDITIONS,
@@ -117,6 +118,8 @@ export function ToolPanel({
   const [busy, setBusy] = useState(false);
   const [photoNote, setPhotoNote] = useState("");
   const [confirming, setConfirming] = useState(false);
+  // The photo being framed in the Adjust photo dialog.
+  const [adjusting, setAdjusting] = useState<string | null>(null);
   // Photos picked before a new tool is saved, uploaded right after it is.
   const [pending, setPending] = useState<Array<{ file: File; url: string }>>([]);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -277,16 +280,16 @@ export function ToolPanel({
         <div className="tool-photos">
           <p className="tool-label">Photos</p>
           <div className="tool-photo-row">
-            {tool?.photos.map((photo) => (
+            {tool?.photos.map((photo, index) => (
               <div key={photo.id} className="tool-photo">
-                <img src={photo.url} alt="" />
+                <FramedPhoto photo={photo} />
                 {photo.cover ? (
                   <span className="tool-cover">Cover</span>
                 ) : (
                   <button
                     type="button"
                     className="tool-photo-btn is-cover"
-                    aria-label="Make this the cover"
+                    aria-label={`Make photo ${index + 1} the cover`}
                     title="Make this the cover"
                     disabled={busy}
                     onClick={() => void photoAction("PUT", `${encodeURIComponent(photo.id)}/cover`)}
@@ -296,8 +299,18 @@ export function ToolPanel({
                 )}
                 <button
                   type="button"
+                  className="tool-photo-btn is-adjust"
+                  aria-label={`Adjust photo ${index + 1}`}
+                  title="Adjust: rotate, flip, zoom"
+                  disabled={busy}
+                  onClick={() => setAdjusting(photo.id)}
+                >
+                  <Crop size={12} aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
                   className="tool-photo-btn"
-                  aria-label="Remove photo"
+                  aria-label={`Remove photo ${index + 1}`}
                   disabled={busy}
                   onClick={() => void photoAction("DELETE", encodeURIComponent(photo.id))}
                 >
@@ -545,6 +558,14 @@ export function ToolPanel({
           )}
         </div>
       </form>
+      {tool && adjusting && tool.photos.some((photo) => photo.id === adjusting) ? (
+        <ToolPhotoFrame
+          toolId={tool.id}
+          photo={tool.photos.find((photo) => photo.id === adjusting)!}
+          onSaved={onSaved}
+          onClose={() => setAdjusting(null)}
+        />
+      ) : null}
     </aside>
   );
 }

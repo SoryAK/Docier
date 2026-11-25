@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Wrench } from "lucide-react";
 import { EQUIPMENT_CATEGORY_LABEL } from "@core/role-gear";
 import { TOOL_OWNERSHIP_LABEL, toolsForRole, type PersonalTool } from "@core/personal-tools";
+import { FramedPhoto } from "./ToolPhotoFrame";
 import "./tools.css";
 
 const SHOWN = 3;
@@ -52,7 +53,7 @@ export function RoleOwnTools({ roleId }: { roleId: string }) {
                 <li key={tool.id}>
                   <a href={`#/tools/${encodeURIComponent(tool.id)}`}>
                     <span className="role-own-tools-thumb">
-                      {cover ? <img src={cover.url} alt="" loading="lazy" /> : <Wrench size={18} aria-hidden="true" />}
+                      {cover ? <FramedPhoto photo={cover} /> : <Wrench size={18} aria-hidden="true" />}
                     </span>
                     <span>
                       <strong>{tool.name}</strong>

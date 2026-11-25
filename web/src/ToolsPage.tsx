@@ -11,6 +11,7 @@ import {
   type ToolKit,
 } from "@core/personal-tools";
 import { ToolKits } from "./ToolKits";
+import { FramedPhoto } from "./ToolPhotoFrame";
 import { ToolPanel, type ToolRoleChoice } from "./ToolPanel";
 import "./tools.css";
 
@@ -335,7 +336,7 @@ export function ToolsPage() {
                     onClick={() => openTool(tool.id)}
                   >
                     <span className="tools-cover">
-                      {cover ? <img src={cover.url} alt="" loading="lazy" /> : <Wrench size={30} aria-hidden="true" />}
+                      {cover ? <FramedPhoto photo={cover} /> : <Wrench size={30} aria-hidden="true" />}
                       {tool.photos.length ? (
                         <span className="tools-count">{tool.photos.length === 1 ? "1 photo" : `${tool.photos.length} photos`}</span>
                       ) : null}

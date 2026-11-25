@@ -6,6 +6,7 @@ import {
   chatMenu,
   chatShowing,
   clampFloat,
+  floatSize,
   readAssistantState,
   type AssistantAction,
   type AssistantState,
@@ -86,6 +87,8 @@ describe("assistant panel", () => {
       tab: "history",
       open: false,
       float: { x: 10, y: 20 },
+      size: null,
+      minimized: false,
     });
     expect(readAssistantState({ chat: "nope", float: { x: "a" } })).toEqual(INITIAL_ASSISTANT);
     expect(readAssistantState(null)).toEqual(INITIAL_ASSISTANT);
@@ -101,5 +104,37 @@ describe("assistant panel", () => {
     expect(clampFloat({ x: 900, y: 600 }, size, screen)).toEqual({ x: 612, y: 172 });
     expect(clampFloat({ x: -50, y: -5 }, size, screen)).toEqual({ x: 8, y: 8 });
     expect(clampFloat({ x: 50, y: 50 }, size, { width: 300, height: 300 })).toEqual({ x: 8, y: 8 });
+  });
+
+  it("minimizes a popped-out chat and restores it with the chat icon", () => {
+    const small = run(INITIAL_ASSISTANT, "popOut", "minimize");
+    expect(small).toMatchObject({ chat: "floating", minimized: true });
+    expect(chatShowing(small)).toBe(false);
+    expect(chatMenu(small).map((item) => item.label)).toEqual(["Restore chat", "Open in the assistant panel", "Close chat"]);
+    const back = run(small, "toggleChat");
+    expect(back).toMatchObject({ chat: "floating", minimized: false });
+  });
+
+  it("only minimizes a popped-out chat, and docking or closing ends it", () => {
+    expect(run(INITIAL_ASSISTANT, "openChat", "minimize").minimized).toBe(false);
+    expect(run(INITIAL_ASSISTANT, "popOut", "minimize", "dock").minimized).toBe(false);
+    const closed = run(INITIAL_ASSISTANT, "popOut", "minimize", "closeChat");
+    expect(closed).toMatchObject({ chat: "closed", minimized: false });
+    expect(run(INITIAL_ASSISTANT, "popOut", "minimize", "restore").minimized).toBe(false);
+  });
+
+  it("reads a saved size and a minimized chat", () => {
+    const state = readAssistantState({ chat: "floating", minimized: true, size: { width: 400, height: 500 } });
+    expect(state).toMatchObject({ minimized: true, size: { width: 400, height: 500 } });
+    expect(readAssistantState({ chat: "docked", minimized: true, size: { width: -1, height: 5 } })).toMatchObject({ minimized: false, size: null });
+  });
+
+  it("sizes a popped-out chat to the window until it's resized", () => {
+    expect(floatSize(null, { width: 1600, height: 900 })).toEqual({ width: 400, height: 594 });
+    expect(floatSize(null, { width: 2560, height: 1440 })).toEqual({ width: 480, height: 760 });
+    expect(floatSize(null, { width: 1000, height: 600 })).toEqual({ width: 320, height: 420 });
+    expect(floatSize({ width: 600, height: 700 }, { width: 1600, height: 900 })).toEqual({ width: 600, height: 700 });
+    expect(floatSize({ width: 100, height: 2000 }, { width: 1600, height: 900 })).toEqual({ width: 320, height: 884 });
+    expect(floatSize(null, { width: 300, height: 300 })).toEqual({ width: 284, height: 284 });
   });
 });

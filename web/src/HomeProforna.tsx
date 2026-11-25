@@ -16,7 +16,7 @@ import { Markdown } from "@astryxdesign/core/Markdown";
 import { formatHistoryPeriod } from "@core/career-history";
 import { ArrowLeft, AtSign, Check, ChevronDown, Copy, Paperclip, Pencil, Plus, Trash2 } from "lucide-react";
 import type { AssistantAction } from "@core/assistant-panel";
-import { clampFloat } from "@core/assistant-panel";
+import { clampFloat, floatSize } from "@core/assistant-panel";
 import { AssistantPanelHead, FloatingChatHead } from "./AssistantPanel";
 import "./home-chat.css";
 
@@ -51,8 +51,11 @@ type LocalEdit = {
 export function HomeProforna({
   place,
   float = null,
+  size = null,
+  minimized = false,
   onAssist,
   onMove,
+  onResize,
   historyLabel = "History",
   width,
   roles = [],
@@ -67,6 +70,11 @@ export function HomeProforna({
   float?: { x: number; y: number } | null;
   onAssist: (action: AssistantAction) => void;
   onMove: (point: { x: number; y: number }) => void;
+  /** The popped-out chat's size once resized; null sizes it to the window. */
+  size?: { width: number; height: number } | null;
+  /** The popped-out chat is down to a bar at the bottom right. */
+  minimized?: boolean;
+  onResize: (box: { x: number; y: number; width: number; height: number }) => void;
   /** The other side of the assistant panel's switch: "History" or "Updates". */
   historyLabel?: string;
   width?: number;
@@ -78,7 +86,7 @@ export function HomeProforna({
 }) {
   const open = place !== "closed";
   const floating = place === "floating";
-  const floatBox = useFloatingBox(floating, float, onMove);
+  const floatBox = useFloatingBox(floating, float, size, onMove, onResize);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selectedIdRef = useRef<string | null>(null);
@@ -454,17 +462,28 @@ export function HomeProforna({
 
   return (
     <aside
-      className={floating ? "home-proforna is-open is-floating" : open ? "home-proforna is-open" : "home-proforna is-closed"}
+      className={
+        floating
+          ? minimized
+            ? "home-proforna is-open is-floating is-minimized"
+            : "home-proforna is-open is-floating"
+          : open
+            ? "home-proforna is-open"
+            : "home-proforna is-closed"
+      }
       aria-label="Chat"
       role={floating ? "dialog" : undefined}
       inert={!open}
       hidden={!open}
-      style={floating ? floatBox.style : width ? { width } : undefined}
+      style={floating ? (minimized ? undefined : floatBox.style) : width ? { width } : undefined}
     >
       {open ? (
         <>
           {floating ? (
-            <FloatingChatHead onAssist={onAssist} onGrab={floatBox.grab} />
+            <>
+              <FloatingChatHead minimized={minimized} onAssist={onAssist} onGrab={floatBox.grab} />
+              {minimized ? null : <FloatingEdges onResize={floatBox.resize} />}
+            </>
           ) : (
             <AssistantPanelHead tab="chat" historyLabel={historyLabel} chatPopped={false} onAssist={onAssist} />
           )}
@@ -775,63 +794,121 @@ export function HomeProforna({
   );
 }
 
-const FLOAT_SIZE = { width: 380, height: 540 };
 const FLOAT_MARGIN = 24;
 
+type Edge = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
+const EDGES: Edge[] = ["n", "s", "e", "w", "ne", "nw", "se", "sw"];
+
+/** Thin strips on the popped-out chat's edges and corners that resize it. */
+function FloatingEdges({ onResize }: { onResize: (edge: Edge, event: React.PointerEvent<HTMLDivElement>) => void }) {
+  return (
+    <>
+      {EDGES.map((edge) => (
+        <div key={edge} className={`assistant-edge is-${edge}`} aria-hidden="true" onPointerDown={(event) => onResize(edge, event)} />
+      ))}
+    </>
+  );
+}
+
 /**
- * Where the popped-out chat sits, kept on screen: bottom right until it's
- * dragged by its top, then where it was left. Phones show it full screen (CSS).
+ * Where the popped-out chat sits and how big it is, kept on screen. It starts
+ * at the bottom right, sized to the window; dragging its top moves it and
+ * dragging an edge resizes it. Phones show it full screen (CSS).
  */
 function useFloatingBox(
   active: boolean,
-  saved: { x: number; y: number } | null,
+  savedAt: { x: number; y: number } | null,
+  savedSize: { width: number; height: number } | null,
   onMove: (point: { x: number; y: number }) => void,
+  onResize: (box: { x: number; y: number; width: number; height: number }) => void,
 ) {
   const [screen, setScreen] = useState(() => ({ width: window.innerWidth, height: window.innerHeight }));
-  const [drag, setDrag] = useState<{ x: number; y: number } | null>(null);
+  const [live, setLive] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
 
   useEffect(() => {
     if (!active) return;
-    const onResize = () => setScreen({ width: window.innerWidth, height: window.innerHeight });
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+    const onWindow = () => setScreen({ width: window.innerWidth, height: window.innerHeight });
+    window.addEventListener("resize", onWindow);
+    return () => window.removeEventListener("resize", onWindow);
   }, [active]);
 
-  const size = {
-    width: Math.min(FLOAT_SIZE.width, screen.width - 16),
-    height: Math.min(FLOAT_SIZE.height, screen.height - 16),
-  };
-  const start = saved ?? {
+  const size = floatSize(live ?? savedSize, screen);
+  const start = live ?? savedAt ?? {
     x: screen.width - size.width - FLOAT_MARGIN,
     y: screen.height - size.height - FLOAT_MARGIN,
   };
-  const at = clampFloat(drag ?? start, size, screen);
+  const at = clampFloat(start, size, screen);
 
-  function grab(event: React.PointerEvent<HTMLDivElement>) {
-    if (event.button !== 0 || (event.target as HTMLElement).closest("button")) return;
-    const head = event.currentTarget;
-    head.setPointerCapture(event.pointerId);
+  function follow(
+    event: React.PointerEvent<HTMLDivElement>,
+    next: (dx: number, dy: number) => { x: number; y: number; width: number; height: number },
+    done: (box: { x: number; y: number; width: number; height: number }) => void,
+  ) {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    const target = event.currentTarget;
+    target.setPointerCapture(event.pointerId);
     const from = { x: event.clientX, y: event.clientY };
-    let last = at;
-    const move = (next: PointerEvent) => {
-      last = clampFloat({ x: at.x + next.clientX - from.x, y: at.y + next.clientY - from.y }, size, screen);
-      setDrag(last);
+    let last = { ...at, ...size };
+    const move = (pointer: PointerEvent) => {
+      last = next(pointer.clientX - from.x, pointer.clientY - from.y);
+      setLive(last);
     };
     const up = () => {
-      head.removeEventListener("pointermove", move);
-      head.removeEventListener("pointerup", up);
-      head.removeEventListener("pointercancel", up);
-      setDrag(null);
-      onMove(last);
+      target.removeEventListener("pointermove", move);
+      target.removeEventListener("pointerup", up);
+      target.removeEventListener("pointercancel", up);
+      setLive(null);
+      done(last);
     };
-    head.addEventListener("pointermove", move);
-    head.addEventListener("pointerup", up);
-    head.addEventListener("pointercancel", up);
+    target.addEventListener("pointermove", move);
+    target.addEventListener("pointerup", up);
+    target.addEventListener("pointercancel", up);
+  }
+
+  function grab(event: React.PointerEvent<HTMLDivElement>) {
+    if ((event.target as HTMLElement).closest("button")) return;
+    follow(
+      event,
+      (dx, dy) => ({ ...clampFloat({ x: at.x + dx, y: at.y + dy }, size, screen), ...size }),
+      (box) => onMove({ x: box.x, y: box.y }),
+    );
+  }
+
+  function resize(edge: Edge, event: React.PointerEvent<HTMLDivElement>) {
+    follow(
+      event,
+      (dx, dy) => {
+        // The edge being dragged moves; the opposite one stays put.
+        const right = at.x + size.width;
+        const bottom = at.y + size.height;
+        const wanted = {
+          width: edge.includes("e") ? size.width + dx : edge.includes("w") ? size.width - dx : size.width,
+          height: edge.includes("s") ? size.height + dy : edge.includes("n") ? size.height - dy : size.height,
+        };
+        // Keep the fixed edges inside the window too.
+        const room = {
+          width: edge.includes("w") ? right - 8 : screen.width - 8 - at.x,
+          height: edge.includes("n") ? bottom - 8 : screen.height - 8 - at.y,
+        };
+        const fitted = floatSize(
+          { width: Math.min(wanted.width, room.width), height: Math.min(wanted.height, room.height) },
+          screen,
+        );
+        return {
+          x: edge.includes("w") ? right - fitted.width : at.x,
+          y: edge.includes("n") ? bottom - fitted.height : at.y,
+          ...fitted,
+        };
+      },
+      onResize,
+    );
   }
 
   return {
     style: { left: at.x, top: at.y, width: size.width, height: size.height },
     grab,
+    resize,
   };
 }
 

@@ -5,7 +5,7 @@ import {
   type AssistantAction,
   type AssistantState,
 } from "@core/assistant-panel";
-import { ChevronDown, PanelRight, PictureInPicture2, X } from "lucide-react";
+import { ChevronDown, Maximize2, Minus, PanelRight, PictureInPicture2, X } from "lucide-react";
 import { Icon } from "./HomeNav";
 import "./assistant-panel.css";
 
@@ -155,21 +155,41 @@ export function AssistantPanelHead({
   );
 }
 
-/** The popped-out chat's own top: its name, a dock button, and close. */
+/**
+ * The popped-out chat's own top: its name, then minimize (or restore), dock, and
+ * close. Minimized, the chat is just this bar, and clicking it brings chat back.
+ */
 export function FloatingChatHead({
+  minimized,
   onAssist,
   onGrab,
 }: {
+  minimized: boolean;
   onAssist: (action: AssistantAction) => void;
   onGrab: (event: React.PointerEvent<HTMLDivElement>) => void;
 }) {
   return (
-    <div className="assistant-float-head" onPointerDown={onGrab}>
+    <div
+      className="assistant-float-head"
+      onPointerDown={minimized ? undefined : onGrab}
+      onClick={(event) => {
+        if (minimized && !(event.target as HTMLElement).closest("button")) onAssist("restore");
+      }}
+    >
       <span className="assistant-float-title">
         <span className="assistant-float-dot" aria-hidden="true" />
         Chat
       </span>
       <span className="assistant-head-icons">
+        {minimized ? (
+          <button type="button" className="assistant-icon" title="Restore chat" aria-label="Restore chat" onClick={() => onAssist("restore")}>
+            <Maximize2 size={15} aria-hidden="true" />
+          </button>
+        ) : (
+          <button type="button" className="assistant-icon" title="Minimize chat" aria-label="Minimize chat" onClick={() => onAssist("minimize")}>
+            <Minus size={16} aria-hidden="true" />
+          </button>
+        )}
         <button type="button" className="assistant-icon" title="Dock in the assistant panel" aria-label="Dock in the assistant panel" onClick={() => onAssist("dock")}>
           <PanelRight size={16} aria-hidden="true" />
         </button>

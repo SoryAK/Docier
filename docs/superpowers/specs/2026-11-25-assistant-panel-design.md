@@ -26,14 +26,21 @@ whatever page you're on, the way a site's help chat floats in the corner.
   story) and ✕ to close the panel. While Chat is showing there's also a pop-out
   button. While chat is popped out, the panel says "Chat is popped out", and its
   Chat tab brings chat back.
-- **Popped out:** a 380 × 540 window, bottom right at first, dragged by its top
-  and kept on screen. It has a dock button and ✕. ✕ closes chat but keeps the
-  conversation. It stays open when the panel closes or the page changes. On
-  phones it fills the screen.
+- **Popped out:** a window at the bottom right at first, dragged by its top and
+  kept on screen. It starts sized to the window: a quarter of its width (320 to
+  480 px) and two thirds of its height (420 to 760 px). Dragging any edge or
+  corner resizes it (320 × 360 at the smallest, 720 × 960 at the largest), and
+  the opposite edge stays put. It has minimize, dock, and ✕. ✕ closes chat but
+  keeps the conversation. It stays open when the panel closes or the page
+  changes. On phones it fills the screen.
+- **Minimized:** chat shrinks to a small "Chat" bar at the bottom right. Clicking
+  the bar, its restore button, or the chat icon brings it back as it was. The ▾
+  menu offers "Restore chat".
 - **Closed panel:** the main card takes its width.
 - Docked chat is exactly as wide as History, so switching doesn't move anything.
 - The last state (where chat is, how it was last open, the panel's tab, whether
-  the panel is open, and the popped-out position) is remembered in the browser.
+  the panel is open, whether chat is minimized, and the popped-out position and
+  size) is remembered in the browser.
   The older "chat column open" choice carries over once.
 
 ## Approaches

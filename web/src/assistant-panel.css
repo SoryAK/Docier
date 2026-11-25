@@ -256,3 +256,113 @@
     cursor: default;
   }
 }
+
+/* ---- Resizing: thin strips on the edges, bigger squares at the corners ---- */
+.assistant-edge {
+  position: absolute;
+  z-index: 2;
+  touch-action: none;
+}
+
+.assistant-edge.is-n,
+.assistant-edge.is-s {
+  left: 12px;
+  right: 12px;
+  height: 6px;
+  cursor: ns-resize;
+}
+
+.assistant-edge.is-n {
+  top: -3px;
+}
+
+.assistant-edge.is-s {
+  bottom: -3px;
+}
+
+.assistant-edge.is-e,
+.assistant-edge.is-w {
+  top: 12px;
+  bottom: 12px;
+  width: 6px;
+  cursor: ew-resize;
+}
+
+.assistant-edge.is-e {
+  right: -3px;
+}
+
+.assistant-edge.is-w {
+  left: -3px;
+}
+
+.assistant-edge.is-ne,
+.assistant-edge.is-nw,
+.assistant-edge.is-se,
+.assistant-edge.is-sw {
+  width: 14px;
+  height: 14px;
+}
+
+.assistant-edge.is-ne {
+  top: -4px;
+  right: -4px;
+  cursor: nesw-resize;
+}
+
+.assistant-edge.is-sw {
+  bottom: -4px;
+  left: -4px;
+  cursor: nesw-resize;
+}
+
+.assistant-edge.is-nw {
+  top: -4px;
+  left: -4px;
+  cursor: nwse-resize;
+}
+
+.assistant-edge.is-se {
+  right: -4px;
+  bottom: -4px;
+  cursor: nwse-resize;
+}
+
+/* ---- Minimized: just the bar, at the bottom right ---- */
+.home-sheet > .home-proforna.is-floating.is-minimized {
+  top: auto;
+  left: auto;
+  right: 24px;
+  bottom: 24px;
+  width: 15rem;
+  height: auto;
+  padding: 0 0.6rem 0 0.95rem;
+  border-radius: 10px;
+}
+
+.home-proforna.is-minimized > :not(.assistant-float-head) {
+  display: none !important;
+}
+
+.home-proforna.is-minimized .assistant-float-head {
+  margin: 0;
+  padding: 6px 0;
+  cursor: pointer;
+}
+
+@media (max-width: 800px) {
+  .assistant-edge {
+    display: none;
+  }
+
+  .home-sheet > .home-proforna.is-floating.is-minimized {
+    inset: auto 12px 12px auto;
+    left: auto !important;
+    top: auto !important;
+    width: 13rem !important;
+    height: auto !important;
+    border: 1px solid #e4e4e7;
+    border-radius: 10px;
+    padding-top: 0;
+  }
+}

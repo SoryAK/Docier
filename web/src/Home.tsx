@@ -223,6 +223,14 @@ export function Home({
     });
   }
 
+  function resizeChat(box: { x: number; y: number; width: number; height: number }) {
+    setAssistant((current) => {
+      const next = { ...current, float: { x: box.x, y: box.y }, size: { width: box.width, height: box.height } };
+      writeAssistant(next);
+      return next;
+    });
+  }
+
   function moveChat(float: { x: number; y: number }) {
     setAssistant((current) => {
       const next = { ...current, float };
@@ -621,6 +629,9 @@ export function Home({
         <HomeProforna
           place={chatDocked ? "docked" : assistant.chat === "floating" ? "floating" : "closed"}
           float={assistant.float}
+          size={assistant.size}
+          minimized={assistant.minimized}
+          onResize={resizeChat}
           onAssist={assist}
           onMove={moveChat}
           historyLabel={page === "history" && focusJobId ? "History" : "Updates"}

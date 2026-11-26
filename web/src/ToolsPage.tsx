@@ -323,7 +323,7 @@ export function ToolsPage() {
       className={["tools-page", panelOpen ? "has-panel" : "", dragging ? "is-dragging" : ""].filter(Boolean).join(" ")}
       aria-label="My Tools"
       onDragOver={(event) => {
-        if (!event.dataTransfer.types.includes("Files")) return;
+        if (!event.dataTransfer?.types.includes("Files")) return;
         event.preventDefault();
         setDragging(true);
       }}

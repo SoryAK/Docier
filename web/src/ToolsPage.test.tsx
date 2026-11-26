@@ -811,9 +811,11 @@ describe("viewing and ordering photos", () => {
     render(<ToolsPage />);
     const drill = await screen.findByRole("complementary", { name: "Drill" });
     const tiles = drill.querySelectorAll<HTMLElement>(".tool-photo[draggable='true']");
-    fireEvent.dragStart(tiles[2]!);
-    fireEvent.dragOver(tiles[0]!);
-    fireEvent.drop(tiles[0]!);
+    // What a browser attaches to a drag of a photo within the page.
+    const dataTransfer = { types: ["text/plain"], setData: () => {}, getData: () => "", effectAllowed: "", dropEffect: "" };
+    fireEvent.dragStart(tiles[2]!, { dataTransfer });
+    fireEvent.dragOver(tiles[0]!, { dataTransfer });
+    fireEvent.drop(tiles[0]!, { dataTransfer });
     await waitFor(async () => expect(await order()).toEqual([before[2], before[0], before[1]]));
   });
 });

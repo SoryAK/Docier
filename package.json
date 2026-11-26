@@ -64,6 +64,10 @@
   "devDependencies": {
     "@astryxdesign/cli": "^0.7.13",
     "@tauri-apps/cli": "^2.11.5",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.13",
+    "@types/jsdom": "^30.0.0",
     "@types/leaflet": "^1.9.22",
     "@types/node": "^22.20.3",
     "@types/react": "^19.3.0",
@@ -71,6 +75,7 @@
     "@vitejs/plugin-react": "^6.1.1",
     "concurrently": "^10.0.5",
     "esbuild": "^0.28.2",
+    "jsdom": "^31.0.1",
     "tsx": "^4.23.13",
     "typescript": "^7.0.2",
     "vite": "^8.3.0",

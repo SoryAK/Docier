@@ -35,10 +35,13 @@ const ROLE_KIND_ORDER: DocumentKind[] = [
 /** The kinds offered when adding a document to a role, in that order. */
 export const ROLE_DOCUMENT_KINDS: DocumentKind[] = ROLE_KIND_ORDER.filter((kind) => kind !== "resume");
 
+/** Groups a role's documents by kind. A kind it doesn't know (say, from an old backup) shows under Other, never nowhere. */
 export function groupRoleDocuments(documents: RoleDocument[]): Array<{ kind: DocumentKind; label: string; items: RoleDocument[] }> {
+  const known = new Set<string>(ROLE_KIND_ORDER);
+  const kindOf = (item: RoleDocument): DocumentKind => (known.has(item.kind) ? item.kind : "other");
   return ROLE_KIND_ORDER.map((kind) => ({
     kind,
     label: DOCUMENT_KIND_LABEL[kind],
-    items: documents.filter((item) => item.kind === kind).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    items: documents.filter((item) => kindOf(item) === kind).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
   })).filter((group) => group.items.length > 0);
 }

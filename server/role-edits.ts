@@ -42,7 +42,7 @@ export function readRoleFields(db: DatabaseSync, occupantId: string, roleId: str
   const row = db
     .prepare(
       `SELECT kind, title, company, location, start_date, end_date, is_current,
-              description, achievements_json
+              description, degree, field, achievements_json
        FROM work_history WHERE id = ? AND occupant_id = ?`,
     )
     .get(roleId, occupantId) as Record<string, unknown> | undefined;
@@ -56,6 +56,8 @@ export function readRoleFields(db: DatabaseSync, occupantId: string, roleId: str
     endDate: String(row.end_date),
     isCurrent: Boolean(row.is_current),
     description: String(row.description),
+    degree: String(row.degree ?? ""),
+    field: String(row.field ?? ""),
     achievements: readRoleAchievements(row.achievements_json, randomUUID).items,
   };
 }

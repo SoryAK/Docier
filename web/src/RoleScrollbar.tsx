@@ -17,7 +17,10 @@ export function RoleScrollbar({ scroller }: { scroller: RefObject<HTMLElement | 
   const [awake, setAwake] = useState(false);
   const [dragging, setDragging] = useState(false);
   const sleep = useRef<number | undefined>(undefined);
-  const drag = useRef<{ startY: number; startScroll: number } | null>(null);
+  // A drag keeps the scale it started with: the bar's length changes as the banner
+  // scrolls away, and re-reading it mid-drag would move the page back while the
+  // pointer moves on.
+  const drag = useRef<{ startY: number; startScroll: number; room: number; travel: number } | null>(null);
 
   useEffect(() => {
     const el = scroller.current;
@@ -81,17 +84,21 @@ export function RoleScrollbar({ scroller }: { scroller: RefObject<HTMLElement | 
     if (!el) return;
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
-    drag.current = { startY: event.clientY, startScroll: el.scrollTop };
+    drag.current = {
+      startY: event.clientY,
+      startScroll: el.scrollTop,
+      room: bar ? bar.height - bar.thumbHeight : 0,
+      travel: el.scrollHeight - el.clientHeight,
+    };
     setDragging(true);
   }
 
   function moveDrag(event: React.PointerEvent<HTMLDivElement>) {
     const el = scroller.current;
-    if (!el || !drag.current || !bar) return;
-    const travel = el.scrollHeight - el.clientHeight;
-    const room = bar.height - bar.thumbHeight;
+    if (!el || !drag.current) return;
+    const { room, travel, startScroll, startY } = drag.current;
     if (room <= 0) return;
-    el.scrollTop = drag.current.startScroll + ((event.clientY - drag.current.startY) / room) * travel;
+    el.scrollTop = startScroll + ((event.clientY - startY) / room) * travel;
   }
 
   function endDrag() {

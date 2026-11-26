@@ -56,6 +56,7 @@ export function useRealApp() {
 /** What the test page doesn't have: scrolling an element into view, and media queries. */
 export function stubBrowser() {
   Element.prototype.scrollIntoView ??= function scrollIntoView() {};
+  Element.prototype.scrollTo ??= function scrollTo() {};
   window.matchMedia ??= ((query: string) => ({
     matches: false,
     media: query,

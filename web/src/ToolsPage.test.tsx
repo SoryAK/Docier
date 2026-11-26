@@ -496,3 +496,99 @@ describe("changing many tools at once", () => {
     expect(screen.getByRole("button", { name: "Open Drill" })).toBeTruthy();
   });
 });
+
+/** A tool's card on the grid, found by its title. */
+const cardFor = (name: string) =>
+  waitFor(() => {
+    const card = [...document.querySelectorAll<HTMLElement>(".tools-card")].find((item) => item.querySelector("strong")?.textContent === name);
+    if (!card) throw new Error(`no card for ${name}`);
+    return card;
+  });
+const draftsChip = () => screen.getAllByRole("button", { name: /Needs details/ }).find((button) => button.hasAttribute("aria-pressed"))!;
+
+describe("review fixes", () => {
+  it("keeps the Needs details filter's button while it's on, even with no drafts left", async () => {
+    const user = userEvent.setup();
+    const { container } = render(<ToolsPage />);
+    await screen.findByRole("button", { name: "Add a tool" });
+    await user.upload(pageFiles(container), photo("saw.png"));
+    await screen.findByRole("complementary", { name: "saw" });
+    await user.click(draftsChip());
+    await user.click(within(panel("saw")).getByRole("button", { name: "Save" }));
+    // No drafts left, but the filter is still on: its button stays, to turn it off.
+    await waitFor(() => expect(draftsChip()).toBeTruthy());
+    await user.click(draftsChip());
+    expect(await cardFor("saw")).toBeTruthy();
+  });
+
+  it("doesn't swap a new tool you're typing for drafts that finish adding", async () => {
+    const user = userEvent.setup();
+    const { container } = render(<ToolsPage />);
+    await screen.findByRole("button", { name: "Add a tool" });
+    // Start adding from photos, then open a new tool before it finishes.
+    let release: () => void = () => {};
+    const held = new Promise<void>((resolve) => (release = resolve));
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes("/from-photos")) await held;
+      return realFetch(input, init);
+    }) as typeof fetch;
+    const upload = user.upload(pageFiles(container), photo("saw.png"));
+    await user.click(screen.getByRole("button", { name: "Add a tool" }));
+    await user.type(within(panel("New tool")).getByLabelText("Name"), "Drill");
+    release();
+    await upload;
+    await cardFor("saw");
+    expect((within(panel("New tool")).getByLabelText("Name") as HTMLInputElement).value).toBe("Drill");
+    globalThis.fetch = realFetch;
+  });
+
+  it("a save that finishes after you open another tool doesn't close that one", async () => {
+    const drill = await addToolThroughApi("Drill");
+    await addToolThroughApi("Saw");
+    window.location.hash = `#/tools/${drill}`;
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await screen.findByRole("complementary", { name: "Drill" });
+    let release: () => void = () => {};
+    const held = new Promise<void>((resolve) => (release = resolve));
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === "PUT") await held;
+      return realFetch(input, init);
+    }) as typeof fetch;
+    await user.click(within(panel("Drill")).getByRole("button", { name: "Save" }));
+    await user.click(await cardFor("Saw"));
+    await screen.findByRole("complementary", { name: "Saw" });
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(screen.getByRole("complementary", { name: "Saw" })).toBeTruthy();
+    globalThis.fetch = realFetch;
+  });
+
+  it("keeps a tool added before the list first loads", async () => {
+    let releaseList: () => void = () => {};
+    const listHeld = new Promise<void>((resolve) => (releaseList = resolve));
+    const realFetch = globalThis.fetch;
+    let first = true;
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === "/api/tools" && (init?.method ?? "GET") === "GET" && first) {
+        first = false;
+        const response = await realFetch(input, init);
+        await listHeld;
+        return response;
+      }
+      return realFetch(input, init);
+    }) as typeof fetch;
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await user.click(await screen.findByRole("button", { name: "Add a tool" }));
+    await user.type(within(panel("New tool")).getByLabelText("Name"), "Drill");
+    await user.click(within(panel("New tool")).getByRole("button", { name: "Add tool" }));
+    await cardFor("Drill");
+    releaseList();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(await cardFor("Drill")).toBeTruthy();
+    globalThis.fetch = realFetch;
+  });
+});

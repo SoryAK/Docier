@@ -123,6 +123,14 @@ export function ToolPanel({
   // Photos picked before a new tool is saved, uploaded right after it is.
   const [pending, setPending] = useState<Array<{ file: File; url: string }>>([]);
   const fileRef = useRef<HTMLInputElement>(null);
+  // A save that finishes after this panel has gone (another tool was opened) mustn't close the one showing now.
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const nameRef = useRef<HTMLInputElement>(null);
 
   const panelRef = useRef<HTMLElement>(null);
@@ -239,7 +247,7 @@ export function ToolPanel({
     }
     setBusy(false);
     onSaved(savedTool);
-    if (tool) onClose();
+    if (tool && mounted.current) onClose();
   }
 
   async function remove() {

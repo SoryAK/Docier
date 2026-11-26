@@ -45,6 +45,8 @@ export function RolePeople({
   // The name box shows once you ask to add someone.
   const [finding, setFinding] = useState(false);
   const [contacts, setContacts] = useState<NetworkContact[] | null>(null);
+  // Goes up after each add, link, or unlink, so My Network is read again and the search knows who's there.
+  const [contactsRead, setContactsRead] = useState(0);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [ask, setAsk] = useState<Ask | null>(null);
   const [busy, setBusy] = useState(false);
@@ -101,7 +103,7 @@ export function RolePeople({
     return () => {
       cancelled = true;
     };
-  }, [open, role.id]);
+  }, [open, role.id, contactsRead]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -138,6 +140,7 @@ export function RolePeople({
       if (await work()) {
         after?.();
         onSaved();
+        setContactsRead((count) => count + 1);
       }
     } catch {
       setMessage("That could not be saved. Check your connection and try again.");

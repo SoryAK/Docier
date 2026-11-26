@@ -106,7 +106,9 @@ export function ToolsPage() {
     void fetch("/api/tools")
       .then(async (response) => {
         if (!response.ok) throw new Error("tools");
-        setTools(((await response.json()) as { tools: PersonalTool[] }).tools);
+        const loaded = ((await response.json()) as { tools: PersonalTool[] }).tools;
+        // A tool added while the list was loading stays, even if the list was read before it existed.
+        setTools((current) => [...(current ?? []).filter((tool) => !loaded.some((item) => item.id === tool.id)), ...loaded]);
       })
       .catch(() => setFailed(true));
     void fetch("/api/work-map")
@@ -206,7 +208,8 @@ export function ToolsPage() {
       setTools((current) => [...added.slice().reverse(), ...(current ?? [])]);
       setNote({ added: added.length, skipped });
       // An unsaved new tool isn't swapped out for the first draft.
-      if (added[0] && open !== "new") openTool(added[0].id);
+      // Read the address now, not when the upload started: a new tool opened meanwhile keeps its panel.
+      if (added[0] && readOpenTool() !== "new") openTool(added[0].id);
     } finally {
       setBusy(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -355,7 +358,8 @@ export function ToolsPage() {
                 <span>{key === "all" ? all.length : all.filter((tool) => tool.category === key).length}</span>
               </button>
             ))}
-            {drafts > 0 ? (
+            {/* While the filter is on it keeps its button, even with no drafts left, so it can be turned off. */}
+            {drafts > 0 || draftsOnly ? (
               <button type="button" className="tools-chip is-drafts" aria-pressed={draftsOnly} onClick={() => setDraftsOnly((on) => !on)}>
                 Needs details <span>{drafts}</span>
               </button>

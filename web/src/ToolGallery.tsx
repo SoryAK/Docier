@@ -13,7 +13,7 @@ import { MetadataList, MetadataListItem } from "@astryxdesign/core/MetadataList"
 import { SelectableCard } from "@astryxdesign/core/SelectableCard";
 import { Heading, Text } from "@astryxdesign/core/Text";
 import { VStack } from "@astryxdesign/core/VStack";
-import { ChevronLeft, ChevronRight, Copy, Crop, ImagePlus, Maximize2, Minimize2, Pencil, Star, Trash2, Wrench, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Copy, Crop, ImagePlus, Maximize2, Minimize2, Pencil, Star, Trash2, Wrench, X } from "lucide-react";
 import { ToolPhotoFrame } from "./ToolPhotoFrame";
 import { EQUIPMENT_CATEGORIES, EQUIPMENT_CATEGORY_LABEL } from "@core/role-gear";
 import {
@@ -110,6 +110,18 @@ function checkPhotos(files: File[]): { good: File[]; note: string } {
 
 const LARGE_KEY = "tools.gallery.large";
 
+/** The fields behind More details. */
+const MORE_FIELDS = new Set<keyof Draft>(["category", "serial", "skill", "acquired", "paid", "worth", "keptAt", "tags", "kitIds", "notes"]);
+
+/** Whether a tool has anything behind More details, so it opens by itself and nothing filled in is hidden. */
+function hasMore(draft: Draft): boolean {
+  return (
+    draft.category !== "tool" ||
+    Boolean(draft.serial || draft.skill || draft.acquired || draft.paid || draft.worth || draft.keptAt || draft.tags || draft.notes) ||
+    draft.kitIds.length > 0
+  );
+}
+
 function readLarge(): boolean {
   try {
     return localStorage.getItem(LARGE_KEY) === "1";
@@ -167,6 +179,7 @@ export function ToolGallery({
   // A new tool, or a draft, opens ready to fill in; anything else opens to read.
   const [editing, setEditing] = useState(() => !tool || tool.draft);
   const [draft, setDraft] = useState<Draft>(() => draftOf(tool));
+  const [more, setMore] = useState(() => hasMore(draftOf(tool)));
   const [error, setError] = useState<{ field: keyof Draft | "form"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [photoNote, setPhotoNote] = useState("");
@@ -216,6 +229,10 @@ export function ToolGallery({
   }, [at, photos]);
 
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((current) => ({ ...current, [key]: value }));
+  // A refused field behind More details is shown, with what's wrong beside it.
+  useEffect(() => {
+    if (error && error.field !== "form" && MORE_FIELDS.has(error.field)) setMore(true);
+  }, [error]);
   const fieldError = (field: keyof Draft) =>
     error?.field === field ? (
       <span className="tool-field-error" role="alert">
@@ -631,6 +648,7 @@ export function ToolGallery({
             icon={<Pencil size={14} />}
             onClick={() => {
               setDraft(draftOf(tool));
+              setMore(hasMore(draftOf(tool)));
               setEditing(true);
               window.setTimeout(() => nameRef.current?.focus(), 0);
             }}
@@ -682,17 +700,6 @@ export function ToolGallery({
       </label>
       <div className="tool-grid">
         <label className="tool-field">
-          Category
-          <select value={draft.category} onChange={(event) => set("category", event.target.value)}>
-            {EQUIPMENT_CATEGORIES.map((key) => (
-              <option key={key} value={key}>
-                {EQUIPMENT_CATEGORY_LABEL[key]}
-              </option>
-            ))}
-          </select>
-          {fieldError("category")}
-        </label>
-        <label className="tool-field">
           Whose it is
           <select value={draft.ownership} onChange={(event) => set("ownership", event.target.value)}>
             {TOOL_OWNERSHIPS.map((key) => (
@@ -702,18 +709,6 @@ export function ToolGallery({
             ))}
           </select>
           {fieldError("ownership")}
-        </label>
-        <label className="tool-field">
-          Maker
-          <input value={draft.maker} onChange={(event) => set("maker", event.target.value)} />
-        </label>
-        <label className="tool-field">
-          Model
-          <input value={draft.model} onChange={(event) => set("model", event.target.value)} />
-        </label>
-        <label className="tool-field">
-          Serial
-          <input value={draft.serial} onChange={(event) => set("serial", event.target.value)} />
         </label>
         <label className="tool-field">
           Condition
@@ -727,41 +722,14 @@ export function ToolGallery({
           {fieldError("condition")}
         </label>
         <label className="tool-field">
-          How well you use it
-          <select value={draft.skill} onChange={(event) => set("skill", event.target.value)}>
-            <option value="">Not set</option>
-            <option value="1">1 · Learning</option>
-            <option value="2">2</option>
-            <option value="3">3 · Comfortable</option>
-            <option value="4">4</option>
-            <option value="5">5 · Expert</option>
-          </select>
-          {fieldError("skill")}
+          Maker
+          <input value={draft.maker} onChange={(event) => set("maker", event.target.value)} />
         </label>
         <label className="tool-field">
-          When you got it
-          <input type="month" value={draft.acquired} onChange={(event) => set("acquired", event.target.value)} />
-          {fieldError("acquired")}
-        </label>
-        <label className="tool-field">
-          What you paid
-          <input inputMode="decimal" value={draft.paid} placeholder="$" onChange={(event) => set("paid", event.target.value)} />
-          {fieldError("paid")}
-        </label>
-        <label className="tool-field">
-          Worth now
-          <input inputMode="decimal" value={draft.worth} placeholder="$" onChange={(event) => set("worth", event.target.value)} />
+          Model
+          <input value={draft.model} onChange={(event) => set("model", event.target.value)} />
         </label>
       </div>
-      <label className="tool-field">
-        Where it's kept
-        <input value={draft.keptAt} placeholder="e.g. Truck toolbox" onChange={(event) => set("keptAt", event.target.value)} />
-      </label>
-      <label className="tool-field">
-        Tags
-        <input value={draft.tags} placeholder="Comma between tags" onChange={(event) => set("tags", event.target.value)} />
-      </label>
-
       <div className="tool-roles">
         <p className="tool-label">Used on</p>
         <div className="tool-role-row">
@@ -800,51 +768,116 @@ export function ToolGallery({
         {fieldError("roleIds")}
       </div>
 
-      {kits.length > 0 || draft.kitIds.length > 0 ? (
-        <div className="tool-roles">
-          <p className="tool-label">Kits</p>
-          <div className="tool-role-row">
-            {draft.kitIds.map((id) => {
-              const name = kits.find((kit) => kit.id === id)?.name ?? "A deleted kit";
-              return (
-                <span key={id} className="tool-role is-kit">
-                  {name}
-                  <button
-                    type="button"
-                    aria-label={`Take out of ${name}`}
-                    onClick={() => set("kitIds", draft.kitIds.filter((other) => other !== id))}
-                  >
-                    <X size={11} aria-hidden="true" />
-                  </button>
-                </span>
-              );
-            })}
-            {otherKits.length ? (
-              <select
-                aria-label="Add to a kit"
-                className="tool-role-add"
-                value=""
-                onChange={(event) => {
-                  if (event.target.value) set("kitIds", [...draft.kitIds, event.target.value]);
-                }}
-              >
-                <option value="">+ Add to a kit</option>
-                {otherKits.map((kit) => (
-                  <option key={kit.id} value={kit.id}>
-                    {kit.name}
+      {/* Most people fill in the basics; the rest waits behind More details. */}
+      <button
+        type="button"
+        className="tool-more"
+        aria-expanded={more}
+        aria-controls="tool-more-fields"
+        onClick={() => setMore((open) => !open)}
+      >
+        {more ? <ChevronUp size={15} aria-hidden="true" /> : <ChevronDown size={15} aria-hidden="true" />}
+        More details
+      </button>
+      {more ? (
+        <div id="tool-more-fields" className="tool-more-fields">
+          <div className="tool-grid">
+            <label className="tool-field">
+              Category
+              <select value={draft.category} onChange={(event) => set("category", event.target.value)}>
+                {EQUIPMENT_CATEGORIES.map((key) => (
+                  <option key={key} value={key}>
+                    {EQUIPMENT_CATEGORY_LABEL[key]}
                   </option>
                 ))}
               </select>
-            ) : null}
+              {fieldError("category")}
+            </label>
+            <label className="tool-field">
+              Serial
+              <input value={draft.serial} onChange={(event) => set("serial", event.target.value)} />
+            </label>
+            <label className="tool-field">
+              How well you use it
+              <select value={draft.skill} onChange={(event) => set("skill", event.target.value)}>
+                <option value="">Not set</option>
+                <option value="1">1 · Learning</option>
+                <option value="2">2</option>
+                <option value="3">3 · Comfortable</option>
+                <option value="4">4</option>
+                <option value="5">5 · Expert</option>
+              </select>
+              {fieldError("skill")}
+            </label>
+            <label className="tool-field">
+              When you got it
+              <input type="month" value={draft.acquired} onChange={(event) => set("acquired", event.target.value)} />
+              {fieldError("acquired")}
+            </label>
+            <label className="tool-field">
+              What you paid
+              <input inputMode="decimal" value={draft.paid} placeholder="$" onChange={(event) => set("paid", event.target.value)} />
+              {fieldError("paid")}
+            </label>
+            <label className="tool-field">
+              Worth now
+              <input inputMode="decimal" value={draft.worth} placeholder="$" onChange={(event) => set("worth", event.target.value)} />
+            </label>
           </div>
-          {fieldError("kitIds")}
+          <label className="tool-field">
+            Where it's kept
+            <input value={draft.keptAt} placeholder="e.g. Truck toolbox" onChange={(event) => set("keptAt", event.target.value)} />
+          </label>
+          <label className="tool-field">
+            Tags
+            <input value={draft.tags} placeholder="Comma between tags" onChange={(event) => set("tags", event.target.value)} />
+          </label>
+          {kits.length > 0 || draft.kitIds.length > 0 ? (
+            <div className="tool-roles">
+              <p className="tool-label">Kits</p>
+              <div className="tool-role-row">
+                {draft.kitIds.map((id) => {
+                  const name = kits.find((kit) => kit.id === id)?.name ?? "A deleted kit";
+                  return (
+                    <span key={id} className="tool-role is-kit">
+                      {name}
+                      <button
+                        type="button"
+                        aria-label={`Take out of ${name}`}
+                        onClick={() => set("kitIds", draft.kitIds.filter((other) => other !== id))}
+                      >
+                        <X size={11} aria-hidden="true" />
+                      </button>
+                    </span>
+                  );
+                })}
+                {otherKits.length ? (
+                  <select
+                    aria-label="Add to a kit"
+                    className="tool-role-add"
+                    value=""
+                    onChange={(event) => {
+                      if (event.target.value) set("kitIds", [...draft.kitIds, event.target.value]);
+                    }}
+                  >
+                    <option value="">+ Add to a kit</option>
+                    {otherKits.map((kit) => (
+                      <option key={kit.id} value={kit.id}>
+                        {kit.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : null}
+              </div>
+              {fieldError("kitIds")}
+            </div>
+          ) : null}
+          <label className="tool-field">
+            Notes
+            <textarea rows={3} value={draft.notes} onChange={(event) => set("notes", event.target.value)} />
+          </label>
         </div>
       ) : null}
-
-      <label className="tool-field">
-        Notes
-        <textarea rows={3} value={draft.notes} onChange={(event) => set("notes", event.target.value)} />
-      </label>
       {formError}
       <div className="tool-gallery-form-foot">
         <span className="tool-spacer" />

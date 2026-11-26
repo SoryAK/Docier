@@ -1181,3 +1181,29 @@ dialog.tool-gallery::backdrop {
 .tool-gallery-pages {
   padding: 8px;
 }
+
+/* More details: the fields most people skip, a click away. */
+.tool-more {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: #3f3f46;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tool-more:hover {
+  color: #171717;
+}
+
+.tool-more-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}

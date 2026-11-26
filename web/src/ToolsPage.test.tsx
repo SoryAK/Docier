@@ -144,6 +144,7 @@ describe("kits, totals, and export", () => {
 
     await user.click(screen.getByRole("button", { name: "Open Meter" }));
     await startEditing(user, "Meter");
+    await user.click(within(panel("Meter")).getByRole("button", { name: "More details" }));
     await user.selectOptions(within(panel("Meter")).getByRole("combobox", { name: "Add to a kit" }), "Electrical");
     await user.click(within(panel("Meter")).getByRole("button", { name: "Save" }));
     expect(await within(panel("Meter")).findByText("Electrical")).toBeTruthy();
@@ -1005,5 +1006,57 @@ describe("the tool popout", () => {
     expect(within(saw).getByRole("heading", { name: "Fill in this draft" })).toBeTruthy();
     expect(within(saw).getByLabelText("Name")).toBeTruthy();
     expect(within(saw).getByRole("img", { name: "saw, photo 1" })).toBeTruthy();
+  });
+});
+
+describe("basic fields first", () => {
+  it("shows the basic fields, with the rest behind More details", async () => {
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await user.click(await screen.findByRole("button", { name: "Add a tool" }));
+    const popout = screen.getByRole("dialog", { name: "New tool" });
+    for (const label of ["Name", "Whose it is", "Maker", "Model", "Condition"]) expect(within(popout).getByLabelText(label)).toBeTruthy();
+    expect(within(popout).queryByLabelText("Serial")).toBeNull();
+    expect(within(popout).queryByLabelText("Notes")).toBeNull();
+    const more = within(popout).getByRole("button", { name: "More details" });
+    expect(more.getAttribute("aria-expanded")).toBe("false");
+
+    await user.click(more);
+    expect(more.getAttribute("aria-expanded")).toBe("true");
+    for (const label of ["Category", "Serial", "What you paid", "Worth now", "Where it's kept", "Tags", "Notes"]) {
+      expect(within(popout).getByLabelText(label)).toBeTruthy();
+    }
+  });
+
+  it("opens More details by itself when the tool has some", async () => {
+    const id = await addToolThroughApi("Drill", { keptAt: "Van" });
+    const bare = await addToolThroughApi("Saw");
+    window.location.hash = `#/tools/${id}`;
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await startEditing(user, "Drill");
+    expect((within(screen.getByRole("dialog", { name: "Drill" })).getByLabelText("Where it's kept") as HTMLInputElement).value).toBe("Van");
+
+    await user.click(within(screen.getByRole("dialog", { name: "Drill" })).getByRole("button", { name: "Cancel" }));
+    await user.click(within(screen.getByRole("dialog", { name: "Drill" })).getByRole("button", { name: "Next tool" }));
+    await startEditing(user, "Saw");
+    expect(within(screen.getByRole("dialog", { name: "Saw" })).queryByLabelText("Where it's kept")).toBeNull();
+    expect(bare).toBeTruthy();
+  });
+
+  it("opens More details when one of its fields is refused", async () => {
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await user.click(await screen.findByRole("button", { name: "Add a tool" }));
+    const popout = screen.getByRole("dialog", { name: "New tool" });
+    await user.type(within(popout).getByLabelText("Name"), "Drill");
+    await user.click(within(popout).getByRole("button", { name: "More details" }));
+    await user.type(within(popout).getByLabelText("What you paid"), "lots");
+    await user.click(within(popout).getByRole("button", { name: "More details" }));
+    expect(within(popout).queryByLabelText("What you paid")).toBeNull();
+    await user.click(within(popout).getByRole("button", { name: "Add tool" }));
+    expect(await within(popout).findByText("Use a number, like 425 or 425.50.")).toBeTruthy();
+    // The field is back in view, with what's wrong beside it (the message is part of its label).
+    expect((within(popout).getByLabelText(/^What you paid/) as HTMLInputElement).value).toBe("lots");
   });
 });

@@ -25,7 +25,9 @@ export function roleLink(value: unknown): string {
   if (typeof value !== "string") return "";
   const trimmed = value.trim();
   if (!trimmed) return "";
-  const full = /^[a-z][a-z0-9+.-]*:/i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  // "example.org:8443/about" is an address with a port, not a scheme called "example.org".
+  const hasScheme = /^[a-z][a-z0-9+.-]*:/i.test(trimmed) && !/^[^\s/:]+\.[^\s/:]+:\d+(?:[/?#]|$)/.test(trimmed);
+  const full = hasScheme ? trimmed : `https://${trimmed}`;
   if (!isLinkedEvidenceUrl(full)) return "";
   // A bare word with no dot isn't an address.
   try {

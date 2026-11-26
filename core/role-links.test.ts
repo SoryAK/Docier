@@ -37,4 +37,11 @@ describe("a role's company links", () => {
     ]);
     expect(linkHost("nonsense")).toBe("nonsense");
   });
+
+  it("takes a bare address with a port as a web address", () => {
+    const prepared = prepareRoleLinks({ website: "example.org:8443/about" });
+    expect(prepared.ok && prepared.value.website).toBe("https://example.org:8443/about");
+    // Other kinds of link are still refused.
+    expect(prepareRoleLinks({ website: "mailto:me@example.org" })).toEqual({ ok: false, error: "url-invalid", field: "website" });
+  });
 });

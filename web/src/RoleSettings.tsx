@@ -243,20 +243,22 @@ export function RoleSettings({
   const groups = groupsFor(role);
   const panels = groups.flatMap((group) => group.panels);
   const [panel, setPanel] = useState<RoleSettingsPanel>(panels.some((item) => item.id === openPanel) ? openPanel : "basics");
+  // What's saved, per part. Each moves to what was sent once that part saves, so a
+  // later Save after a partial failure compares with what's really stored.
   const [initialRole] = useState(() => roleDraft(role));
-  const [initialSetup] = useState(() => setupDraft(role));
+  const [initialSetup, setInitialSetup] = useState(() => setupDraft(role));
   const [draft, setDraft] = useState(initialRole);
   const [setup, setSetup] = useState(initialSetup);
-  const [initialPay] = useState(() => payDraft(role));
+  const [initialPay, setInitialPay] = useState(() => payDraft(role));
   const [pay, setPay] = useState(initialPay);
-  const [initialGear] = useState(() => gearDraft(role));
+  const [initialGear, setInitialGear] = useState(() => gearDraft(role));
   const [gear, setGear] = useState(initialGear);
-  const [initialReflection] = useState(() => reflectionDraft(role));
+  const [initialReflection, setInitialReflection] = useState(() => reflectionDraft(role));
   const [reflection, setReflection] = useState(initialReflection);
-  const [initialLinks] = useState(() => linksDraft(role));
+  const [initialLinks, setInitialLinks] = useState(() => linksDraft(role));
   const [links, setLinks] = useState(initialLinks);
   // The one line shown in larger type above the description.
-  const [initialSummary] = useState(() => role.details.summary);
+  const [initialSummary, setInitialSummary] = useState(() => role.details.summary);
   const [summary, setSummary] = useState(initialSummary);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -280,9 +282,16 @@ export function RoleSettings({
     setError(null);
     try {
       // Each part saves on its own; a refusal opens the panel it's about.
-      const parts: Array<[boolean, string, unknown, Record<string, { panel: RoleSettingsPanel; message: string }>, string]> = [
-        [gearChanged, "gear", gearBody(gear), GEAR_ERROR, "The gear could not be saved. Try again."],
-        [reflectionChanged, "reflection", reflectionBody(reflection), REFLECTION_ERROR, "Looking back could not be saved. Try again."],
+      const parts: Array<[boolean, string, unknown, Record<string, { panel: RoleSettingsPanel; message: string }>, string, () => void]> = [
+        [gearChanged, "gear", gearBody(gear), GEAR_ERROR, "The gear could not be saved. Try again.", () => setInitialGear(gear)],
+        [
+          reflectionChanged,
+          "reflection",
+          reflectionBody(reflection),
+          REFLECTION_ERROR,
+          "Looking back could not be saved. Try again.",
+          () => setInitialReflection(reflection),
+        ],
       ];
       if (summaryChanged) {
         const response = await fetch(`/api/work-map/roles/${encodeURIComponent(role.id)}/details`, {
@@ -296,6 +305,7 @@ export function RoleSettings({
           onSaved();
           return;
         }
+        setInitialSummary(summary);
       }
       if (linksChanged) {
         const response = await fetch(`/api/work-map/roles/${encodeURIComponent(role.id)}/links`, {
@@ -314,8 +324,9 @@ export function RoleSettings({
           onSaved();
           return;
         }
+        setInitialLinks(links);
       }
-      for (const [changed, path, body, errors, fallback] of parts) {
+      for (const [changed, path, body, errors, fallback, saved] of parts) {
         if (!changed) continue;
         const response = await fetch(`/api/work-map/roles/${encodeURIComponent(role.id)}/${path}`, {
           method: "PUT",
@@ -330,6 +341,7 @@ export function RoleSettings({
           onSaved();
           return;
         }
+        saved();
       }
       if (payChanged) {
         const response = await fetch(`/api/work-map/roles/${encodeURIComponent(role.id)}/pay`, {
@@ -345,6 +357,7 @@ export function RoleSettings({
           onSaved();
           return;
         }
+        setInitialPay(pay);
       }
       if (setupChanged) {
         const response = await fetch(`/api/work-map/roles/${encodeURIComponent(role.id)}/work-setup`, {
@@ -375,6 +388,7 @@ export function RoleSettings({
           onSaved();
           return;
         }
+        setInitialSetup(setup);
       }
       if (roleChanged) {
         const pinned = /^\d+$/.test(role.locationLabel.trim());

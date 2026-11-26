@@ -19,6 +19,22 @@ export default {
     for (const [name, value] of Object.entries(node)) {
       Object.defineProperty(global, name, { value, writable: true, configurable: true });
     }
+    // jsdom has <dialog> but not its methods: open and close it the way a browser does.
+    const dialog = (global as unknown as { HTMLDialogElement?: { prototype: HTMLDialogElement } }).HTMLDialogElement?.prototype;
+    if (dialog && !dialog.showModal) {
+      dialog.show = function show(this: HTMLDialogElement) {
+        this.setAttribute("open", "");
+      };
+      dialog.showModal = function showModal(this: HTMLDialogElement) {
+        this.setAttribute("open", "");
+      };
+      dialog.close = function close(this: HTMLDialogElement, value?: string) {
+        if (!this.hasAttribute("open")) return;
+        this.removeAttribute("open");
+        if (value !== undefined) this.returnValue = value;
+        this.dispatchEvent(new (this.ownerDocument.defaultView as unknown as typeof globalThis).Event("close"));
+      };
+    }
     return page;
   },
 } satisfies Environment;

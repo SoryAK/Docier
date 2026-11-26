@@ -81,6 +81,26 @@ describe("changes a resume makes to a role", () => {
     expect((await roles())[0].edits).toHaveLength(1);
   });
 
+  it("records a change to only a school's field of study, and can undo it", async () => {
+    const { send, upload, roles } = await setup();
+    const resumeId = await upload("cv.pdf");
+    const school = { institution: "City College", degree: "AAS", field: "Electronics", startDate: "2016-01-01", endDate: "2018-05-01" };
+    const body = (field: string) => ({ experience: [], education: [{ ...school, field }], skills: [], educationRoleIds: ["file-0-school-0"], resumeId });
+    await send("POST", "/api/history", body("Electronics"));
+    // The same school saved again changes nothing, so nothing new is recorded.
+    await send("POST", "/api/history", body("Electronics"));
+    expect((await roles())[0].edits).toHaveLength(1);
+
+    await send("POST", "/api/history", body("Mechatronics"));
+    const [role] = await roles();
+    const [edit] = role.edits;
+    expect(edit.summary).toBe("From your resume: changed the field of study");
+    expect(edit.canUndo).toBe(true);
+    await send("POST", `/api/work-map/roles/${role.id}/edits/${edit.id}/undo`);
+    const history = (await send("GET", "/api/history")).body as { schools: Array<{ field: string }> };
+    expect(history.schools[0]!.field).toBe("Electronics");
+  });
+
   it("records what applying a later resume changed", async () => {
     const { send, upload, roles } = await setup();
     const first = await upload("first.pdf");

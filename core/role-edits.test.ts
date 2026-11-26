@@ -11,6 +11,8 @@ const fields: RoleFields = {
   endDate: "",
   isCurrent: true,
   description: "",
+  degree: "",
+  field: "",
   achievements: [
     { id: "a1", statement: "Cut robot downtime" },
     { id: "a2", statement: "Trained two technicians" },

@@ -39,4 +39,10 @@ describe("a role's documents", () => {
   it("is no groups with no documents", () => {
     expect(groupRoleDocuments([])).toEqual([]);
   });
+
+  it("shows a document of a kind it doesn't know under Other, so it never goes missing", () => {
+    const restored = { linkId: "l9", documentId: "d9", name: "old.pdf", kind: "mystery" as never, mediaType: "application/pdf", sizeBytes: 1, createdAt: "2024-01-01" };
+    const groups = groupRoleDocuments([restored]);
+    expect(groups.map((group) => [group.kind, group.items.map((item) => item.name)])).toEqual([["other", ["old.pdf"]]]);
+  });
 });

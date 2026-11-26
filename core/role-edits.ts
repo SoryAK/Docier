@@ -18,6 +18,9 @@ export type RoleFields = {
   endDate: string;
   isCurrent: boolean;
   description: string;
+  /** A school's degree and field of study ("" for a job). */
+  degree: string;
+  field: string;
   achievements: RoleAchievement[];
 };
 
@@ -69,6 +72,8 @@ const FIELD_LABEL: Record<Exclude<keyof RoleFields, "achievements">, string> = {
   endDate: "end date",
   isCurrent: "current",
   description: "description",
+  degree: "degree",
+  field: "field of study",
 };
 
 function describeAchievements(before: RoleAchievement[], after: RoleAchievement[]): string[] {

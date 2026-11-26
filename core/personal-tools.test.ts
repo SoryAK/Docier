@@ -4,11 +4,13 @@ import {
   BULK_TOOLS_MAX,
   DEFAULT_FRAMING,
   draftToolName,
+  duplicateToolName,
   filterTools,
   matchParts,
   framingStyle,
   readKitName,
   readBulkRequest,
+  readPhotoOrder,
   readPhotoFraming,
   type BulkFields,
   readToolInput,
@@ -374,5 +376,22 @@ describe("search highlight", () => {
     expect(matchParts("Drill", "  ")).toEqual([{ text: "Drill", match: false }]);
     expect(matchParts("Drill", "saw")).toEqual([{ text: "Drill", match: false }]);
     expect(matchParts("", "saw")).toEqual([]);
+  });
+});
+
+describe("duplicates and photo order", () => {
+  it("names a copy", () => {
+    expect(duplicateToolName("Drill")).toBe("Drill (copy)");
+    const long = duplicateToolName("x".repeat(120));
+    expect(long).toHaveLength(120);
+    expect(long.endsWith(" (copy)")).toBe(true);
+  });
+
+  it("reads a photo order with every photo once", () => {
+    expect(readPhotoOrder({ photoIds: ["b", "a"] }, ["a", "b"])).toEqual({ ok: true, ids: ["b", "a"] });
+    for (const photoIds of [["a"], ["a", "b", "c"], ["a", "a"], ["a", "x"], "a,b", null]) {
+      expect(readPhotoOrder({ photoIds }, ["a", "b"])).toEqual({ ok: false, error: "photo-order" });
+    }
+    expect(readPhotoOrder(null, ["a"])).toEqual({ ok: false, error: "photo-order" });
   });
 });

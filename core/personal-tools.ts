@@ -360,6 +360,21 @@ export function filterTools(tools: PersonalTool[], filter: ToolFilter): Personal
   );
 }
 
+/** A duplicate's name: "<name> (copy)", cut so it stays within the name limit. */
+export function duplicateToolName(name: string): string {
+  const suffix = " (copy)";
+  return `${name.slice(0, TEXT_MAX - suffix.length).trimEnd()}${suffix}`;
+}
+
+/** Reads `{ photoIds }`: every one of the tool's photos, each exactly once. */
+export function readPhotoOrder(raw: unknown, current: string[]): { ok: true; ids: string[] } | { ok: false; error: "photo-order" } {
+  const ids = raw && typeof raw === "object" ? (raw as { photoIds?: unknown }).photoIds : undefined;
+  const bad = { ok: false, error: "photo-order" } as const;
+  if (!Array.isArray(ids) || ids.length !== current.length || new Set(ids).size !== ids.length) return bad;
+  const known = new Set(current);
+  return ids.every((id) => typeof id === "string" && known.has(id)) ? { ok: true, ids: ids as string[] } : bad;
+}
+
 /** Splits text into the parts that match a search and the rest, ignoring case. The query is plain text. */
 export function matchParts(text: string, query: string): Array<{ text: string; match: boolean }> {
   if (!text) return [];

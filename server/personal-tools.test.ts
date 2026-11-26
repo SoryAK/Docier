@@ -345,3 +345,60 @@ describe("changing many tools at once", () => {
     expect(await bulk(send, [], { kind: "delete" })).toEqual({ status: 400, body: { error: "bulk-ids" } });
   });
 });
+
+describe("duplicating tools and ordering photos", () => {
+  it("copies every field, role, kit, and the draft mark", async () => {
+    const { send, photos, png, addRole, tools } = setup();
+    const roleId = await addRole("Technician");
+    const kit = (await send("POST", "/api/tools/kits", { name: "Van" })).body.kit.id as string;
+    const draft = (await photos("/api/tools/from-photos", [png("saw.png")])).body.tools[0].id as string;
+    const original = (await send("POST", "/api/tools", { name: "Drill", maker: "Makita", serial: "S1", paid: 120, tags: ["Shop"], roleIds: [roleId], kitIds: [kit] }))
+      .body.tool;
+
+    const copy = await send("POST", `/api/tools/${original.id}/duplicate`, { photos: false });
+    expect(copy.status).toBe(201);
+    expect(copy.body.tool).toMatchObject({ name: "Drill (copy)", maker: "Makita", serial: "S1", paid: 120, tags: ["Shop"], roleIds: [roleId], kitIds: [kit], draft: false, photos: [] });
+    expect(copy.body.tool.id).not.toBe(original.id);
+
+    const draftCopy = await send("POST", `/api/tools/${draft}/duplicate`, { photos: false });
+    expect(draftCopy.body.tool).toMatchObject({ name: "saw (copy)", draft: true });
+    expect(await tools()).toHaveLength(4);
+  });
+
+  it("copies photos as new files that outlive the original", async () => {
+    const { app, send, photos, png, files } = setup();
+    const id = (await send("POST", "/api/tools", { name: "Drill" })).body.tool.id as string;
+    let tool = (await photos(`/api/tools/${id}/photos`, [png("a.png"), png("b.png")])).body.tool;
+    tool = (await send("PUT", `/api/tools/${id}/photos/${tool.photos[1].id}/cover`)).body.tool;
+    await send("PUT", `/api/tools/${id}/photos/${tool.photos[0].id}/framing`, { framing: { rotation: 90, flipH: false, flipV: false, zoom: 2, focusX: 10, focusY: 20 } });
+
+    const copy = (await send("POST", `/api/tools/${id}/duplicate`, { photos: true })).body.tool;
+    expect(copy.photos).toHaveLength(2);
+    expect(copy.photos.map((photo: any) => photo.cover)).toEqual([false, true]);
+    expect(copy.photos[0].framing).toMatchObject({ rotation: 90, zoom: 2, focusX: 10, focusY: 20 });
+    expect(files()).toHaveLength(4);
+
+    expect((await send("DELETE", `/api/tools/${id}`)).status).toBe(200);
+    expect(files()).toHaveLength(2);
+    expect((await app.request(copy.photos[0].url)).status).toBe(200);
+  });
+
+  it("refuses to duplicate a tool that isn't there", async () => {
+    const { send } = setup();
+    expect(await send("POST", "/api/tools/nope/duplicate", { photos: true })).toEqual({ status: 404, body: { error: "not-found" } });
+  });
+
+  it("puts photos in a new order and keeps the cover", async () => {
+    const { send, photos, png } = setup();
+    const id = (await send("POST", "/api/tools", { name: "Drill" })).body.tool.id as string;
+    const tool = (await photos(`/api/tools/${id}/photos`, [png("a.png"), png("b.png"), png("c.png")])).body.tool;
+    const [a, b, c] = tool.photos.map((photo: any) => photo.id);
+    const moved = await send("PUT", `/api/tools/${id}/photos/order`, { photoIds: [c, a, b] });
+    expect(moved.status).toBe(200);
+    expect(moved.body.tool.photos.map((photo: any) => [photo.id, photo.cover])).toEqual([[c, false], [a, true], [b, false]]);
+
+    const refused = await send("PUT", `/api/tools/${id}/photos/order`, { photoIds: [a, b] });
+    expect(refused).toEqual({ status: 400, body: { error: "photo-order" } });
+    expect((await send("GET", "/api/tools")).body.tools[0].photos.map((photo: any) => photo.id)).toEqual([c, a, b]);
+  });
+});

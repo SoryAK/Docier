@@ -5,6 +5,8 @@ import {
   ToolError,
   addToolPhotos,
   bulkChangeTools,
+  duplicateTool,
+  setPhotoOrder,
   createTool,
   listTools,
   loadToolPhoto,
@@ -2685,6 +2687,22 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
     const occupant = ensureOccupant(db);
     try {
       return c.json(bulkChangeTools(db, occupant.id, uploadsDir, await c.req.json().catch(() => null)));
+    } catch (error) {
+      return toolFailure(c, error);
+    }
+  });
+  app.post("/api/tools/:id/duplicate", async (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      return c.json({ tool: duplicateTool(db, occupant.id, uploadsDir, c.req.param("id"), await c.req.json().catch(() => null)) }, 201);
+    } catch (error) {
+      return toolFailure(c, error);
+    }
+  });
+  app.put("/api/tools/:id/photos/order", async (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      return c.json({ tool: setPhotoOrder(db, occupant.id, c.req.param("id"), await c.req.json().catch(() => null)) });
     } catch (error) {
       return toolFailure(c, error);
     }

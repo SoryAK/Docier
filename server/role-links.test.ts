@@ -50,4 +50,12 @@ describe("a role's company links", () => {
     const page = (await send("GET", "/api/work-map/preview")).body;
     expect(JSON.stringify(page)).not.toContain("giant-secret");
   });
+
+  it("refuses an empty request instead of clearing every link", async () => {
+    const { send, id, role } = await setup();
+    await send("PUT", `/api/work-map/roles/${id}/links`, { website: "giantdirect.com" });
+    const empty = await send("PUT", `/api/work-map/roles/${id}/links`);
+    expect(empty).toEqual({ status: 400, body: { error: "invalid-body" } });
+    expect((await role()).details.website).toBe("https://giantdirect.com");
+  });
 });

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Crop, ImagePlus, Star, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Crop, ImagePlus, Star, X } from "lucide-react";
 import { FramedPhoto, ToolPhotoFrame } from "./ToolPhotoFrame";
+import { ToolPhotoViewer } from "./ToolPhotoViewer";
 import { EQUIPMENT_CATEGORIES, EQUIPMENT_CATEGORY_LABEL } from "@core/role-gear";
 import {
   TOOL_CONDITIONS,
@@ -124,6 +125,10 @@ export function ToolPanel({
   const [busy, setBusy] = useState(false);
   const [photoNote, setPhotoNote] = useState("");
   const [confirming, setConfirming] = useState(false);
+  // The photo shown full size, by its place in the row.
+  const [viewing, setViewing] = useState<number | null>(null);
+  // The photo being dragged to a new place.
+  const dragged = useRef<number | null>(null);
   // Asking "Copy the photos too?" before duplicating.
   const [duplicating, setDuplicating] = useState(false);
   // The photo being framed in the Adjust photo dialog.
@@ -204,6 +209,29 @@ export function ToolPanel({
     try {
       const response = await fetch(`/api/tools/${encodeURIComponent(tool.id)}/photos/${path}`, { method });
       if (!response.ok) throw new Error("photo");
+      onSaved(((await response.json()) as { tool: PersonalTool }).tool);
+      setPhotoNote("");
+    } catch {
+      setPhotoNote("That didn't work. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Moves the photo at `from` to `to` and saves the new order. The cover stays the cover. */
+  async function movePhoto(from: number, to: number) {
+    if (!tool || from === to || to < 0 || to >= tool.photos.length) return;
+    const ids = tool.photos.map((photo) => photo.id);
+    const [moved] = ids.splice(from, 1);
+    ids.splice(to, 0, moved!);
+    setBusy(true);
+    try {
+      const response = await fetch(`/api/tools/${encodeURIComponent(tool.id)}/photos/order`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ photoIds: ids }),
+      });
+      if (!response.ok) throw new Error("order");
       onSaved(((await response.json()) as { tool: PersonalTool }).tool);
       setPhotoNote("");
     } catch {
@@ -313,8 +341,58 @@ export function ToolPanel({
           <p className="tool-label">Photos</p>
           <div className="tool-photo-row">
             {tool?.photos.map((photo, index) => (
-              <div key={photo.id} className="tool-photo">
-                <FramedPhoto photo={photo} />
+              <div
+                key={photo.id}
+                className="tool-photo"
+                draggable={!busy}
+                onDragStart={(event) => {
+                  dragged.current = index;
+                  event.dataTransfer?.setData("text/plain", photo.id);
+                  if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+                }}
+                onDragOver={(event) => {
+                  if (dragged.current !== null) event.preventDefault();
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  // A photo dropped here takes this place; files dropped on the page are handled there.
+                  if (dragged.current === null) return;
+                  event.stopPropagation();
+                  const from = dragged.current;
+                  dragged.current = null;
+                  void movePhoto(from, index);
+                }}
+                onDragEnd={() => {
+                  dragged.current = null;
+                }}
+              >
+                <button type="button" className="tool-photo-view" aria-label={`View photo ${index + 1}`} onClick={() => setViewing(index)}>
+                  <FramedPhoto photo={photo} />
+                </button>
+                {index > 0 ? (
+                  <button
+                    type="button"
+                    className="tool-photo-btn is-left"
+                    aria-label={`Move photo ${index + 1} left`}
+                    title="Move left"
+                    disabled={busy}
+                    onClick={() => void movePhoto(index, index - 1)}
+                  >
+                    <ChevronLeft size={12} aria-hidden="true" />
+                  </button>
+                ) : null}
+                {index < tool.photos.length - 1 ? (
+                  <button
+                    type="button"
+                    className="tool-photo-btn is-right"
+                    aria-label={`Move photo ${index + 1} right`}
+                    title="Move right"
+                    disabled={busy}
+                    onClick={() => void movePhoto(index, index + 1)}
+                  >
+                    <ChevronRight size={12} aria-hidden="true" />
+                  </button>
+                ) : null}
                 {photo.cover ? (
                   <span className="tool-cover">Cover</span>
                 ) : (
@@ -613,6 +691,9 @@ export function ToolPanel({
           )}
         </div>
       </form>
+      {tool && viewing !== null && tool.photos.length ? (
+        <ToolPhotoViewer photos={tool.photos} start={viewing} onClose={() => setViewing(null)} />
+      ) : null}
       {tool && adjusting && tool.photos.some((photo) => photo.id === adjusting) ? (
         <ToolPhotoFrame
           toolId={tool.id}

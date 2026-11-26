@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import { createPortal } from "react-dom";
 import { FlipHorizontal2, FlipVertical2, RotateCcw, RotateCw } from "lucide-react";
 import { DEFAULT_FRAMING, framingStyle, type PersonalTool, type PhotoFraming, type ToolPhoto } from "@core/personal-tools";
 
@@ -111,7 +112,8 @@ export function ToolPhotoFrame({
     }
   }
 
-  return (
+  // Rendered at the page's top level: the page's columns are layout containers, which would hold a fixed overlay inside them.
+  return createPortal(
     <div className="tool-frame-backdrop">
       <div
         ref={dialogRef}
@@ -218,6 +220,7 @@ export function ToolPhotoFrame({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

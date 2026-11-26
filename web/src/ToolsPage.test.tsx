@@ -761,3 +761,59 @@ describe("duplicating and drafts in a row", () => {
     expect(await within(panel(name)).findByText("The tool couldn't be saved. Try again.")).toBeTruthy();
   });
 });
+
+describe("viewing and ordering photos", () => {
+  async function toolWithPhotos(names: string[]) {
+    const id = await addToolThroughApi("Drill");
+    const form = new FormData();
+    for (const name of names) form.append("photos", photo(name));
+    await fetch(`/api/tools/${id}/photos`, { method: "POST", body: form });
+    window.location.hash = `#/tools/${id}`;
+    return id;
+  }
+  const order = async () => (await server.tools())[0]!.photos.map((item: any) => item.url as string);
+
+  it("shows photos full size and moves between them", async () => {
+    await toolWithPhotos(["a.png", "b.png"]);
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await user.click(within(await screen.findByRole("complementary", { name: "Drill" })).getByRole("button", { name: "View photo 1" }));
+    const viewer = screen.getByRole("dialog", { name: "Photo" });
+    expect(within(viewer).getByText("Photo 1 of 2")).toBeTruthy();
+    expect(document.activeElement && viewer.contains(document.activeElement)).toBe(true);
+    await user.click(within(viewer).getByRole("button", { name: "Next photo" }));
+    expect(within(viewer).getByText("Photo 2 of 2")).toBeTruthy();
+    await user.keyboard("{ArrowLeft}");
+    expect(within(viewer).getByText("Photo 1 of 2")).toBeTruthy();
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog", { name: "Photo" })).toBeNull();
+    expect(panel("Drill")).toBeTruthy();
+    expect(document.activeElement).toBe(within(panel("Drill")).getByRole("button", { name: "View photo 1" }));
+  });
+
+  it("moves a photo left with its button and keeps the cover", async () => {
+    await toolWithPhotos(["a.png", "b.png"]);
+    const before = await order();
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    const drill = await screen.findByRole("complementary", { name: "Drill" });
+    expect(within(drill).queryByRole("button", { name: "Move photo 1 left" })).toBeNull();
+    expect(within(drill).queryByRole("button", { name: "Move photo 2 right" })).toBeNull();
+    await user.click(within(drill).getByRole("button", { name: "Move photo 2 left" }));
+    await waitFor(async () => expect(await order()).toEqual([before[1], before[0]]));
+    expect((await server.tools())[0]!.photos.map((item: any) => item.cover)).toEqual([false, true]);
+  });
+
+  it("moves a photo by dragging it", async () => {
+    await toolWithPhotos(["a.png", "b.png", "c.png"]);
+    const before = await order();
+    render(<ToolsPage />);
+    const drill = await screen.findByRole("complementary", { name: "Drill" });
+    const tiles = drill.querySelectorAll<HTMLElement>(".tool-photo[draggable='true']");
+    fireEvent.dragStart(tiles[2]!);
+    fireEvent.dragOver(tiles[0]!);
+    fireEvent.drop(tiles[0]!);
+    await waitFor(async () => expect(await order()).toEqual([before[2], before[0], before[1]]));
+  });
+});

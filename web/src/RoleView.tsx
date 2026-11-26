@@ -171,6 +171,10 @@ export function RoleView({
     { id: "colleagues", label: "Colleagues", count: role.people?.length ?? 0 },
     { id: "documents", label: "Documents", count: role.documents?.length ?? 0 },
   ];
+  // One panel shows at a time; each tab names it, and it names the tab showing it.
+  const panelId = `${role.id}-panel`;
+  const tabId = (id: RoleTab) => `${role.id}-tab-${id}`;
+
   function openTab(next: RoleTab) {
     setTab(next);
     setOpenAchievement(null);
@@ -269,9 +273,37 @@ export function RoleView({
       {settings ? <RoleSettings role={role} panel={settings} onClose={() => setSettings(null)} onSaved={onSaved} /> : null}
       {(
         <>
-          <div ref={tabsRef} className="role-view-tabs" role="tablist" aria-label={`${name} sections`}>
+          <div
+            ref={tabsRef}
+            className="role-view-tabs"
+            role="tablist"
+            aria-label={`${name} sections`}
+            onKeyDown={(event) => {
+              // Arrow keys, Home, and End move between tabs, as tabs do.
+              const at = tabs.findIndex((item) => item.id === tab);
+              const to =
+                event.key === "ArrowRight" ? (at + 1) % tabs.length
+                : event.key === "ArrowLeft" ? (at - 1 + tabs.length) % tabs.length
+                : event.key === "Home" ? 0
+                : event.key === "End" ? tabs.length - 1
+                : -1;
+              if (to < 0) return;
+              event.preventDefault();
+              openTab(tabs[to]!.id);
+              tabsRef.current?.querySelectorAll<HTMLElement>("[role=tab]")[to]?.focus();
+            }}
+          >
             {tabs.map((item) => (
-              <button key={item.id} type="button" role="tab" aria-selected={tab === item.id} onClick={() => openTab(item.id)}>
+              <button
+                key={item.id}
+                id={tabId(item.id)}
+                type="button"
+                role="tab"
+                aria-selected={tab === item.id}
+                aria-controls={panelId}
+                tabIndex={tab === item.id ? 0 : -1}
+                onClick={() => openTab(item.id)}
+              >
                 {item.label}
                 {item.locked ? <Lock size={12} aria-label="Only you see this" className="role-view-tab-lock" /> : null}
                 {item.count ? <span>{item.count}</span> : null}
@@ -280,7 +312,7 @@ export function RoleView({
           </div>
 
           {tab === "overview" ? (
-            <div className="role-view-pane is-overview" role="tabpanel">
+            <div className="role-view-pane is-overview" role="tabpanel" id={panelId} aria-labelledby={tabId(tab)}>
               <section className="role-view-section role-view-about" aria-labelledby={`${role.id}-about`}>
                 <div className="role-view-section-head">
                   <h2 id={`${role.id}-about`}>Description</h2>
@@ -343,23 +375,23 @@ export function RoleView({
               </section>
             </div>
           ) : tab === "setup" ? (
-            <div className="role-view-pane" role="tabpanel">
+            <div className="role-view-pane" role="tabpanel" id={panelId} aria-labelledby={tabId(tab)}>
               <RoleWorkSetup role={role} onEdit={setSettings} />
             </div>
           ) : tab === "pay" ? (
-            <div className="role-view-pane" role="tabpanel">
+            <div className="role-view-pane" role="tabpanel" id={panelId} aria-labelledby={tabId(tab)}>
               <RolePaySection role={role} onEdit={setSettings} onSaved={onSaved} />
             </div>
           ) : tab === "documents" ? (
-            <div className="role-view-pane" role="tabpanel">
+            <div className="role-view-pane" role="tabpanel" id={panelId} aria-labelledby={tabId(tab)}>
               <RoleDocuments role={role} onSaved={onSaved} />
             </div>
           ) : tab === "colleagues" ? (
-            <div className="role-view-pane" role="tabpanel">
+            <div className="role-view-pane" role="tabpanel" id={panelId} aria-labelledby={tabId(tab)}>
               <RolePeople role={role} roles={roles} onSaved={onSaved} openRequest={peopleRequest} />
             </div>
           ) : (
-            <div className="role-view-pane" role="tabpanel">
+            <div className="role-view-pane" role="tabpanel" id={panelId} aria-labelledby={tabId(tab)}>
               {openAchievement ? (
                 <AchievementDetail role={role} achievementId={openAchievement} onBack={() => setOpenAchievement(null)} onSaved={onSaved} />
               ) : role.achievements.length > 0 ? (

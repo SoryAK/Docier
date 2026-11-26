@@ -876,7 +876,7 @@ function FloatingEdges({ onResize }: { onResize: (edge: Edge, event: React.Point
  * at the bottom right, sized to the window; dragging its top moves it and
  * dragging an edge resizes it. Phones show it full screen (CSS).
  */
-function useFloatingBox(
+export function useFloatingBox(
   active: boolean,
   savedAt: { x: number; y: number } | null,
   savedSize: { width: number; height: number } | null,
@@ -889,6 +889,8 @@ function useFloatingBox(
   useEffect(() => {
     if (!active) return;
     const onWindow = () => setScreen({ width: window.innerWidth, height: window.innerHeight });
+    // The window may have changed size while chat was docked or closed: start from its size now.
+    onWindow();
     window.addEventListener("resize", onWindow);
     return () => window.removeEventListener("resize", onWindow);
   }, [active]);

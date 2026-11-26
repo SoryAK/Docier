@@ -196,6 +196,14 @@ export function ToolGallery({
   // Photos picked before a new tool is saved, uploaded right after it is.
   const [pending, setPending] = useState<Array<{ file: File; url: string }>>([]);
   const fileRef = useRef<HTMLInputElement>(null);
+  // A save that finishes after this popout has gone (another tool opened, or it closed) mustn't move anywhere.
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const nameRef = useRef<HTMLInputElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const stripRef = useRef<HTMLDivElement>(null);
@@ -380,7 +388,7 @@ export function ToolGallery({
   async function save(event: FormEvent, thenOpen?: string) {
     event.preventDefault();
     const saved = await saveFields();
-    if (!saved) return;
+    if (!saved || !mounted.current) return;
     if (tool && thenOpen && onOpen) {
       onOpen(thenOpen);
       return;

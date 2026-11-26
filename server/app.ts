@@ -1601,7 +1601,8 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
         db,
         occupant.id,
         c.req.param("id"),
-        (await c.req.json().catch(() => ({}))) as Record<string, unknown>,
+        // An empty body is refused (as invalid-body) rather than read as "clear every link".
+        (await c.req.json()) as Record<string, unknown>,
       );
       if (!saved.ok) return c.json({ error: saved.error, field: saved.field }, 400);
       return c.json({ details: saved.details });

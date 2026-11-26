@@ -47,19 +47,29 @@ export function HomeSearch({
 
   useEffect(() => {
     if (!open) return;
+    // Answers to an earlier opening are ignored, so a late one can't bring back a deleted tool or role.
+    let ignore = false;
     void fetch("/api/work-map")
       .then(async (response) => {
         if (!response.ok) return;
         const body = (await response.json()) as { roles?: WorkMapRole[] };
-        setRoles(body.roles ?? []);
+        if (!ignore) setRoles(body.roles ?? []);
       })
-      .catch(() => setRoles([]));
+      .catch(() => {
+        if (!ignore) setRoles([]);
+      });
     void fetch("/api/tools")
       .then(async (response) => {
         if (!response.ok) return;
-        setTools(((await response.json()) as { tools?: PersonalTool[] }).tools ?? []);
+        const body = (await response.json()) as { tools?: PersonalTool[] };
+        if (!ignore) setTools(body.tools ?? []);
       })
-      .catch(() => setTools([]));
+      .catch(() => {
+        if (!ignore) setTools([]);
+      });
+    return () => {
+      ignore = true;
+    };
   }, [open]);
 
   const palette = useMemo(() => buildPalette(roles, tools), [roles, tools]);

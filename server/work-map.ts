@@ -251,7 +251,7 @@ export async function undoRoleEdit(
     db.prepare(
       `UPDATE work_history SET kind = ?, title = ?, company = ?, location = ?,
          start_date = ?, end_date = ?, is_current = ?, description = ?,
-         achievements_json = ? WHERE id = ? AND occupant_id = ?`,
+         degree = ?, field = ?, achievements_json = ? WHERE id = ? AND occupant_id = ?`,
     ).run(
       next.kind,
       next.title,
@@ -261,6 +261,8 @@ export async function undoRoleEdit(
       next.endDate,
       Number(next.isCurrent),
       next.description,
+      next.degree,
+      next.field,
       JSON.stringify(next.achievements),
       roleId,
       occupantId,

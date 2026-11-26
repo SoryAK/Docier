@@ -23,6 +23,8 @@ export function RoleDocuments({ role, onSaved }: { role: WorkMapRole; onSaved: (
   const [draft, setDraft] = useState<Draft | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  // Files picked to upload that weren't added yet, after one failed: kept to try again.
+  const [left, setLeft] = useState<File[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
   const base = `/api/work-map/roles/${encodeURIComponent(role.id)}/documents`;
 
@@ -30,6 +32,7 @@ export function RoleDocuments({ role, onSaved }: { role: WorkMapRole; onSaved: (
     setAdding(false);
     setDraft(null);
     setMessage("");
+    setLeft([]);
   }, [role.id]);
 
   // Files already in Documents, to pick from; read when the add form opens.
@@ -73,16 +76,23 @@ export function RoleDocuments({ role, onSaved }: { role: WorkMapRole; onSaved: (
     }
   }
 
-  async function uploadFiles(files: FileList | null) {
-    if (!files || files.length === 0) return;
-    for (const file of Array.from(files)) {
+  /** Uploads the files in turn. If one fails, it and the ones after it stay, to try again; the form closes once all are in. */
+  async function uploadFiles(files: File[]) {
+    if (fileRef.current) fileRef.current.value = "";
+    if (files.length === 0) return;
+    for (const [index, file] of files.entries()) {
       const form = new FormData();
       form.set("file", file);
       form.set("kind", kind);
       const ok = await run(() => fetch(base, { method: "POST", body: form }), "That file couldn't be added.");
-      if (!ok) break;
+      if (!ok) {
+        const rest = files.slice(index);
+        setLeft(rest);
+        setMessage(`${listNames(rest.map((item) => item.name))} ${rest.length === 1 ? "wasn't" : "weren't"} added. Try again.`);
+        return;
+      }
     }
-    if (fileRef.current) fileRef.current.value = "";
+    setLeft([]);
     setAdding(false);
   }
 
@@ -132,12 +142,17 @@ export function RoleDocuments({ role, onSaved }: { role: WorkMapRole; onSaved: (
           <button type="button" className="role-view-primary" disabled={busy} onClick={() => fileRef.current?.click()}>
             <Upload size={14} aria-hidden="true" /> {busy ? "Adding…" : "Upload a file"}
           </button>
-          <input ref={fileRef} type="file" multiple hidden onChange={(event) => void uploadFiles(event.target.files)} />
+          <input ref={fileRef} type="file" multiple hidden onChange={(event) => void uploadFiles(Array.from(event.target.files ?? []))} />
+          {left.length ? (
+            <button type="button" className="role-view-text" disabled={busy} onClick={() => void uploadFiles(left)}>
+              Try again ({left.length === 1 ? "1 file" : `${left.length} files`})
+            </button>
+          ) : null}
           {pickable.length > 0 ? (
             <div className="role-documents-pick">
               <p>Or add one already in Documents</p>
               <ul>
-                {pickable.slice(0, 8).map((item) => (
+                {pickable.map((item) => (
                   <li key={item.id}>
                     <button type="button" onClick={() => void pick(item.id)} disabled={busy}>
                       <FileText size={14} aria-hidden="true" />
@@ -230,6 +245,12 @@ export function RoleDocuments({ role, onSaved }: { role: WorkMapRole; onSaved: (
       <p className="role-group-share">Kept in My Docs too. Only you see these; they never go on your page.</p>
     </section>
   );
+}
+
+/** "a.pdf", "a.pdf and b.pdf", "a.pdf, b.pdf, and c.pdf". */
+function listNames(names: string[]): string {
+  if (names.length <= 2) return names.join(" and ");
+  return `${names.slice(0, -1).join(", ")}, and ${names[names.length - 1]}`;
 }
 
 function fileType(item: RoleDocument): string {

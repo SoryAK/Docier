@@ -23,6 +23,7 @@ export function AssistantTools({
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const wrap = useRef<HTMLSpanElement>(null);
+  const caret = useRef<HTMLButtonElement>(null);
   const menuId = useId();
   const open = chatShowing(state);
   const panelOpen = state.open;
@@ -33,7 +34,11 @@ export function AssistantTools({
       if (!wrap.current?.contains(event.target as Node)) setMenuOpen(false);
     }
     function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") setMenuOpen(false);
+      if (event.key !== "Escape") return;
+      // Escape from inside the menu puts focus back on its button, not on the page.
+      const inside = wrap.current?.contains(document.activeElement);
+      setMenuOpen(false);
+      if (inside) caret.current?.focus();
     }
     document.addEventListener("pointerdown", onPointer);
     document.addEventListener("keydown", onKey);
@@ -60,6 +65,7 @@ export function AssistantTools({
           <Icon name="chat" />
         </button>
         <button
+          ref={caret}
           type="button"
           className="home-notice-btn assistant-chat-caret"
           aria-label="Chat options"

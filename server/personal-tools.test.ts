@@ -1,4 +1,4 @@
-import { mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -411,5 +411,51 @@ describe("duplicating with a lost photo file", () => {
     rmSync(join(uploadsDir, files()[0]!));
     expect(await send("POST", `/api/tools/${id}/duplicate`, { photos: true })).toEqual({ status: 400, body: { error: "photo-missing" } });
     expect(await tools()).toHaveLength(1);
+  });
+});
+
+describe("writes that fail part-way", () => {
+  it("leaves a tool as it was when saving its role links fails", async () => {
+    const { app, db, send, addRole, tools } = setup();
+    const first = await addRole("Technician");
+    const second = await addRole("Lead");
+    const id = (await send("POST", "/api/tools", { name: "Drill", roleIds: [first] })).body.tool.id as string;
+    db.exec("CREATE TRIGGER fail_links BEFORE INSERT ON personal_tool_roles BEGIN SELECT RAISE(ABORT, 'disk'); END");
+    const failed = await app.request(`/api/tools/${id}`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "Drill press", roleIds: [second] }),
+    });
+    expect(failed.status).toBe(500);
+    db.exec("DROP TRIGGER fail_links");
+    expect((await tools())[0]).toMatchObject({ name: "Drill", roleIds: [first] });
+  });
+
+  it("adds none of a batch of photos when one can't be stored", async () => {
+    const { app, db, send, png, tools, files } = setup();
+    const id = (await send("POST", "/api/tools", { name: "Drill" })).body.tool.id as string;
+    db.exec(
+      "CREATE TRIGGER fail_second BEFORE INSERT ON personal_tool_photos WHEN (SELECT COUNT(*) FROM personal_tool_photos) >= 1 BEGIN SELECT RAISE(ABORT, 'disk'); END",
+    );
+    const form = new FormData();
+    form.append("photos", png("a.png"));
+    form.append("photos", png("b.png"));
+    const failed = await app.request(`/api/tools/${id}/photos`, { method: "POST", body: form });
+    expect(failed.status).toBe(500);
+    db.exec("DROP TRIGGER fail_second");
+    expect((await tools())[0].photos).toHaveLength(0);
+    expect(files()).toEqual([]);
+  });
+
+  it("leaves no empty draft behind when a photo can't be stored", async () => {
+    const { photos, png, tools, files, uploadsDir } = setup();
+    // The uploads folder can't be written: a file sits where it should be.
+    rmSync(uploadsDir, { recursive: true, force: true });
+    writeFileSync(uploadsDir, "not a folder");
+    const made = await photos("/api/tools/from-photos", [png("saw.png")]);
+    expect(made.body).toMatchObject({ tools: [], skipped: [{ name: "saw.png", error: "photo-store" }] });
+    expect(await tools()).toEqual([]);
+    rmSync(uploadsDir, { force: true });
+    expect(files).toBeTruthy();
   });
 });

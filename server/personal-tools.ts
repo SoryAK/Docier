@@ -40,7 +40,8 @@ export type ToolErrorCode =
   | "bulk-ids"
   | "bulk-too-many"
   | "bulk-change"
-  | "photo-order";
+  | "photo-order"
+  | "photo-missing";
 
 export class ToolError extends Error {
   constructor(readonly code: ToolErrorCode) {
@@ -545,7 +546,12 @@ export function duplicateTool(db: DatabaseSync, occupantId: string, uploadsDir: 
       );
       for (const photo of photoRows(db, occupantId, toolId)) {
         const storedName = `tool-${randomUUID()}.${avatarExtension(photo.media_type)}`;
-        copyFileSync(uploadPath(uploadsDir, photo.stored_name), uploadPath(uploadsDir, storedName));
+        try {
+          copyFileSync(uploadPath(uploadsDir, photo.stored_name), uploadPath(uploadsDir, storedName));
+        } catch {
+          // The photo's file is gone (or unreadable): say so, and make no copy.
+          throw new ToolError("photo-missing");
+        }
         written.push(storedName);
         copyRow.run(randomUUID(), id, storedName, now, photo.id, occupantId);
       }

@@ -402,3 +402,14 @@ describe("duplicating tools and ordering photos", () => {
     expect((await send("GET", "/api/tools")).body.tools[0].photos.map((photo: any) => photo.id)).toEqual([c, a, b]);
   });
 });
+
+describe("duplicating with a lost photo file", () => {
+  it("says the photo is missing and makes no copy", async () => {
+    const { send, photos, png, tools, uploadsDir, files } = setup();
+    const id = (await send("POST", "/api/tools", { name: "Drill" })).body.tool.id as string;
+    await photos(`/api/tools/${id}/photos`, [png("a.png")]);
+    rmSync(join(uploadsDir, files()[0]!));
+    expect(await send("POST", `/api/tools/${id}/duplicate`, { photos: true })).toEqual({ status: 400, body: { error: "photo-missing" } });
+    expect(await tools()).toHaveLength(1);
+  });
+});

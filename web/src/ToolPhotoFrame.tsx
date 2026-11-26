@@ -18,6 +18,7 @@ export function FramedPhoto({ photo, alt = "" }: { photo: Pick<ToolPhoto, "url" 
       src={photo.url}
       alt={alt}
       loading="lazy"
+      draggable={false}
       style={{ objectPosition: style.objectPosition, transformOrigin: style.transformOrigin, transform: style.transform }}
     />
   );

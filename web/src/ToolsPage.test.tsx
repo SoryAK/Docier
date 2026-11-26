@@ -721,6 +721,21 @@ describe("duplicating and drafts in a row", () => {
     expect((await server.tools()).map((tool) => tool.name).sort()).toEqual(["Drill", "Drill (copy)"]);
   });
 
+  it("keeps unsaved changes when duplicating", async () => {
+    const id = await addToolThroughApi("Drill", { maker: "Makita" });
+    window.location.hash = `#/tools/${id}`;
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    const drill = await screen.findByRole("complementary", { name: "Drill" });
+    await user.clear(within(drill).getByLabelText("Maker"));
+    await user.type(within(drill).getByLabelText("Maker"), "Bosch");
+    await user.click(within(drill).getByRole("button", { name: "Duplicate" }));
+    await user.click(within(panel("Drill")).getByRole("button", { name: "Without photos" }));
+    await screen.findByRole("complementary", { name: "Drill (copy)" });
+    const makers = Object.fromEntries((await server.tools()).map((tool) => [tool.name, tool.maker]));
+    expect(makers).toEqual({ Drill: "Bosch", "Drill (copy)": "Bosch" });
+  });
+
   it("duplicates without photos", async () => {
     const id = await addToolThroughApi("Drill");
     await addPhotoThroughApi(id, "drill.png");
@@ -817,5 +832,29 @@ describe("viewing and ordering photos", () => {
     fireEvent.dragOver(tiles[0]!, { dataTransfer });
     fireEvent.drop(tiles[0]!, { dataTransfer });
     await waitFor(async () => expect(await order()).toEqual([before[2], before[0], before[1]]));
+  });
+
+  it("keeps focus on the moved photo", async () => {
+    await toolWithPhotos(["a.png", "b.png"]);
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    const drill = await screen.findByRole("complementary", { name: "Drill" });
+    await user.click(within(drill).getByRole("button", { name: "Move photo 2 left" }));
+    await waitFor(() => expect(document.activeElement).toBe(within(panel("Drill")).getByRole("button", { name: "View photo 1" })));
+  });
+
+  it("dragging a photo doesn't offer to add photos", async () => {
+    await toolWithPhotos(["a.png", "b.png"]);
+    const { container } = render(<ToolsPage />);
+    const drill = await screen.findByRole("complementary", { name: "Drill" });
+    const tiles = drill.querySelectorAll<HTMLElement>(".tool-photo[draggable='true']");
+    // Some browsers list an image drag as files too.
+    const types: string[] = [];
+    const dataTransfer = { types, setData: (type: string) => types.push(type), getData: () => "", effectAllowed: "", dropEffect: "" };
+    fireEvent.dragStart(tiles[1]!, { dataTransfer });
+    types.push("Files");
+    fireEvent.dragOver(container.querySelector(".tools-grid")!, { dataTransfer });
+    expect(container.querySelector(".tools-drop")).toBeNull();
+    expect(drill.querySelector(".tool-photo img")?.getAttribute("draggable")).toBe("false");
   });
 });

@@ -241,6 +241,9 @@ export function readToolInput(
 
 export const BULK_TOOLS_MAX = 500;
 
+/** The drag type of a photo being moved within a tool, so a drop zone for new photos can tell it apart. */
+export const TOOL_PHOTO_DRAG_TYPE = "application/x-tool-photo";
+
 /** One change applied to every picked tool. Only fields one value can fit for many tools. */
 export type BulkChange =
   | { kind: "category"; category: EquipmentCategory }

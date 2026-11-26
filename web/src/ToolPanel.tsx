@@ -8,6 +8,7 @@ import {
   TOOL_CONDITION_LABEL,
   TOOL_OWNERSHIPS,
   TOOL_OWNERSHIP_LABEL,
+  TOOL_PHOTO_DRAG_TYPE,
   TOOL_PHOTO_LIMIT,
   toolPhotoProblem,
   type PersonalTool,
@@ -129,6 +130,13 @@ export function ToolPanel({
   const [viewing, setViewing] = useState<number | null>(null);
   // The photo being dragged to a new place.
   const dragged = useRef<number | null>(null);
+  // After a move, focus follows the moved photo (its own move button may be gone).
+  const focusPhoto = useRef<number | null>(null);
+  useEffect(() => {
+    if (focusPhoto.current === null) return;
+    panelRef.current?.querySelector<HTMLElement>(`[aria-label="View photo ${focusPhoto.current + 1}"]`)?.focus();
+    focusPhoto.current = null;
+  }, [tool?.photos]);
   // Asking "Copy the photos too?" before duplicating.
   const [duplicating, setDuplicating] = useState(false);
   // The photo being framed in the Adjust photo dialog.
@@ -232,6 +240,7 @@ export function ToolPanel({
         body: JSON.stringify({ photoIds: ids }),
       });
       if (!response.ok) throw new Error("order");
+      focusPhoto.current = to;
       onSaved(((await response.json()) as { tool: PersonalTool }).tool);
       setPhotoNote("");
     } catch {
@@ -285,6 +294,21 @@ export function ToolPanel({
     setBusy(true);
     setError(null);
     try {
+      // Changes not yet saved are saved first, so neither the tool nor its copy loses them.
+      if (JSON.stringify(draft) !== JSON.stringify(draftOf(tool))) {
+        const saved = await fetch(`/api/tools/${encodeURIComponent(tool.id)}`, {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(draft),
+        });
+        const body = (await saved.json().catch(() => ({}))) as { tool?: PersonalTool; error?: string };
+        if (!saved.ok || !body.tool) {
+          setError(FIELD_ERROR[body.error ?? ""] ?? { field: "form", text: "The tool couldn't be saved. Try again." });
+          setDuplicating(false);
+          return;
+        }
+        onSaved(body.tool);
+      }
       const response = await fetch(`/api/tools/${encodeURIComponent(tool.id)}/duplicate`, {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -347,7 +371,7 @@ export function ToolPanel({
                 draggable={!busy}
                 onDragStart={(event) => {
                   dragged.current = index;
-                  event.dataTransfer?.setData("text/plain", photo.id);
+                  event.dataTransfer?.setData(TOOL_PHOTO_DRAG_TYPE, photo.id);
                   if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
                 }}
                 onDragOver={(event) => {

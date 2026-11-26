@@ -6,6 +6,7 @@ import {
   TOOL_CONDITION_LABEL,
   TOOL_OWNERSHIPS,
   TOOL_OWNERSHIP_LABEL,
+  TOOL_PHOTO_DRAG_TYPE,
   filterTools,
   matchParts,
   toolPhotoProblem,
@@ -315,6 +316,8 @@ export function ToolsPage() {
   function onDrop(event: DragEvent) {
     event.preventDefault();
     setDragging(false);
+    // A photo moved within a tool isn't a new photo.
+    if (event.dataTransfer?.types.includes(TOOL_PHOTO_DRAG_TYPE)) return;
     void addFromPhotos(event.dataTransfer.files);
   }
 
@@ -323,7 +326,9 @@ export function ToolsPage() {
       className={["tools-page", panelOpen ? "has-panel" : "", dragging ? "is-dragging" : ""].filter(Boolean).join(" ")}
       aria-label="My Tools"
       onDragOver={(event) => {
-        if (!event.dataTransfer?.types.includes("Files")) return;
+        const types = event.dataTransfer?.types ?? [];
+        // Some browsers list an image dragged within the page as files too.
+        if (!types.includes("Files") || types.includes(TOOL_PHOTO_DRAG_TYPE)) return;
         event.preventDefault();
         setDragging(true);
       }}

@@ -1060,3 +1060,59 @@ describe("basic fields first", () => {
     expect((within(popout).getByLabelText(/^What you paid/) as HTMLInputElement).value).toBe("lots");
   });
 });
+
+describe("the popout keeps its place", () => {
+  it("keeps focus inside after Save and Cancel, so the arrow keys still work", async () => {
+    const drill = await addToolThroughApi("Drill");
+    await addToolThroughApi("Saw");
+    window.location.hash = `#/tools/${drill}`;
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await startEditing(user, "Drill");
+    await user.type(within(panel("Drill")).getByLabelText("Maker"), "Makita");
+    await user.click(within(panel("Drill")).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(document.activeElement).toBe(within(panel("Drill")).getByRole("heading", { name: "Drill" })));
+
+    await startEditing(user, "Drill");
+    await user.click(within(panel("Drill")).getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(document.activeElement).toBe(within(panel("Drill")).getByRole("heading", { name: "Drill" })));
+    await user.keyboard("{ArrowLeft}");
+    expect(await screen.findByRole("dialog", { name: "Saw" })).toBeTruthy();
+  });
+
+  it("keeps focus inside after making a photo the cover", async () => {
+    const id = await addToolThroughApi("Drill");
+    const form = new FormData();
+    form.append("photos", photo("a.png"));
+    form.append("photos", photo("b.png"));
+    await fetch(`/api/tools/${id}/photos`, { method: "POST", body: form });
+    window.location.hash = `#/tools/${id}`;
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    const drill = await screen.findByRole("dialog", { name: "Drill" });
+    await user.click(within(drill).getByRole("checkbox", { name: "Show photo 2" }));
+    await user.click(within(drill).getByRole("button", { name: "Make photo 2 the cover" }));
+    await waitFor(() => expect(within(drill).queryByRole("button", { name: "Make photo 2 the cover" })).toBeNull());
+    await waitFor(() => expect(drill.contains(document.activeElement)).toBe(true));
+  });
+
+  it("doesn't leave a history step for the new tool once it's added, or for each tool paged", async () => {
+    const saw = await addToolThroughApi("Saw");
+    await addToolThroughApi("Ladder");
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    const before = window.history.length;
+    await user.click(await screen.findByRole("button", { name: "Add a tool" }));
+    await user.type(within(panel("New tool")).getByLabelText("Name"), "Drill");
+    await user.click(within(panel("New tool")).getByRole("button", { name: "Add tool" }));
+    await screen.findByRole("dialog", { name: "Drill" });
+    // One step for opening, replaced by the added tool: Back can't reopen "New tool".
+    expect(window.history.length).toBe(before + 1);
+    await user.click(within(panel("Drill")).getByRole("button", { name: "Next tool" }));
+    await screen.findByRole("dialog", { name: "Ladder" });
+    await user.click(within(panel("Ladder")).getByRole("button", { name: "Next tool" }));
+    await screen.findByRole("dialog", { name: "Saw" });
+    expect(window.location.hash).toBe(`#/tools/${saw}`);
+    expect(window.history.length).toBe(before + 1);
+  });
+});

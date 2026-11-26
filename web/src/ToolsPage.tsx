@@ -33,6 +33,12 @@ function readOpenTool(): string | null {
   }
 }
 
+/** Shows another tool in the open popout without a new history step, so Back returns to the grid. */
+function showTool(id: string) {
+  const hash = `#/tools/${encodeURIComponent(id)}`;
+  if (window.location.hash !== hash) window.location.replace(hash);
+}
+
 function openTool(id: string | null) {
   const hash = id ? `#/tools/${encodeURIComponent(id)}` : "#/tools";
   if (window.location.hash !== hash) window.location.hash = hash;
@@ -592,7 +598,7 @@ export function ToolsPage() {
             saved(tool);
             if (open === "new") {
               setAdopted(tool.id);
-              openTool(tool.id);
+              showTool(tool.id);
             }
           }}
           onRemoved={(id) => {
@@ -600,7 +606,7 @@ export function ToolsPage() {
             openTool(null);
           }}
           onClose={() => openTool(null)}
-          onOpen={(id) => openTool(id)}
+          onOpen={showTool}
           nextDraft={nextDraft}
         />
       ) : null}

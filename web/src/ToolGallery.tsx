@@ -241,6 +241,18 @@ export function ToolGallery({
     ) : null;
   const changed = tool ? JSON.stringify(draft) !== JSON.stringify(draftOf(tool)) : true;
 
+  /**
+   * After an action whose button goes away (Save, Cancel, a photo action), focus
+   * would fall out of the popout and ← → would stop working: it goes to the heading.
+   */
+  function keepFocus() {
+    window.setTimeout(() => {
+      const popout = headingRef.current?.closest("dialog") ?? nameRef.current?.closest("dialog");
+      if (popout && popout.contains(document.activeElement) && document.activeElement !== document.body) return;
+      (headingRef.current ?? nameRef.current)?.focus({ preventScroll: true });
+    }, 0);
+  }
+
   function toggleLarge() {
     setLarge((current) => {
       try {
@@ -283,6 +295,7 @@ export function ToolGallery({
       onSaved(result.tool);
       // Show the first photo just added.
       setShown(photos.length);
+      keepFocus();
     } else setPhotoNote([note, result.failed].filter(Boolean).join(" "));
   }
 
@@ -294,6 +307,7 @@ export function ToolGallery({
       if (!response.ok) throw new Error("photo");
       onSaved(((await response.json()) as { tool: PersonalTool }).tool);
       setPhotoNote("");
+      keepFocus();
     } catch {
       setPhotoNote("That didn't work. Try again.");
     } finally {
@@ -374,6 +388,7 @@ export function ToolGallery({
     // Saved: back to reading it.
     setDraft(draftOf(saved));
     setEditing(false);
+    keepFocus();
   }
 
   /** Moves to another tool; changes not yet saved are saved first, and a failed save stays here. */
@@ -894,6 +909,7 @@ export function ToolGallery({
                 setDraft(draftOf(tool));
                 setError(null);
                 setEditing(false);
+                keepFocus();
               }}
             >
               Cancel
@@ -920,7 +936,7 @@ export function ToolGallery({
         isOpen
         purpose="form"
         width={large ? "calc(100vw - 3rem)" : "min(52rem, calc(100vw - 2rem))"}
-        maxHeight={large ? "calc(100dvh - 3rem)" : "min(86dvh, 42rem)"}
+        maxHeight={large ? "calc(100dvh - 3rem)" : "min(76dvh, 38rem)"}
         padding={0}
         onOpenChange={(next) => {
           if (next) return;

@@ -19,7 +19,7 @@ import {
 import { ToolBulkBar, type BulkResult } from "./ToolBulkBar";
 import { ToolKits } from "./ToolKits";
 import { FramedPhoto } from "./ToolPhotoFrame";
-import { ToolPanel, type ToolRoleChoice } from "./ToolPanel";
+import { ToolGallery, type ToolRoleChoice } from "./ToolGallery";
 import "./tools.css";
 
 /** The tool open in the panel lives in the address, `#/tools/<id>` (or `#/tools/new`). */
@@ -83,7 +83,7 @@ function Highlight({ text, query }: { text: string; query: string }) {
 function shortcutBlocked(event: KeyboardEvent): boolean {
   if (event.ctrlKey || event.metaKey || event.altKey || event.defaultPrevented) return true;
   const target = event.target as HTMLElement | null;
-  if (target?.isContentEditable || target?.closest?.("input, textarea, select, .tool-panel, .tools-bulk")) return true;
+  if (target?.isContentEditable || target?.closest?.("input, textarea, select, .tool-gallery, .tools-bulk")) return true;
   return Boolean(document.querySelector("[role='dialog'], dialog[open]"));
 }
 
@@ -323,7 +323,7 @@ export function ToolsPage() {
 
   return (
     <section
-      className={["tools-page", panelOpen ? "has-panel" : "", dragging ? "is-dragging" : ""].filter(Boolean).join(" ")}
+      className={["tools-page", dragging ? "is-dragging" : ""].filter(Boolean).join(" ")}
       aria-label="My Tools"
       onDragOver={(event) => {
         const types = event.dataTransfer?.types ?? [];
@@ -582,11 +582,12 @@ export function ToolsPage() {
       </div>
 
       {panelOpen ? (
-        <ToolPanel
+        <ToolGallery
           key={current && current.id !== adopted ? current.id : "new"}
           tool={current}
           roles={roles}
           kits={kits}
+          pageIds={visible.map((tool) => tool.id)}
           onSaved={(tool) => {
             saved(tool);
             if (open === "new") {

@@ -33,11 +33,14 @@ export function ToolPhotoFrame({
   photo,
   onSaved,
   onClose,
+  inPlace = false,
 }: {
   toolId: string;
   photo: ToolPhoto;
   onSaved: (tool: PersonalTool) => void;
   onClose: () => void;
+  /** Shown where it's rendered, inside the tool popout: a modal popout makes everything outside it unreachable. */
+  inPlace?: boolean;
 }) {
   const [framing, setFraming] = useState<PhotoFraming>(photo.framing ?? DEFAULT_FRAMING);
   const [busy, setBusy] = useState(false);
@@ -113,8 +116,8 @@ export function ToolPhotoFrame({
     }
   }
 
-  // Rendered at the page's top level: the page's columns are layout containers, which would hold a fixed overlay inside them.
-  return createPortal(
+  // Otherwise rendered at the page's top level: the page's columns are layout containers, which would hold a fixed overlay inside them.
+  const frame = (
     <div className="tool-frame-backdrop">
       <div
         ref={dialogRef}
@@ -221,7 +224,7 @@ export function ToolPhotoFrame({
           </button>
         </div>
       </div>
-    </div>,
-    document.body,
+    </div>
   );
+  return inPlace ? frame : createPortal(frame, document.body);
 }

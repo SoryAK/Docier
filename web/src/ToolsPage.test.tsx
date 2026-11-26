@@ -42,8 +42,12 @@ async function addKitThroughApi(name: string): Promise<string> {
 
 const cardNames = () => screen.queryAllByRole("button", { name: /^Open / }).map((card) => card.getAttribute("aria-label"));
 
-const panel = (name: string | RegExp) => screen.getByRole("complementary", { name });
+const panel = (name: string | RegExp) => screen.getByRole("dialog", { name });
 const pageFiles = (container: HTMLElement) => container.querySelector<HTMLInputElement>(".tools-head input[type=file]")!;
+/** Opens a tool's fields from its popout's read view. */
+async function startEditing(user: ReturnType<typeof userEvent.setup>, name: string) {
+  await user.click(within(await screen.findByRole("dialog", { name })).getByRole("button", { name: "Edit" }));
+}
 const panelFiles = (name: string | RegExp) => panel(name).querySelector<HTMLInputElement>("input[type=file]")!;
 
 describe("My Tools", () => {
@@ -67,9 +71,9 @@ describe("My Tools", () => {
     server.failWhen((method, path) => method === "POST" && path.endsWith("/photos"));
     await user.click(within(panel("New tool")).getByRole("button", { name: "Add tool" }));
 
-    // The panel stays on the saved tool and keeps the message.
+    // The popout stays on the saved tool, now to read, and keeps the message.
     expect(await within(panel("Drill")).findByText(/The tool is saved, but its photos weren't added/)).toBeTruthy();
-    expect(within(panel("Drill")).getByRole("button", { name: "Save" })).toBeTruthy();
+    expect(within(panel("Drill")).getByRole("button", { name: "Edit" })).toBeTruthy();
     expect(screen.queryByText(/couldn't be saved/)).toBeNull();
     expect((await server.tools()).map((tool) => [tool.name, tool.photos.length])).toEqual([["Drill", 0]]);
   });
@@ -79,7 +83,7 @@ describe("My Tools", () => {
     window.location.hash = `#/tools/${id}`;
     const user = userEvent.setup();
     render(<ToolsPage />);
-    await screen.findByRole("complementary", { name: "Drill" });
+    await screen.findByRole("dialog", { name: "Drill" });
     await user.upload(panelFiles("Drill"), photo("huge.png", 6 * 1024 * 1024));
 
     expect(await within(panel("Drill")).findByText("Not added: huge.png is over 5 MB.")).toBeTruthy();
@@ -92,10 +96,10 @@ describe("My Tools", () => {
     await user.click(await screen.findByRole("button", { name: "Add a tool" }));
     await user.type(within(panel("New tool")).getByLabelText("Name"), "Drill");
     await user.click(within(panel("New tool")).getByRole("button", { name: "Add tool" }));
-    await screen.findByRole("complementary", { name: "Drill" });
+    await screen.findByRole("dialog", { name: "Drill" });
 
     await user.click(screen.getByRole("button", { name: "Add a tool" }));
-    const fresh = await screen.findByRole("complementary", { name: "New tool" });
+    const fresh = await screen.findByRole("dialog", { name: "New tool" });
     expect((within(fresh).getByLabelText("Name") as HTMLInputElement).value).toBe("");
   });
 
@@ -139,8 +143,11 @@ describe("kits, totals, and export", () => {
     expect(await screen.findByRole("button", { name: "Electrical 0" })).toBeTruthy();
 
     await user.click(screen.getByRole("button", { name: "Open Meter" }));
+    await startEditing(user, "Meter");
     await user.selectOptions(within(panel("Meter")).getByRole("combobox", { name: "Add to a kit" }), "Electrical");
     await user.click(within(panel("Meter")).getByRole("button", { name: "Save" }));
+    expect(await within(panel("Meter")).findByText("Electrical")).toBeTruthy();
+    await user.click(within(panel("Meter")).getByRole("button", { name: "Close" }));
 
     await user.click(await screen.findByRole("button", { name: "Electrical 1" }));
     expect(cardNames()).toEqual(["Open Meter"]);
@@ -169,9 +176,11 @@ describe("kits, totals, and export", () => {
     expect((await server.tools()).map((tool) => tool.name)).toEqual(["Jack"]);
     // The tool no longer lists the deleted kit, so it saves cleanly.
     await user.click(screen.getByRole("button", { name: "Open Jack" }));
+    await startEditing(user, "Jack");
     expect(within(panel("Jack")).queryByText("A deleted kit")).toBeNull();
     await user.click(within(panel("Jack")).getByRole("button", { name: "Save" }));
-    await waitFor(() => expect(screen.queryByRole("complementary", { name: "Jack" })).toBeNull());
+    expect(await within(panel("Jack")).findByRole("button", { name: "Edit" })).toBeTruthy();
+    expect(within(panel("Jack")).queryByRole("alert")).toBeNull();
   });
 
   it("adds up the tools shown", async () => {
@@ -228,7 +237,7 @@ describe("photo framing", () => {
     await toolWithPhoto("Meter");
     const user = userEvent.setup();
     render(<ToolsPage />);
-    await user.click(await within(await screen.findByRole("complementary", { name: "Meter" })).findByRole("button", { name: "Adjust photo 1" }));
+    await user.click(await within(await screen.findByRole("dialog", { name: "Meter" })).findByRole("button", { name: "Adjust photo 1" }));
     const dialog = screen.getByRole("dialog", { name: "Adjust photo" });
     await user.click(within(dialog).getByRole("button", { name: "Rotate right" }));
     await user.click(within(dialog).getByRole("button", { name: "Flip across" }));
@@ -245,7 +254,7 @@ describe("photo framing", () => {
     await toolWithPhoto("Meter");
     const user = userEvent.setup();
     render(<ToolsPage />);
-    await user.click(await within(await screen.findByRole("complementary", { name: "Meter" })).findByRole("button", { name: "Adjust photo 1" }));
+    await user.click(await within(await screen.findByRole("dialog", { name: "Meter" })).findByRole("button", { name: "Adjust photo 1" }));
     const dialog = screen.getByRole("dialog", { name: "Adjust photo" });
     within(dialog).getByRole("group", { name: /What stays in view/ }).focus();
     await user.keyboard("{ArrowLeft}{ArrowLeft}{ArrowDown}");
@@ -257,7 +266,7 @@ describe("photo framing", () => {
     await toolWithPhoto("Meter");
     const user = userEvent.setup();
     render(<ToolsPage />);
-    await user.click(await within(await screen.findByRole("complementary", { name: "Meter" })).findByRole("button", { name: "Adjust photo 1" }));
+    await user.click(await within(await screen.findByRole("dialog", { name: "Meter" })).findByRole("button", { name: "Adjust photo 1" }));
     const dialog = screen.getByRole("dialog", { name: "Adjust photo" });
     within(dialog).getByRole("button", { name: "Save" }).focus();
     await user.tab();
@@ -266,14 +275,14 @@ describe("photo framing", () => {
     expect(document.activeElement).toBe(within(dialog).getByRole("button", { name: "Save" }));
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("dialog", { name: "Adjust photo" })).toBeNull();
-    expect(screen.getByRole("complementary", { name: "Meter" })).toBeTruthy();
+    expect(screen.getByRole("dialog", { name: "Meter" })).toBeTruthy();
   });
 
   it("shows the framing in a card-shaped preview while you adjust", async () => {
     await toolWithPhoto("Meter");
     const user = userEvent.setup();
     render(<ToolsPage />);
-    await user.click(await within(await screen.findByRole("complementary", { name: "Meter" })).findByRole("button", { name: "Adjust photo 1" }));
+    await user.click(await within(await screen.findByRole("dialog", { name: "Meter" })).findByRole("button", { name: "Adjust photo 1" }));
     const dialog = screen.getByRole("dialog", { name: "Adjust photo" });
     await user.click(within(dialog).getByRole("button", { name: "Rotate right" }));
     const preview = within(dialog).getByRole("img", { name: "How the card will show it" });
@@ -284,12 +293,12 @@ describe("photo framing", () => {
     await toolWithPhoto("Meter");
     const user = userEvent.setup();
     render(<ToolsPage />);
-    await user.click(await within(await screen.findByRole("complementary", { name: "Meter" })).findByRole("button", { name: "Adjust photo 1" }));
+    await user.click(await within(await screen.findByRole("dialog", { name: "Meter" })).findByRole("button", { name: "Adjust photo 1" }));
     const dialog = screen.getByRole("dialog", { name: "Adjust photo" });
     await user.click(within(dialog).getByRole("button", { name: "Rotate right" }));
     await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
     expect(screen.queryByRole("dialog", { name: "Adjust photo" })).toBeNull();
-    expect(screen.getByRole("complementary", { name: "Meter" })).toBeTruthy();
+    expect(screen.getByRole("dialog", { name: "Meter" })).toBeTruthy();
     expect((await framing()).framing).toMatchObject({ rotation: 0 });
   });
 });
@@ -327,7 +336,7 @@ describe("changing many tools at once", () => {
     render(<ToolsPage />);
     await choose(user, "Drill");
     expect(window.location.hash).toBe("#/tools");
-    expect(screen.queryByRole("complementary")).toBeNull();
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   it("closes an open tool when choosing starts", async () => {
@@ -335,9 +344,9 @@ describe("changing many tools at once", () => {
     window.location.hash = `#/tools/${id}`;
     const user = userEvent.setup();
     render(<ToolsPage />);
-    await screen.findByRole("complementary", { name: "Drill" });
+    await screen.findByRole("dialog", { name: "Drill" });
     await user.click(screen.getByRole("button", { name: "Select" }));
-    await waitFor(() => expect(screen.queryByRole("complementary")).toBeNull());
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
   it("hidden picks are counted and changed", async () => {
@@ -437,13 +446,13 @@ describe("changing many tools at once", () => {
     window.location.hash = `#/tools/${id}`;
     const user = userEvent.setup();
     render(<ToolsPage />);
-    await screen.findByRole("complementary", { name: "Drill" });
+    await screen.findByRole("dialog", { name: "Drill" });
     await user.click(screen.getByRole("button", { name: "Select" }));
     await user.click(screen.getByRole("button", { name: "Pick Drill" }));
     // Browser Back returns to the tool's address.
     window.location.hash = `#/tools/${id}`;
     window.dispatchEvent(new HashChangeEvent("hashchange"));
-    await screen.findByRole("complementary", { name: "Drill" });
+    await screen.findByRole("dialog", { name: "Drill" });
     expect(screen.queryByRole("toolbar", { name: "Picked tools" })).toBeNull();
     expect(screen.getByRole("button", { name: "Select" }).getAttribute("aria-pressed")).toBe("false");
   });
@@ -503,7 +512,7 @@ describe("small touches", () => {
     const { container } = render(<ToolsPage />);
     await screen.findByRole("button", { name: "Add a tool" });
     await user.upload(pageFiles(container), photo("saw.png"));
-    await screen.findByRole("complementary", { name: "saw" });
+    await screen.findByRole("dialog", { name: "saw" });
     window.location.hash = "#/tools";
     await user.selectOptions(await screen.findByLabelText("Whose saw is"), "borrowed");
     await waitFor(async () => expect((await server.tools())[0]).toMatchObject({ ownership: "borrowed", draft: true }));
@@ -562,7 +571,7 @@ describe("small touches", () => {
     expect((screen.getByRole("searchbox") as HTMLInputElement).value).toBe("");
     (document.activeElement as HTMLElement).blur();
     await user.keyboard("n");
-    await screen.findByRole("complementary", { name: "New tool" });
+    await screen.findByRole("dialog", { name: "New tool" });
     expect(screen.getByRole("button", { name: "Add a tool" }).getAttribute("title")).toBe("Add a tool (N)");
   });
 
@@ -583,7 +592,8 @@ describe("small touches", () => {
     window.location.hash = `#/tools/${id}`;
     const user = userEvent.setup();
     render(<ToolsPage />);
-    const name = within(await screen.findByRole("complementary", { name: "Drill" })).getByLabelText("Name");
+    await startEditing(user, "Drill");
+    const name = within(screen.getByRole("dialog", { name: "Drill" })).getByLabelText("Name");
     await user.clear(name);
     await user.type(name, "Drill press");
     within(panel("Drill")).getByRole("button", { name: "Save" }).focus();
@@ -627,7 +637,7 @@ describe("small touches", () => {
     await addToolThroughApi("Saw");
     window.location.hash = `#/tools/${id}`;
     render(<ToolsPage />);
-    await screen.findByRole("complementary", { name: "Drill" });
+    await screen.findByRole("dialog", { name: "Drill" });
     expect(screen.queryByLabelText("Whose Drill is")).toBeNull();
     expect(screen.getByLabelText("Whose Saw is")).toBeTruthy();
   });
@@ -710,28 +720,33 @@ describe("duplicating and drafts in a row", () => {
     window.location.hash = `#/tools/${id}`;
     const user = userEvent.setup();
     render(<ToolsPage />);
-    await user.click(within(await screen.findByRole("complementary", { name: "Drill" })).getByRole("button", { name: "Duplicate" }));
+    await user.click(within(await screen.findByRole("dialog", { name: "Drill" })).getByRole("button", { name: "Duplicate" }));
     expect(within(panel("Drill")).getByText("Copy the photos too?")).toBeTruthy();
     await user.click(within(panel("Drill")).getByRole("button", { name: "With photos" }));
 
-    const copy = await screen.findByRole("complementary", { name: "Drill (copy)" });
-    expect((within(copy).getByLabelText("Maker") as HTMLInputElement).value).toBe("Makita");
-    expect(within(copy).getAllByRole("button", { name: /^Remove photo/ })).toHaveLength(1);
+    const copy = await screen.findByRole("dialog", { name: "Drill (copy)" });
+    expect(within(copy).getByText("Makita")).toBeTruthy();
+    expect(within(copy).getByRole("button", { name: "View photo 1 full size" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Open Drill (copy)" })).toBeTruthy();
-    expect((await server.tools()).map((tool) => tool.name).sort()).toEqual(["Drill", "Drill (copy)"]);
+    const byName = Object.fromEntries((await server.tools()).map((tool) => [tool.name, tool.photos.length]));
+    expect(byName).toEqual({ Drill: 1, "Drill (copy)": 1 });
   });
 
-  it("keeps unsaved changes when duplicating", async () => {
+  it("duplicates what was just saved, and only from reading it", async () => {
     const id = await addToolThroughApi("Drill", { maker: "Makita" });
     window.location.hash = `#/tools/${id}`;
     const user = userEvent.setup();
     render(<ToolsPage />);
-    const drill = await screen.findByRole("complementary", { name: "Drill" });
+    await startEditing(user, "Drill");
+    const drill = screen.getByRole("dialog", { name: "Drill" });
+    // While changing it, there's nothing to duplicate from: no half-saved copies.
+    expect(within(drill).queryByRole("button", { name: "Duplicate" })).toBeNull();
     await user.clear(within(drill).getByLabelText("Maker"));
     await user.type(within(drill).getByLabelText("Maker"), "Bosch");
-    await user.click(within(drill).getByRole("button", { name: "Duplicate" }));
+    await user.click(within(drill).getByRole("button", { name: "Save" }));
+    await user.click(await within(drill).findByRole("button", { name: "Duplicate" }));
     await user.click(within(panel("Drill")).getByRole("button", { name: "Without photos" }));
-    await screen.findByRole("complementary", { name: "Drill (copy)" });
+    await screen.findByRole("dialog", { name: "Drill (copy)" });
     const makers = Object.fromEntries((await server.tools()).map((tool) => [tool.name, tool.maker]));
     expect(makers).toEqual({ Drill: "Bosch", "Drill (copy)": "Bosch" });
   });
@@ -742,9 +757,9 @@ describe("duplicating and drafts in a row", () => {
     window.location.hash = `#/tools/${id}`;
     const user = userEvent.setup();
     render(<ToolsPage />);
-    await user.click(within(await screen.findByRole("complementary", { name: "Drill" })).getByRole("button", { name: "Duplicate" }));
+    await user.click(within(await screen.findByRole("dialog", { name: "Drill" })).getByRole("button", { name: "Duplicate" }));
     await user.click(within(panel("Drill")).getByRole("button", { name: "Without photos" }));
-    const copy = await screen.findByRole("complementary", { name: "Drill (copy)" });
+    const copy = await screen.findByRole("dialog", { name: "Drill (copy)" });
     expect(within(copy).queryAllByRole("button", { name: /^Remove photo/ })).toHaveLength(0);
   });
 
@@ -753,12 +768,12 @@ describe("duplicating and drafts in a row", () => {
     const { container } = render(<ToolsPage />);
     await screen.findByRole("button", { name: "Add a tool" });
     await user.upload(pageFiles(container), [photo("saw.png"), photo("drill.png")]);
-    const first = await screen.findByRole("complementary", { name: /^(saw|drill)$/ });
+    const first = await screen.findByRole("dialog", { name: /^(saw|drill)$/ });
     const firstName = first.getAttribute("aria-label")!;
     const other = firstName === "saw" ? "drill" : "saw";
 
     await user.click(within(first).getByRole("button", { name: "Save and next draft (1 left)" }));
-    const next = await screen.findByRole("complementary", { name: other });
+    const next = await screen.findByRole("dialog", { name: other });
     expect(within(next).queryByRole("button", { name: /Save and next draft/ })).toBeNull();
     const byName = Object.fromEntries((await server.tools()).map((tool) => [tool.name, tool.draft]));
     expect(byName).toEqual({ [firstName]: false, [other]: true });
@@ -769,7 +784,7 @@ describe("duplicating and drafts in a row", () => {
     const { container } = render(<ToolsPage />);
     await screen.findByRole("button", { name: "Add a tool" });
     await user.upload(pageFiles(container), [photo("saw.png"), photo("drill.png")]);
-    const first = await screen.findByRole("complementary", { name: /^(saw|drill)$/ });
+    const first = await screen.findByRole("dialog", { name: /^(saw|drill)$/ });
     const name = first.getAttribute("aria-label")!;
     server.failWhen((method, path) => method === "PUT" && path.startsWith("/api/tools/"));
     await user.click(within(first).getByRole("button", { name: "Save and next draft (1 left)" }));
@@ -788,23 +803,21 @@ describe("viewing and ordering photos", () => {
   }
   const order = async () => (await server.tools())[0]!.photos.map((item: any) => item.url as string);
 
-  it("shows photos full size and moves between them", async () => {
+  it("shows a photo large, picks another from the strip, and opens it full size", async () => {
     await toolWithPhotos(["a.png", "b.png"]);
     const user = userEvent.setup();
     render(<ToolsPage />);
-    await user.click(within(await screen.findByRole("complementary", { name: "Drill" })).getByRole("button", { name: "View photo 1" }));
-    const viewer = screen.getByRole("dialog", { name: "Photo" });
-    expect(within(viewer).getByText("Photo 1 of 2")).toBeTruthy();
-    expect(document.activeElement && viewer.contains(document.activeElement)).toBe(true);
-    await user.click(within(viewer).getByRole("button", { name: "Next photo" }));
-    expect(within(viewer).getByText("Photo 2 of 2")).toBeTruthy();
-    await user.keyboard("{ArrowLeft}");
-    expect(within(viewer).getByText("Photo 1 of 2")).toBeTruthy();
+    const drill = await screen.findByRole("dialog", { name: "Drill" });
+    expect(within(drill).getByRole("img", { name: "Drill, photo 1" })).toBeTruthy();
+    await user.click(within(drill).getByRole("checkbox", { name: "Show photo 2" }));
+    expect(within(drill).getByRole("img", { name: "Drill, photo 2" })).toBeTruthy();
 
+    await user.click(within(drill).getByRole("button", { name: "View photo 2 full size" }));
+    expect(screen.getAllByRole("dialog")).toHaveLength(2);
+    // Escape closes the full-size photo only; the tool stays open.
     await user.keyboard("{Escape}");
-    expect(screen.queryByRole("dialog", { name: "Photo" })).toBeNull();
+    await waitFor(() => expect(screen.getAllByRole("dialog")).toHaveLength(1));
     expect(panel("Drill")).toBeTruthy();
-    expect(document.activeElement).toBe(within(panel("Drill")).getByRole("button", { name: "View photo 1" }));
   });
 
   it("moves a photo left with its button and keeps the cover", async () => {
@@ -812,8 +825,11 @@ describe("viewing and ordering photos", () => {
     const before = await order();
     const user = userEvent.setup();
     render(<ToolsPage />);
-    const drill = await screen.findByRole("complementary", { name: "Drill" });
+    const drill = await screen.findByRole("dialog", { name: "Drill" });
+    // The buttons act on the photo shown: the first can't go further left.
     expect(within(drill).queryByRole("button", { name: "Move photo 1 left" })).toBeNull();
+    expect(within(drill).getByRole("button", { name: "Move photo 1 right" })).toBeTruthy();
+    await user.click(within(drill).getByRole("checkbox", { name: "Show photo 2" }));
     expect(within(drill).queryByRole("button", { name: "Move photo 2 right" })).toBeNull();
     await user.click(within(drill).getByRole("button", { name: "Move photo 2 left" }));
     await waitFor(async () => expect(await order()).toEqual([before[1], before[0]]));
@@ -824,8 +840,8 @@ describe("viewing and ordering photos", () => {
     await toolWithPhotos(["a.png", "b.png", "c.png"]);
     const before = await order();
     render(<ToolsPage />);
-    const drill = await screen.findByRole("complementary", { name: "Drill" });
-    const tiles = drill.querySelectorAll<HTMLElement>(".tool-photo[draggable='true']");
+    const drill = await screen.findByRole("dialog", { name: "Drill" });
+    const tiles = drill.querySelectorAll<HTMLElement>(".tool-gallery-thumb[draggable='true']");
     // What a browser attaches to a drag of a photo within the page.
     const dataTransfer = { types: ["text/plain"], setData: () => {}, getData: () => "", effectAllowed: "", dropEffect: "" };
     fireEvent.dragStart(tiles[2]!, { dataTransfer });
@@ -838,16 +854,19 @@ describe("viewing and ordering photos", () => {
     await toolWithPhotos(["a.png", "b.png"]);
     const user = userEvent.setup();
     render(<ToolsPage />);
-    const drill = await screen.findByRole("complementary", { name: "Drill" });
+    const drill = await screen.findByRole("dialog", { name: "Drill" });
+    await user.click(within(drill).getByRole("checkbox", { name: "Show photo 2" }));
     await user.click(within(drill).getByRole("button", { name: "Move photo 2 left" }));
-    await waitFor(() => expect(document.activeElement).toBe(within(panel("Drill")).getByRole("button", { name: "View photo 1" })));
+    // The moved photo is now first, is the one shown, and has the focus in the strip.
+    await waitFor(() => expect(document.activeElement).toBe(within(panel("Drill")).getByRole("checkbox", { name: "Show photo 1" })));
+    expect(within(drill).getByRole("img", { name: "Drill, photo 1" })).toBeTruthy();
   });
 
   it("dragging a photo doesn't offer to add photos", async () => {
     await toolWithPhotos(["a.png", "b.png"]);
     const { container } = render(<ToolsPage />);
-    const drill = await screen.findByRole("complementary", { name: "Drill" });
-    const tiles = drill.querySelectorAll<HTMLElement>(".tool-photo[draggable='true']");
+    const drill = await screen.findByRole("dialog", { name: "Drill" });
+    const tiles = drill.querySelectorAll<HTMLElement>(".tool-gallery-thumb[draggable='true']");
     // Some browsers list an image drag as files too.
     const types: string[] = [];
     const dataTransfer = { types, setData: (type: string) => types.push(type), getData: () => "", effectAllowed: "", dropEffect: "" };
@@ -855,6 +874,136 @@ describe("viewing and ordering photos", () => {
     types.push("Files");
     fireEvent.dragOver(container.querySelector(".tools-grid")!, { dataTransfer });
     expect(container.querySelector(".tools-drop")).toBeNull();
-    expect(drill.querySelector(".tool-photo img")?.getAttribute("draggable")).toBe("false");
+    expect(drill.querySelector(".tool-gallery-thumb img")?.getAttribute("draggable")).toBe("false");
+    expect(drill.querySelector(".tool-gallery-hero img")?.getAttribute("draggable")).toBe("false");
+  });
+});
+
+describe("the tool popout", () => {
+  it("opens a tool to read, and changes it after Edit", async () => {
+    const id = await addToolThroughApi("Drill", { maker: "Makita", keptAt: "Garage shelf", paid: 159 });
+    window.location.hash = `#/tools/${id}`;
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    const drill = await screen.findByRole("dialog", { name: "Drill" });
+    expect(within(drill).getByRole("heading", { name: "Drill", level: 2 })).toBeTruthy();
+    expect(within(drill).getByText("Garage shelf")).toBeTruthy();
+    expect(within(drill).getByText("$159")).toBeTruthy();
+    expect(within(drill).queryByLabelText("Name")).toBeNull();
+
+    await startEditing(user, "Drill");
+    await user.clear(within(drill).getByLabelText("Where it's kept"));
+    await user.type(within(drill).getByLabelText("Where it's kept"), "Van");
+    await user.click(within(drill).getByRole("button", { name: "Save" }));
+    expect(await within(drill).findByText("Van")).toBeTruthy();
+    expect((await server.tools())[0]!.keptAt).toBe("Van");
+  });
+
+  it("Cancel in Edit goes back to reading it, unchanged", async () => {
+    const id = await addToolThroughApi("Drill", { maker: "Makita" });
+    window.location.hash = `#/tools/${id}`;
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await startEditing(user, "Drill");
+    const drill = screen.getByRole("dialog", { name: "Drill" });
+    await user.clear(within(drill).getByLabelText("Maker"));
+    await user.click(within(drill).getByRole("button", { name: "Cancel" }));
+    expect(within(drill).getByText("Makita")).toBeTruthy();
+    expect((await server.tools())[0]!.maker).toBe("Makita");
+  });
+
+  it("moves between the tools shown with the buttons and the arrow keys", async () => {
+    await addToolThroughApi("Drill");
+    await addToolThroughApi("Saw");
+    const ladder = await addToolThroughApi("Ladder");
+    window.location.hash = `#/tools/${ladder}`;
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    // Newest first, as on the grid: Ladder, Saw, Drill.
+    const first = await screen.findByRole("dialog", { name: "Ladder" });
+    expect(within(first).getByText("1 of 3")).toBeTruthy();
+    await user.click(within(first).getByRole("button", { name: "Next tool" }));
+    const saw = await screen.findByRole("dialog", { name: "Saw" });
+    expect(within(saw).getByText("2 of 3")).toBeTruthy();
+    await user.keyboard("{ArrowRight}");
+    expect(await screen.findByRole("dialog", { name: "Drill" })).toBeTruthy();
+    // It wraps round.
+    await user.keyboard("{ArrowRight}");
+    expect(await screen.findByRole("dialog", { name: "Ladder" })).toBeTruthy();
+    await user.keyboard("{ArrowLeft}");
+    expect(await screen.findByRole("dialog", { name: "Drill" })).toBeTruthy();
+  });
+
+  it("arrow keys type in a field instead of changing tools", async () => {
+    const drill = await addToolThroughApi("Drill");
+    await addToolThroughApi("Saw");
+    window.location.hash = `#/tools/${drill}`;
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await startEditing(user, "Drill");
+    const name = within(screen.getByRole("dialog", { name: "Drill" })).getByLabelText("Name") as HTMLInputElement;
+    await user.click(name);
+    await user.keyboard("{ArrowLeft}");
+    // Moving would change the address, which lands a moment later: give it that moment.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(window.location.hash).toBe(`#/tools/${drill}`);
+    expect(screen.getByRole("dialog", { name: "Drill" })).toBeTruthy();
+  });
+
+  it("paging while changing a tool saves the change first", async () => {
+    const drill = await addToolThroughApi("Drill");
+    await addToolThroughApi("Saw");
+    window.location.hash = `#/tools/${drill}`;
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await startEditing(user, "Drill");
+    const popout = screen.getByRole("dialog", { name: "Drill" });
+    await user.type(within(popout).getByLabelText("Maker"), "Makita");
+    await user.click(within(popout).getByRole("button", { name: "Next tool" }));
+    expect(await screen.findByRole("dialog", { name: "Saw" })).toBeTruthy();
+    const makers = Object.fromEntries((await server.tools()).map((tool) => [tool.name, tool.maker]));
+    expect(makers).toEqual({ Drill: "Makita", Saw: "" });
+  });
+
+  it("stays on the tool when that save fails", async () => {
+    const drill = await addToolThroughApi("Drill");
+    await addToolThroughApi("Saw");
+    window.location.hash = `#/tools/${drill}`;
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await startEditing(user, "Drill");
+    const popout = screen.getByRole("dialog", { name: "Drill" });
+    await user.type(within(popout).getByLabelText("Maker"), "Makita");
+    server.failWhen((method, path) => method === "PUT" && path.startsWith("/api/tools/"));
+    await user.click(within(popout).getByRole("button", { name: "Next tool" }));
+    expect(await within(popout).findByText("The tool couldn't be saved. Try again.")).toBeTruthy();
+    expect(screen.getByRole("dialog", { name: "Drill" })).toBeTruthy();
+    expect((within(popout).getByLabelText("Maker") as HTMLInputElement).value).toBe("Makita");
+  });
+
+  it("remembers the larger size", async () => {
+    window.localStorage.removeItem("tools.gallery.large");
+    const id = await addToolThroughApi("Drill");
+    window.location.hash = `#/tools/${id}`;
+    const user = userEvent.setup();
+    const first = render(<ToolsPage />);
+    await user.click(within(await screen.findByRole("dialog", { name: "Drill" })).getByRole("button", { name: "Make larger" }));
+    expect(screen.getByRole("button", { name: "Make smaller" })).toBeTruthy();
+    first.unmount();
+
+    render(<ToolsPage />);
+    expect(within(await screen.findByRole("dialog", { name: "Drill" })).getByRole("button", { name: "Make smaller" })).toBeTruthy();
+    window.localStorage.removeItem("tools.gallery.large");
+  });
+
+  it("a draft opens ready to fill in, with its photo shown large", async () => {
+    const user = userEvent.setup();
+    const { container } = render(<ToolsPage />);
+    await screen.findByRole("button", { name: "Add a tool" });
+    await user.upload(pageFiles(container), photo("saw.png"));
+    const saw = await screen.findByRole("dialog", { name: "saw" });
+    expect(within(saw).getByRole("heading", { name: "Fill in this draft" })).toBeTruthy();
+    expect(within(saw).getByLabelText("Name")).toBeTruthy();
+    expect(within(saw).getByRole("img", { name: "saw, photo 1" })).toBeTruthy();
   });
 });

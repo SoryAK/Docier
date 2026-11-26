@@ -914,7 +914,10 @@ export function ToolGallery({
             <LayoutContent isScrollable label={title} padding={0}>
               <div className={large ? "tool-gallery-sides is-large" : "tool-gallery-sides"}>
                 {photoSide}
-                <div className="tool-gallery-info">{editing || !tool ? form : details}</div>
+                {/* The details scroll on their own; the card keeps the photo side's height. */}
+                <div className="tool-gallery-info-cell">
+                  <div className="tool-gallery-info">{editing || !tool ? form : details}</div>
+                </div>
               </div>
             </LayoutContent>
           }

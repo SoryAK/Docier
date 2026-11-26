@@ -1020,7 +1020,7 @@ dialog.tool-gallery::backdrop {
 
 .tool-gallery-sides {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   align-items: stretch;
 }
 
@@ -1028,9 +1028,29 @@ dialog.tool-gallery::backdrop {
   grid-template-columns: minmax(0, 3fr) minmax(18rem, 2fr);
 }
 
-@container tools (max-width: 760px) {
+/* Side by side, the details scroll inside their half: the row is as tall as the photo side. */
+.tool-gallery-info-cell {
+  position: relative;
+  min-width: 0;
+}
+
+.tool-gallery-info-cell > .tool-gallery-info {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* A narrow window: the sides stack and the whole card scrolls. */
+@media (max-width: 40rem) {
+  .tool-gallery-sides,
   .tool-gallery-sides.is-large {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tool-gallery-info-cell > .tool-gallery-info {
+    position: static;
+    overflow: visible;
   }
 }
 

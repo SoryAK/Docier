@@ -19,7 +19,7 @@ import { uploadPath } from "./upload-path";
  * roles each was used on (`personal_tool_roles`).
  */
 
-export type ToolErrorCode = ToolInputError | "not-found" | "photo-type" | "photo-too-large" | "photo-empty" | "photo-limit";
+export type ToolErrorCode = ToolInputError | "not-found" | "photo-type" | "photo-too-large" | "photo-empty" | "photo-limit" | "photo-store";
 
 export class ToolError extends Error {
   constructor(readonly code: ToolErrorCode) {
@@ -164,6 +164,24 @@ function writeFields(db: DatabaseSync, occupantId: string, toolId: string, input
   for (const roleId of input.roleIds) link.run(randomUUID(), occupantId, toolId, roleId, now);
 }
 
+/**
+ * Runs writes as one: all are kept, or (when one throws) none are, and the
+ * photo files the work wrote are deleted again.
+ */
+function allOrNothing<T>(db: DatabaseSync, uploadsDir: string | null, work: (written: string[]) => T): T {
+  const written: string[] = [];
+  db.exec("BEGIN");
+  try {
+    const result = work(written);
+    db.exec("COMMIT");
+    return result;
+  } catch (error) {
+    db.exec("ROLLBACK");
+    if (uploadsDir) for (const storedName of written) deleteFile(uploadsDir, storedName);
+    throw error;
+  }
+}
+
 function insertTool(db: DatabaseSync, occupantId: string, name: string, draft: boolean, now: string): string {
   const id = randomUUID();
   db.prepare(
@@ -176,8 +194,11 @@ function insertTool(db: DatabaseSync, occupantId: string, name: string, draft: b
 export function createTool(db: DatabaseSync, occupantId: string, raw: unknown): PersonalTool {
   const input = checkInput(db, occupantId, raw);
   const now = new Date().toISOString();
-  const id = insertTool(db, occupantId, input.name, false, now);
-  writeFields(db, occupantId, id, input, now);
+  const id = allOrNothing(db, null, () => {
+    const made = insertTool(db, occupantId, input.name, false, now);
+    writeFields(db, occupantId, made, input, now);
+    return made;
+  });
   return readTool(db, occupantId, id);
 }
 
@@ -185,7 +206,7 @@ export function createTool(db: DatabaseSync, occupantId: string, raw: unknown): 
 export function updateTool(db: DatabaseSync, occupantId: string, toolId: string, raw: unknown): PersonalTool {
   readTool(db, occupantId, toolId);
   const input = checkInput(db, occupantId, raw);
-  writeFields(db, occupantId, toolId, input, new Date().toISOString());
+  allOrNothing(db, null, () => writeFields(db, occupantId, toolId, input, new Date().toISOString()));
   return readTool(db, occupantId, toolId);
 }
 
@@ -211,10 +232,20 @@ function photoProblem(file: ToolPhotoFile): ToolErrorCode | null {
   return toolPhotoProblem({ type: file.type, size: file.bytes.byteLength });
 }
 
-function storePhoto(db: DatabaseSync, occupantId: string, uploadsDir: string, toolId: string, file: ToolPhotoFile, now: string) {
+/** Writes a photo's file and its row. The file's name goes on `written` as soon as it exists, for undoing. */
+function storePhoto(
+  db: DatabaseSync,
+  occupantId: string,
+  uploadsDir: string,
+  toolId: string,
+  file: ToolPhotoFile,
+  now: string,
+  written: string[],
+) {
   mkdirSync(uploadsDir, { recursive: true });
   const storedName = `tool-${randomUUID()}.${avatarExtension(file.type)}`;
   writeFileSync(uploadPath(uploadsDir, storedName), file.bytes);
+  written.push(storedName);
   const order = db
     .prepare("SELECT COALESCE(MAX(sort_order), -1) + 1 AS next FROM personal_tool_photos WHERE occupant_id = ? AND tool_id = ?")
     .get(occupantId, toolId) as { next: number };
@@ -248,8 +279,11 @@ export function addToolPhotos(
     if (problem) throw new ToolError(problem);
   }
   const now = new Date().toISOString();
-  for (const file of files) storePhoto(db, occupantId, uploadsDir, toolId, file, now);
-  touch(db, occupantId, toolId, now);
+  // All the photos go in, or none do (a full disk part-way leaves the tool as it was).
+  allOrNothing(db, uploadsDir, (written) => {
+    for (const file of files) storePhoto(db, occupantId, uploadsDir, toolId, file, now, written);
+    touch(db, occupantId, toolId, now);
+  });
   return readTool(db, occupantId, toolId);
 }
 
@@ -269,9 +303,17 @@ export function toolsFromPhotos(
       continue;
     }
     const now = new Date().toISOString();
-    const id = insertTool(db, occupantId, draftToolName(file.name), true, now);
-    storePhoto(db, occupantId, uploadsDir, id, file, now);
-    tools.push(readTool(db, occupantId, id));
+    // Each draft and its photo go in together; one that can't be stored leaves no empty draft.
+    try {
+      const id = allOrNothing(db, uploadsDir, (written) => {
+        const made = insertTool(db, occupantId, draftToolName(file.name), true, now);
+        storePhoto(db, occupantId, uploadsDir, made, file, now, written);
+        return made;
+      });
+      tools.push(readTool(db, occupantId, id));
+    } catch {
+      skipped.push({ name: file.name, error: "photo-store" });
+    }
   }
   return { tools, skipped };
 }

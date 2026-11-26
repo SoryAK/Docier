@@ -12,9 +12,15 @@ const SHOWN = 3;
  */
 export function RoleOwnTools({ roleId }: { roleId: string }) {
   const [tools, setTools] = useState<PersonalTool[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  // Goes up on Try again, to read the tools once more.
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let live = true;
+    // A new role starts empty: the last role's tools never show under it.
+    setTools(null);
+    setFailed(false);
     void fetch("/api/tools")
       .then(async (response) => {
         if (!response.ok) throw new Error("tools");
@@ -22,13 +28,28 @@ export function RoleOwnTools({ roleId }: { roleId: string }) {
         if (live) setTools(toolsForRole(body.tools, roleId));
       })
       .catch(() => {
-        if (live) setTools([]);
+        if (live) setFailed(true);
       });
     return () => {
       live = false;
     };
-  }, [roleId]);
+  }, [roleId, attempt]);
 
+  if (failed) {
+    return (
+      <section className="role-group is-wide role-own-tools" aria-label="Your own tools">
+        <div className="role-group-head">
+          <h3>Your own tools</h3>
+        </div>
+        <p className="role-view-empty">
+          Your tools couldn't be read.{" "}
+          <button type="button" className="role-view-text" onClick={() => setAttempt((count) => count + 1)}>
+            Try again
+          </button>
+        </p>
+      </section>
+    );
+  }
   if (tools === null) return null;
   const shown = tools.slice(0, SHOWN);
   return (

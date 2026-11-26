@@ -237,6 +237,17 @@ export function ToolsPage() {
   const categories = EQUIPMENT_CATEGORIES.filter((key) => all.some((tool) => tool.category === key));
   const current = open && open !== "new" ? all.find((tool) => tool.id === open) ?? null : null;
   const panelOpen = open === "new" || Boolean(current);
+  // The draft after the open one in the grid's order (wrapping), while others wait.
+  const nextDraft = useMemo(() => {
+    if (!current?.draft) return null;
+    const waiting = visible.filter((tool) => tool.draft);
+    const others = all.filter((tool) => tool.draft && tool.id !== current.id);
+    if (others.length === 0) return null;
+    const at = waiting.findIndex((tool) => tool.id === current.id);
+    const after = [...waiting.slice(at + 1), ...waiting.slice(0, Math.max(at, 0))].filter((tool) => tool.id !== current.id);
+    const next = after[0] ?? others[0]!;
+    return { id: next.id, left: others.length };
+  }, [current, visible, all]);
 
   function saved(tool: PersonalTool) {
     setTools((list) => {
@@ -583,6 +594,8 @@ export function ToolsPage() {
             openTool(null);
           }}
           onClose={() => openTool(null)}
+          onOpen={(id) => openTool(id)}
+          nextDraft={nextDraft}
         />
       ) : null}
       {dragging ? <div className="tools-drop" aria-hidden="true">Drop photos to add them as drafts</div> : null}

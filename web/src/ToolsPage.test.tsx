@@ -696,3 +696,68 @@ describe("small touches", () => {
     expect(screen.getAllByRole("button", { name: "+ New kit" })).toHaveLength(1);
   });
 });
+
+describe("duplicating and drafts in a row", () => {
+  async function addPhotoThroughApi(id: string, name: string) {
+    const form = new FormData();
+    form.append("photos", photo(name));
+    await fetch(`/api/tools/${id}/photos`, { method: "POST", body: form });
+  }
+
+  it("duplicates a tool with its photos and opens the copy", async () => {
+    const id = await addToolThroughApi("Drill", { maker: "Makita" });
+    await addPhotoThroughApi(id, "drill.png");
+    window.location.hash = `#/tools/${id}`;
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await user.click(within(await screen.findByRole("complementary", { name: "Drill" })).getByRole("button", { name: "Duplicate" }));
+    expect(within(panel("Drill")).getByText("Copy the photos too?")).toBeTruthy();
+    await user.click(within(panel("Drill")).getByRole("button", { name: "With photos" }));
+
+    const copy = await screen.findByRole("complementary", { name: "Drill (copy)" });
+    expect((within(copy).getByLabelText("Maker") as HTMLInputElement).value).toBe("Makita");
+    expect(within(copy).getAllByRole("button", { name: /^Remove photo/ })).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Open Drill (copy)" })).toBeTruthy();
+    expect((await server.tools()).map((tool) => tool.name).sort()).toEqual(["Drill", "Drill (copy)"]);
+  });
+
+  it("duplicates without photos", async () => {
+    const id = await addToolThroughApi("Drill");
+    await addPhotoThroughApi(id, "drill.png");
+    window.location.hash = `#/tools/${id}`;
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await user.click(within(await screen.findByRole("complementary", { name: "Drill" })).getByRole("button", { name: "Duplicate" }));
+    await user.click(within(panel("Drill")).getByRole("button", { name: "Without photos" }));
+    const copy = await screen.findByRole("complementary", { name: "Drill (copy)" });
+    expect(within(copy).queryAllByRole("button", { name: /^Remove photo/ })).toHaveLength(0);
+  });
+
+  it("saves a draft and opens the next one", async () => {
+    const user = userEvent.setup();
+    const { container } = render(<ToolsPage />);
+    await screen.findByRole("button", { name: "Add a tool" });
+    await user.upload(pageFiles(container), [photo("saw.png"), photo("drill.png")]);
+    const first = await screen.findByRole("complementary", { name: /^(saw|drill)$/ });
+    const firstName = first.getAttribute("aria-label")!;
+    const other = firstName === "saw" ? "drill" : "saw";
+
+    await user.click(within(first).getByRole("button", { name: "Save and next draft (1 left)" }));
+    const next = await screen.findByRole("complementary", { name: other });
+    expect(within(next).queryByRole("button", { name: /Save and next draft/ })).toBeNull();
+    const byName = Object.fromEntries((await server.tools()).map((tool) => [tool.name, tool.draft]));
+    expect(byName).toEqual({ [firstName]: false, [other]: true });
+  });
+
+  it("stays on the draft when saving fails", async () => {
+    const user = userEvent.setup();
+    const { container } = render(<ToolsPage />);
+    await screen.findByRole("button", { name: "Add a tool" });
+    await user.upload(pageFiles(container), [photo("saw.png"), photo("drill.png")]);
+    const first = await screen.findByRole("complementary", { name: /^(saw|drill)$/ });
+    const name = first.getAttribute("aria-label")!;
+    server.failWhen((method, path) => method === "PUT" && path.startsWith("/api/tools/"));
+    await user.click(within(first).getByRole("button", { name: "Save and next draft (1 left)" }));
+    expect(await within(panel(name)).findByText("The tool couldn't be saved. Try again.")).toBeTruthy();
+  });
+});

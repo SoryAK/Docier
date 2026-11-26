@@ -104,6 +104,8 @@ export function ToolPanel({
   onSaved,
   onRemoved,
   onClose,
+  onOpen,
+  nextDraft = null,
 }: {
   /** The tool to change; null to add one. */
   tool: PersonalTool | null;
@@ -112,12 +114,18 @@ export function ToolPanel({
   onSaved: (tool: PersonalTool) => void;
   onRemoved: (id: string) => void;
   onClose: () => void;
+  /** Opens another tool in the panel: a duplicate just made, or the next draft. */
+  onOpen?: (id: string) => void;
+  /** The draft after this one, while this is a draft and others wait. */
+  nextDraft?: { id: string; left: number } | null;
 }) {
   const [draft, setDraft] = useState<Draft>(() => draftOf(tool));
   const [error, setError] = useState<{ field: keyof Draft | "form"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [photoNote, setPhotoNote] = useState("");
   const [confirming, setConfirming] = useState(false);
+  // Asking "Copy the photos too?" before duplicating.
+  const [duplicating, setDuplicating] = useState(false);
   // The photo being framed in the Adjust photo dialog.
   const [adjusting, setAdjusting] = useState<string | null>(null);
   // Photos picked before a new tool is saved, uploaded right after it is.
@@ -205,7 +213,7 @@ export function ToolPanel({
     }
   }
 
-  async function save(event: FormEvent) {
+  async function save(event: FormEvent, thenOpen?: string) {
     event.preventDefault();
     setBusy(true);
     setError(null);
@@ -239,7 +247,31 @@ export function ToolPanel({
     }
     setBusy(false);
     onSaved(savedTool);
-    if (tool) onClose();
+    if (tool && thenOpen && onOpen) onOpen(thenOpen);
+    else if (tool) onClose();
+  }
+
+  /** Makes a copy of this tool, with or without its photos, and opens it. */
+  async function duplicate(withPhotos: boolean) {
+    if (!tool) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/tools/${encodeURIComponent(tool.id)}/duplicate`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ photos: withPhotos }),
+      });
+      if (!response.ok) throw new Error("duplicate");
+      const copy = ((await response.json()) as { tool: PersonalTool }).tool;
+      onSaved(copy);
+      onOpen?.(copy.id);
+    } catch {
+      setError({ field: "form", text: "The tool couldn't be duplicated. Try again." });
+      setDuplicating(false);
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function remove() {
@@ -539,18 +571,41 @@ export function ToolPanel({
                   Keep
                 </button>
               </span>
+            ) : duplicating ? (
+              <span className="tool-confirm">
+                Copy the photos too?
+                <button type="button" className="tools-btn" disabled={busy} onClick={() => void duplicate(true)}>
+                  With photos
+                </button>
+                <button type="button" className="tools-btn" disabled={busy} onClick={() => void duplicate(false)}>
+                  Without photos
+                </button>
+                <button type="button" className="tools-link" onClick={() => setDuplicating(false)}>
+                  Cancel
+                </button>
+              </span>
             ) : (
-              <button type="button" className="tool-danger" onClick={() => setConfirming(true)}>
-                Remove tool
-              </button>
+              <>
+                <button type="button" className="tool-danger" onClick={() => setConfirming(true)}>
+                  Remove tool
+                </button>
+                <button type="button" className="tools-link" onClick={() => setDuplicating(true)}>
+                  Duplicate
+                </button>
+              </>
             )
           ) : null}
           <span className="tool-spacer" />
-          {confirming ? null : (
+          {confirming || duplicating ? null : (
             <>
               <button type="button" className="tools-btn" onClick={onClose}>
                 Cancel
               </button>
+              {tool?.draft && nextDraft ? (
+                <button type="button" className="tools-btn" disabled={busy} onClick={(event) => void save(event, nextDraft.id)}>
+                  Save and next draft ({nextDraft.left} left)
+                </button>
+              ) : null}
               <button type="submit" className="tools-btn is-primary" disabled={busy}>
                 {tool ? "Save" : "Add tool"}
               </button>

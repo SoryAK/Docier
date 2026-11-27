@@ -158,6 +158,16 @@ export function ToolBulkBar({
             </option>
           ))}
         </select>
+        <select
+          aria-label="Set career page"
+          value=""
+          disabled={none}
+          onChange={(event) => void apply({ kind: "careerPage", on: event.target.value === "show" }, changed)}
+        >
+          <option value="">Career page…</option>
+          <option value="show">Show on my career page</option>
+          <option value="hide">Keep off my career page</option>
+        </select>
         <form
           className="tools-bulk-tags"
           onSubmit={(event) => {

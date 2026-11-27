@@ -98,6 +98,7 @@ export function describeRelayChanges(
   const skillsRemoved = published.skills.filter((skill) => !current.skills.includes(skill)).length;
   if (skillsAdded > 0) lines.push(`Added ${count(skillsAdded, "skill")}`);
   if (skillsRemoved > 0) lines.push(`Removed ${count(skillsRemoved, "skill")}`);
+  if (!sameValue(published.tools ?? [], current.tools ?? [])) lines.push("Tools updated");
   if (
     published.visibility !== current.visibility ||
     published.theme !== current.theme ||

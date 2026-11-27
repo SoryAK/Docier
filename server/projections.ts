@@ -1,3 +1,4 @@
+import { embedPublicPhotos } from "../core/career-page";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import {
@@ -151,15 +152,22 @@ export function previewWorkMapProjection(db: DatabaseSync, occupantId: string) {
   };
 }
 
+/**
+ * Makes the page to publish from the vault as it is now. `photos` are the
+ * browser's prepared photos; they go only into this page's copy, never into
+ * the saved snapshot, and a local photo without one is left off.
+ */
 export function createProjection(
   db: DatabaseSync,
   occupantId: string,
-  _input: JsonObject,
+  input: JsonObject,
 ): InteractiveProjection {
   const snapshot = createWorkMapSnapshot(db, occupantId);
-  const result = buildInteractiveProjection({
+  const built = buildInteractiveProjection({
     snapshot,
   });
+  if (!built.ok) throw new ProjectionStoreError(built.error);
+  const result = embedPublicPhotos(built.value, input.photos);
   if (!result.ok) throw new ProjectionStoreError(result.error);
   const existing = db
     .prepare(

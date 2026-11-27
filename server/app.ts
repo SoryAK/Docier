@@ -2040,8 +2040,10 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
 
   app.post("/api/work-map/publish", async (c) => {
     const occupant = ensureOccupant(db);
+    // The body is optional: the browser's prepared photos, when it sends them.
+    const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown> | null;
     try {
-      const projection = createProjection(db, occupant.id, {});
+      const projection = createProjection(db, occupant.id, { photos: body && typeof body === "object" ? body.photos : undefined });
       const publication = await publishProjection(
         db,
         occupant.id,

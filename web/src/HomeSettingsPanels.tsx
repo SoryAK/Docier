@@ -44,6 +44,7 @@ import {
   PlusIcon,
   ServerIcon,
   SwatchIcon,
+  WrenchScrewdriverIcon,
   UserIcon,
 } from "@heroicons/react/24/outline";
 import {
@@ -1665,6 +1666,7 @@ const PUBLISH_SECTIONS: Array<{
   { value: "media", label: "Approved galleries", icon: PhotoIcon },
   { value: "evidence", label: "Linked evidence", icon: DocumentTextIcon },
   { value: "skills", label: "Skills", icon: SwatchIcon },
+  { value: "tools", label: "Tools you chose", icon: WrenchScrewdriverIcon },
   { value: "contact", label: "Contact and inbound opportunities", icon: EnvelopeIcon },
 ];
 

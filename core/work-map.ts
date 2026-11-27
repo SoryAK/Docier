@@ -1,3 +1,5 @@
+import { careerPageTools, type CareerPageTool } from "./career-page";
+import type { PersonalTool } from "./personal-tools";
 import { uniformLine, type EquipmentItem, type UniformItem } from "./role-gear";
 import { EMPTY_COMMUTE, EMPTY_LEAVING, EMPTY_RATINGS, type RoleCommute, type RoleLeaving, type RoleRatings } from "./role-reflection";
 import type { RoleEdit } from "./role-edits";
@@ -422,6 +424,7 @@ export type WorkMapPublishSection =
   | "media"
   | "evidence"
   | "skills"
+  | "tools"
   | "contact";
 
 export type WorkMapPublicationSettings = {
@@ -634,6 +637,8 @@ export type WorkMapSnapshot = {
     };
   }>;
   skills: string[];
+  /** The tools chosen for the page. Missing on pages published before tools could be. */
+  tools?: CareerPageTool[];
   sections: WorkMapPublishSection[];
   expiresAt: string | null;
   sourceFingerprint: string;
@@ -778,6 +783,7 @@ export function buildWorkMapSnapshot(input: {
   };
   roles: WorkMapRole[];
   skills: string[];
+  tools?: PersonalTool[];
   settings: WorkMapPublicationSettings;
   sourceFingerprint: string;
   createdAt: string;
@@ -865,6 +871,7 @@ export function buildWorkMapSnapshot(input: {
     },
     roles,
     skills: sections.has("skills") ? input.skills : [],
+    tools: sections.has("tools") ? careerPageTools(input.tools ?? [], roles) : [],
     sections: [...new Set(settings.sections)],
     expiresAt: settings.expiresAt,
     sourceFingerprint: input.sourceFingerprint,

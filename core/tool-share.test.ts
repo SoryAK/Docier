@@ -21,6 +21,7 @@ const tool = (fields: Partial<PersonalTool>): PersonalTool => ({
   draft: false,
   roleIds: ["r1"],
   kitIds: ["k1"],
+  onCareerPage: false,
   photos: [],
   createdAt: "",
   updatedAt: "",

@@ -518,14 +518,26 @@ function renderLinkedEvidence(item: PublishedLinkedEvidence): string {
   return `<li>${link}<span>${meta}</span>${item.quote ? `<q>${escapeHtml(item.quote)}</q>${item.timestamp ? ` <span>at ${escapeHtml(item.timestamp)}</span>` : ""}` : item.timestamp ? `<span>at ${escapeHtml(item.timestamp)}</span>` : ""}${item.contribution ? `<p>${escapeHtml(item.contribution)}</p>` : ""}</li>`;
 }
 
+/** An image the page may draw: prepared image data or a web link. Anything else (like an address on the owner's computer) isn't drawn. */
+function imageSource(url: string): string | null {
+  return /^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(url) || /^https?:\/\//i.test(url) ? url : null;
+}
+
+function renderTool(tool: NonNullable<RelayProjection["tools"]>[number]): string {
+  const photo = imageSource(tool.photoUrl);
+  return `<li>${photo ? `<img src="${escapeHtml(photo)}" alt="${escapeHtml(tool.name)}">` : ""}<div><b>${escapeHtml(tool.name)}</b>${tool.makerModel ? `<span>${escapeHtml(tool.makerModel)}</span>` : ""}${tool.facts.map((fact) => `<span>${escapeHtml(fact.label)}: ${escapeHtml(fact.value)}</span>`).join("")}</div></li>`;
+}
+
 function renderProjectionHtml(
   projection: RelayProjection,
   view: "list" | "journey",
   embed = false,
 ): string {
+  const tools = projection.tools ?? [];
   const experience = projection.roles
     .map((role) => {
       const evidence = groupLinkedEvidence(role.achievements, role.linkedEvidence);
+      const usedHere = tools.filter((tool) => tool.roleIds.includes(role.id)).map((tool) => tool.name);
       return `<article class="role" data-role="${escapeHtml(role.id)}">
         <p class="span">${escapeHtml(role.span)}</p>
         <h2>${escapeHtml(role.title)}</h2>
@@ -534,6 +546,7 @@ function renderProjectionHtml(
         <ul>${evidence.achievements.map((claim) => `<li>${escapeHtml(claim.statement)}${claim.evidence.length ? `<ul class="evidence">${claim.evidence.map(renderLinkedEvidence).join("")}</ul>` : ""}</li>`).join("")}</ul>
         ${evidence.other.length ? `<h3 class="evidence-title">Evidence</h3><ul class="evidence">${evidence.other.map(renderLinkedEvidence).join("")}</ul>` : ""}
         ${role.techStack.length ? `<p class="skills">${role.techStack.map(escapeHtml).join(" · ")}</p>` : ""}
+        ${usedHere.length ? `<p class="skills">Tools: ${usedHere.map(escapeHtml).join(" · ")}</p>` : ""}
         ${role.growth ? `<p>${escapeHtml(role.growth)}</p>` : ""}
         ${role.departure ? `<p>${escapeHtml(role.departure)}</p>` : ""}
         ${role.schedule ? `<p class="skills">${escapeHtml(scheduleLine(role.schedule))}</p>` : ""}
@@ -548,7 +561,7 @@ function renderProjectionHtml(
         ${role.workplaceRating != null ? `<p class="skills">Workplace ${role.workplaceRating}/5</p>` : ""}
         ${role.compensation?.amount != null ? `<p class="skills">${escapeHtml(String(role.compensation.amount))} ${escapeHtml(role.compensation.currency)} / ${escapeHtml(role.compensation.period)}</p>` : ""}
         ${role.milestones.map((moment) => `<div class="moment"><b>${escapeHtml(moment.title)}</b><span>${escapeHtml(moment.date)}</span><p>${escapeHtml(moment.detail)}</p></div>`).join("")}
-        ${role.media.map((item) => item.kind === "photo" ? `<figure><img src="${escapeHtml(item.url)}" alt="${escapeHtml(item.title)}"><figcaption>${escapeHtml(item.caption || item.title)}</figcaption></figure>` : "").join("")}
+        ${role.media.map((item) => { const src = item.kind === "photo" ? imageSource(item.url) : null; return src ? `<figure><img src="${escapeHtml(src)}" alt="${escapeHtml(item.title)}"><figcaption>${escapeHtml(item.caption || item.title)}</figcaption></figure>` : ""; }).join("")}
       </article>`;
     })
     .join("");
@@ -579,6 +592,8 @@ h2{font:italic 1.6rem Georgia,serif;margin:.3rem 0}p,li{line-height:1.65;color:#
 .evidence span{display:block;color:#87735f;font-size:.75rem}.evidence q{display:block;font-style:italic;color:#c9bdad}.evidence p{margin:.2rem 0}
 .evidence-title{font:600 .75rem system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#b89772;margin:1rem 0 0}
 figure{margin:1rem 0}figure img{width:100%;max-height:18rem;object-fit:cover}figcaption{color:#87735f;font-size:.75rem}
+.tools{display:grid;grid-template-columns:repeat(auto-fill,minmax(10rem,1fr));gap:.8rem;list-style:none;padding:0}.tools li{border:1px solid #302820}
+.tools img{display:block;width:100%;height:8rem;object-fit:cover}.tools div{padding:.5rem .65rem .7rem}.tools span{display:block;color:#87735f;font-size:.75rem;line-height:1.5}
 @media(max-width:800px){header{display:block}.shell{display:flex;flex-direction:column;height:auto}.map{order:-1;height:48vh}.history{overflow:visible}}
 html.embed,html.embed body{height:100%;overflow:hidden}
 html.embed main{display:flex;flex-direction:column;height:100%;min-height:0}
@@ -594,6 +609,7 @@ html.embed .map{min-height:0;height:100%}
 <div class="shell"><section class="history">${projection.profile.bio ? `<p>${escapeHtml(projection.profile.bio)}</p>` : ""}
 ${experience}
 ${projection.skills.length ? `<section><h2>Skills</h2><p class="skills">${projection.skills.map(escapeHtml).join(" · ")}</p></section>` : ""}
+${tools.length ? `<section><h2>Tools</h2><ul class="tools">${tools.map(renderTool).join("")}</ul></section>` : ""}
 </section><div id="map" class="map" aria-label="Interactive career map"></div></div>
 </main><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>

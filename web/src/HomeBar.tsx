@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { publishCareerPage } from "./publish-page";
 import { Divider } from "@astryxdesign/core/Divider";
 import { Popover } from "@astryxdesign/core/Popover";
 import { TextInput } from "@astryxdesign/core/TextInput";
@@ -248,6 +249,12 @@ export function HomeBar({
     if (code === "private-not-publishable") {
       return "A private Work Map cannot be published.";
     }
+    if (code === "photos-too-large" || code === "too-large") {
+      return "Too many photos to publish at once. Make some role photos private, or take some tools off your career page.";
+    }
+    if (code === "photos-invalid") {
+      return "The photos couldn't be prepared. Try publishing again.";
+    }
     return code ?? "The Work Map could not be published.";
   }
 
@@ -257,7 +264,7 @@ export function HomeBar({
     setPublishNote("");
     setMenu(null);
     try {
-      const response = await fetch("/api/work-map/publish", { method: "POST" });
+      const response = await publishCareerPage();
       if (response.ok) {
         setPublishNote(
           "Published this Work Map snapshot to the public link. Private edits stay local until you publish an update.",

@@ -69,6 +69,7 @@ type ToolRow = {
   tags: string;
   notes: string;
   draft: number;
+  on_career_page: number;
   created_at: string;
   updated_at: string;
 };
@@ -133,6 +134,7 @@ function present(row: ToolRow, photos: PhotoRow[], roleIds: string[], kitIds: st
     draft: row.draft === 1,
     roleIds,
     kitIds,
+    onCareerPage: row.on_career_page === 1,
     photos: photos.map((photo) => ({
       id: photo.id,
       url: toolPhotoUrl(row.id, photo.id),
@@ -199,7 +201,7 @@ function checkInput(db: DatabaseSync, occupantId: string, raw: unknown): ToolInp
 function writeFields(db: DatabaseSync, occupantId: string, toolId: string, input: ToolInput, now: string) {
   db.prepare(
     `UPDATE personal_tools SET name = ?, category = ?, ownership = ?, maker = ?, model = ?, serial = ?, condition = ?,
-       skill = ?, acquired = ?, paid = ?, worth = ?, kept_at = ?, tags = ?, notes = ?, draft = 0, updated_at = ?
+       skill = ?, acquired = ?, paid = ?, worth = ?, kept_at = ?, tags = ?, notes = ?, on_career_page = ?, draft = 0, updated_at = ?
      WHERE id = ? AND occupant_id = ?`,
   ).run(
     input.name,
@@ -216,6 +218,7 @@ function writeFields(db: DatabaseSync, occupantId: string, toolId: string, input
     input.keptAt,
     JSON.stringify(input.tags),
     input.notes,
+    input.onCareerPage ? 1 : 0,
     now,
     toolId,
     occupantId,
@@ -531,13 +534,13 @@ export function bulkChangeTools(
         db.prepare("INSERT INTO tool_kits (id, occupant_id, name, created_at) VALUES (?, ?, ?, ?)").run(newKitId, occupantId, change.newKitName, now);
       }
       const write = db.prepare(
-        "UPDATE personal_tools SET category = ?, ownership = ?, condition = ?, tags = ?, updated_at = ? WHERE id = ? AND occupant_id = ?",
+        "UPDATE personal_tools SET category = ?, ownership = ?, condition = ?, tags = ?, on_career_page = ?, updated_at = ? WHERE id = ? AND occupant_id = ?",
       );
       const unkit = db.prepare("DELETE FROM tool_kit_items WHERE occupant_id = ? AND tool_id = ?");
       const inKit = db.prepare("INSERT INTO tool_kit_items (id, occupant_id, kit_id, tool_id, created_at) VALUES (?, ?, ?, ?, ?)");
       for (const id of ids) {
         const next = applyBulkChange(current.get(id)!, change, newKitId);
-        write.run(next.category, next.ownership, next.condition, JSON.stringify(next.tags), now, id, occupantId);
+        write.run(next.category, next.ownership, next.condition, JSON.stringify(next.tags), next.onCareerPage ? 1 : 0, now, id, occupantId);
         unkit.run(occupantId, id);
         for (const kitId of next.kitIds) inKit.run(randomUUID(), occupantId, kitId, id, now);
       }
@@ -570,9 +573,9 @@ export function duplicateTool(db: DatabaseSync, occupantId: string, uploadsDir: 
   try {
     db.prepare(
       `INSERT INTO personal_tools (id, occupant_id, name, category, ownership, maker, model, serial, condition, skill,
-         acquired, paid, worth, kept_at, tags, notes, draft, created_at, updated_at)
+         acquired, paid, worth, kept_at, tags, notes, on_career_page, draft, created_at, updated_at)
        SELECT ?, occupant_id, ?, category, ownership, maker, model, serial, condition, skill,
-         acquired, paid, worth, kept_at, tags, notes, draft, ?, ?
+         acquired, paid, worth, kept_at, tags, notes, on_career_page, draft, ?, ?
        FROM personal_tools WHERE id = ? AND occupant_id = ?`,
     ).run(id, duplicateToolName(original.name), now, now, toolId, occupantId);
     const role = db.prepare("INSERT INTO personal_tool_roles (id, occupant_id, tool_id, role_id, created_at) VALUES (?, ?, ?, ?, ?)");

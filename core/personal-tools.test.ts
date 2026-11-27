@@ -45,6 +45,7 @@ function tool(over: Partial<PersonalTool> = {}): PersonalTool {
     draft: false,
     roleIds: [],
     kitIds: [],
+    onCareerPage: false,
     photos: [],
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
@@ -93,8 +94,16 @@ describe("reading a tool", () => {
         notes: "True-RMS.",
         roleIds: ["r1"],
         kitIds: [],
+        onCareerPage: false,
       },
     });
+  });
+
+  it("shows on the career page only when asked to", () => {
+    const on = readToolInput({ name: "Drill", onCareerPage: true }, roles);
+    expect(on.ok && on.value.onCareerPage).toBe(true);
+    const truthy = readToolInput({ name: "Drill", onCareerPage: "yes" }, roles);
+    expect(truthy.ok && truthy.value.onCareerPage).toBe(false);
   });
 
   it("takes tags as a list too, and keeps at most 20", () => {
@@ -266,7 +275,13 @@ describe("bulk changes", () => {
   const kits: ToolKit[] = [{ id: "k1", name: "Truck toolbox", createdAt: "" }];
   const known = { toolIds: new Set(["a", "b"]), kits };
   const read = (body: unknown) => readBulkRequest(body, known);
-  const fields: BulkFields = { category: "tool", ownership: "mine", condition: "", tags: ["Truck", "Shop"], kitIds: [] };
+  const fields: BulkFields = { category: "tool", ownership: "mine", condition: "", tags: ["Truck", "Shop"], kitIds: [], onCareerPage: false };
+
+  it("shows or hides many tools on the career page", () => {
+    expect(read({ ids: ["a"], change: { kind: "careerPage", on: true } })).toEqual({ ok: true, ids: ["a"], change: { kind: "careerPage", on: true } });
+    expect(read({ ids: ["a"], change: { kind: "careerPage", on: "yes" } })).toEqual({ ok: false, error: "bulk-change" });
+    expect(applyBulkChange(fields, { kind: "careerPage", on: true })).toEqual({ ...fields, onCareerPage: true });
+  });
 
   it("refuses an empty or oversized pick", () => {
     expect(read({ ids: [], change: { kind: "delete" } })).toEqual({ ok: false, error: "bulk-ids" });

@@ -1321,3 +1321,20 @@ dialog.tool-share::backdrop {
   align-items: center;
   gap: 8px;
 }
+
+/* Show on my career page, under Used on */
+.tool-career {
+  display: flex;
+  gap: 0.55rem;
+  align-items: flex-start;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.tool-career input {
+  margin-top: 0.2rem;
+}
+.tool-career small {
+  display: block;
+  color: #6b6b70;
+  font-size: 0.78rem;
+}

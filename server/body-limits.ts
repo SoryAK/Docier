@@ -2,6 +2,7 @@ import type { MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { PROFILE_AVATAR_MAX_BYTES } from "../core/profile";
 import { TOOL_PHOTO_LIMIT } from "../core/personal-tools";
+import { PUBLIC_PHOTOS_TOTAL_MAX } from "../core/career-page";
 import { UPLOAD_MAX_BYTES } from "./documents";
 import { MAX_RESTORE_ARCHIVE_BYTES } from "./portability";
 
@@ -27,6 +28,8 @@ const uploadRoutes: Array<{ path: RegExp; maxSize: number }> = [
     path: /^\/api\/tools\/(from-photos|[^/]+\/photos)$/,
     maxSize: TOOL_PHOTO_LIMIT * PROFILE_AVATAR_MAX_BYTES + FORM_OVERHEAD,
   },
+  // Publishing carries the page's prepared photos, as image data.
+  { path: /^\/api\/work-map\/publish$/, maxSize: PUBLIC_PHOTOS_TOTAL_MAX + FORM_OVERHEAD },
 ];
 
 export function bodyLimitFor(path: string): number {

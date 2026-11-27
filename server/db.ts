@@ -825,6 +825,7 @@ export function openDatabase(path: string): DatabaseSync {
   addColumnIfMissing(db, "personal_tool_photos", "zoom", "REAL NOT NULL DEFAULT 1");
   addColumnIfMissing(db, "personal_tool_photos", "focus_x", "REAL NOT NULL DEFAULT 50");
   addColumnIfMissing(db, "personal_tool_photos", "focus_y", "REAL NOT NULL DEFAULT 50");
+  addColumnIfMissing(db, "personal_tools", "on_career_page", "INTEGER NOT NULL DEFAULT 0");
   addColumnIfMissing(db, "role_contacts", "confirmed_at", "TEXT");
   addColumnIfMissing(db, "role_contacts", "confirmed_note", "TEXT NOT NULL DEFAULT ''");
   addColumnIfMissing(db, "map_settings", "pin_theme", "TEXT NOT NULL DEFAULT 'kind'");

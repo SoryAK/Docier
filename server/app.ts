@@ -4,12 +4,18 @@ import { linkRoleDocument, RoleDocumentError, unlinkRoleDocument, uploadRoleDocu
 import {
   ToolError,
   addToolPhotos,
+  bulkChangeTools,
   createTool,
   listTools,
   loadToolPhoto,
   removeTool,
   removeToolPhoto,
   setToolCover,
+  setPhotoFraming,
+  createKit,
+  listKits,
+  removeKit,
+  renameKit,
   toolsFromPhotos,
   updateTool,
   type ToolPhotoFile,
@@ -2648,6 +2654,51 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
     return Promise.all(files.map(async (file) => ({ name: file.name, type: file.type, bytes: new Uint8Array(await file.arrayBuffer()) })));
   };
   app.get("/api/tools", (c) => c.json({ tools: listTools(db, ensureOccupant(db).id) }));
+  app.get("/api/tools/kits", (c) => c.json({ kits: listKits(db, ensureOccupant(db).id) }));
+  app.post("/api/tools/kits", async (c) => {
+    const occupant = ensureOccupant(db);
+    const body = (await c.req.json().catch(() => null)) as { name?: unknown } | null;
+    try {
+      return c.json({ kit: createKit(db, occupant.id, body?.name) }, 201);
+    } catch (error) {
+      return toolFailure(c, error);
+    }
+  });
+  app.put("/api/tools/kits/:kitId", async (c) => {
+    const occupant = ensureOccupant(db);
+    const body = (await c.req.json().catch(() => null)) as { name?: unknown } | null;
+    try {
+      return c.json({ kit: renameKit(db, occupant.id, c.req.param("kitId"), body?.name) });
+    } catch (error) {
+      return toolFailure(c, error);
+    }
+  });
+  app.delete("/api/tools/kits/:kitId", (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      removeKit(db, occupant.id, c.req.param("kitId"));
+      return c.json({ ok: true });
+    } catch (error) {
+      return toolFailure(c, error);
+    }
+  });
+  app.post("/api/tools/bulk", async (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      return c.json(bulkChangeTools(db, occupant.id, uploadsDir, await c.req.json().catch(() => null)));
+    } catch (error) {
+      return toolFailure(c, error);
+    }
+  });
+  app.put("/api/tools/:id/photos/:photoId/framing", async (c) => {
+    const occupant = ensureOccupant(db);
+    const body = (await c.req.json().catch(() => null)) as { framing?: unknown } | null;
+    try {
+      return c.json({ tool: setPhotoFraming(db, occupant.id, c.req.param("id"), c.req.param("photoId"), body?.framing) });
+    } catch (error) {
+      return toolFailure(c, error);
+    }
+  });
   app.post("/api/tools", async (c) => {
     const occupant = ensureOccupant(db);
     try {

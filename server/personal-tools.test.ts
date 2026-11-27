@@ -149,6 +149,72 @@ describe("my tools", () => {
     expect((await app.request(tool.photos[0].url)).status).toBe(404);
   });
 
+  it("adds, renames, and deletes kits, and keeps their tools", async () => {
+    const { send, tools } = setup();
+    const made = await send("POST", "/api/tools/kits", { name: " Electrical kit " });
+    expect(made.status).toBe(201);
+    expect(made.body.kit).toMatchObject({ name: "Electrical kit" });
+    const kitId = made.body.kit.id;
+    await send("POST", "/api/tools", { name: "Meter", kitIds: [kitId] });
+    expect((await send("GET", "/api/tools/kits")).body.kits.map((kit: any) => kit.name)).toEqual(["Electrical kit"]);
+
+    const renamed = await send("PUT", `/api/tools/kits/${kitId}`, { name: "Electrical" });
+    expect(renamed.body.kit.name).toBe("Electrical");
+
+    expect((await send("DELETE", `/api/tools/kits/${kitId}`)).status).toBe(200);
+    expect((await send("GET", "/api/tools/kits")).body.kits).toEqual([]);
+    expect((await tools()).map((tool) => [tool.name, tool.kitIds])).toEqual([["Meter", []]]);
+    expect((await send("DELETE", `/api/tools/kits/${kitId}`)).status).toBe(404);
+  });
+
+  it("renames a kit, and refuses another kit's name", async () => {
+    const { send } = setup();
+    const a = (await send("POST", "/api/tools/kits", { name: "Electrical" })).body.kit.id;
+    await send("POST", "/api/tools/kits", { name: "Truck" });
+    expect(await send("POST", "/api/tools/kits", { name: "truck" })).toEqual({ status: 400, body: { error: "kit-name-taken" } });
+    expect(await send("PUT", `/api/tools/kits/${a}`, { name: "TRUCK" })).toEqual({ status: 400, body: { error: "kit-name-taken" } });
+    expect((await send("PUT", `/api/tools/kits/${a}`, { name: "ELECTRICAL" })).body.kit.name).toBe("ELECTRICAL");
+    expect(await send("POST", "/api/tools/kits", { name: " " })).toEqual({ status: 400, body: { error: "kit-name-required" } });
+  });
+
+  it("puts a tool in kits and takes it out", async () => {
+    const { send } = setup();
+    const a = (await send("POST", "/api/tools/kits", { name: "A" })).body.kit.id;
+    const b = (await send("POST", "/api/tools/kits", { name: "B" })).body.kit.id;
+    const tool = (await send("POST", "/api/tools", { name: "Meter", kitIds: [a, b] })).body.tool;
+    expect(tool.kitIds).toEqual([a, b]);
+    expect((await send("PUT", `/api/tools/${tool.id}`, { name: "Meter", kitIds: [b] })).body.tool.kitIds).toEqual([b]);
+    expect(await send("PUT", `/api/tools/${tool.id}`, { name: "Meter", kitIds: ["gone"] })).toEqual({ status: 400, body: { error: "kit-missing" } });
+  });
+
+  it("removing a tool takes it out of its kits", async () => {
+    const { send, db } = setup();
+    const kit = (await send("POST", "/api/tools/kits", { name: "A" })).body.kit.id;
+    const tool = (await send("POST", "/api/tools", { name: "Meter", kitIds: [kit] })).body.tool;
+    await send("DELETE", `/api/tools/${tool.id}`);
+    expect(db.prepare("SELECT COUNT(*) AS n FROM tool_kit_items").get()).toEqual({ n: 0 });
+  });
+
+  it("frames a photo", async () => {
+    const { send, photos, png } = setup();
+    const tool = (await photos("/api/tools/from-photos", [png("a.png")])).body.tools[0];
+    expect(tool.photos[0].framing).toEqual({ rotation: 0, flipH: false, flipV: false, zoom: 1, focusX: 50, focusY: 50 });
+    const framing = { rotation: 90, flipH: true, flipV: false, zoom: 2, focusX: 30, focusY: 70 };
+    const framed = await send("PUT", `/api/tools/${tool.id}/photos/${tool.photos[0].id}/framing`, { framing });
+    expect(framed.status).toBe(200);
+    expect(framed.body.tool.photos[0].framing).toEqual(framing);
+  });
+
+  it("refuses a bad framing", async () => {
+    const { send, photos, png } = setup();
+    const tool = (await photos("/api/tools/from-photos", [png("a.png")])).body.tools[0];
+    const path = `/api/tools/${tool.id}/photos/${tool.photos[0].id}/framing`;
+    const bad = { rotation: 45, flipH: false, flipV: false, zoom: 1, focusX: 50, focusY: 50 };
+    expect(await send("PUT", path, { framing: bad })).toEqual({ status: 400, body: { error: "framing-invalid" } });
+    expect(await send("PUT", path, { framing: { ...bad, rotation: 0, zoom: 9 } })).toEqual({ status: 400, body: { error: "framing-invalid" } });
+    expect((await send("GET", "/api/tools")).body.tools[0].photos[0].framing.rotation).toBe(0);
+  });
+
   it("refuses a 21st photo", async () => {
     const { send, photos, png } = setup();
     const id = (await send("POST", "/api/tools", { name: "Drill" })).body.tool.id;
@@ -177,8 +243,11 @@ describe("my tools", () => {
   it("backups carry tools and their photos", async () => {
     const first = setup();
     const roleId = await first.addRole("Technician");
-    const id = (await first.send("POST", "/api/tools", { name: "Drill", roleIds: [roleId] })).body.tool.id;
-    await first.photos(`/api/tools/${id}/photos`, [first.png("a.png")]);
+    const kitId = (await first.send("POST", "/api/tools/kits", { name: "Truck" })).body.kit.id;
+    const id = (await first.send("POST", "/api/tools", { name: "Drill", roleIds: [roleId], kitIds: [kitId] })).body.tool.id;
+    const photo = (await first.photos(`/api/tools/${id}/photos`, [first.png("a.png")])).body.tool.photos[0];
+    const framing = { rotation: 180, flipH: false, flipV: true, zoom: 1.5, focusX: 20, focusY: 40 };
+    await first.send("PUT", `/api/tools/${id}/photos/${photo.id}/framing`, { framing });
     const backup = new Uint8Array(await (await first.app.request("/api/portability/export")).arrayBuffer());
 
     const second = setup();
@@ -186,9 +255,94 @@ describe("my tools", () => {
     form.append("archive", new File([backup], "docier-backup.zip", { type: "application/zip" }));
     expect((await second.app.request("/api/portability/restore", { method: "POST", body: form })).status).toBe(200);
     const restored = await second.tools();
-    expect(restored.map((tool) => [tool.name, tool.roleIds])).toEqual([["Drill", [roleId]]]);
+    expect(restored.map((tool) => [tool.name, tool.roleIds, tool.kitIds])).toEqual([["Drill", [roleId], [kitId]]]);
+    expect(restored[0].photos[0].framing).toEqual(framing);
+    expect((await second.send("GET", "/api/tools/kits")).body.kits.map((kit: any) => kit.name)).toEqual(["Truck"]);
     const served = await second.app.request(restored[0].photos[0].url);
     expect(served.status).toBe(200);
+  });
+});
+
+describe("changing many tools at once", () => {
+  const bulk = (send: ReturnType<typeof setup>["send"], ids: string[], change: unknown) => send("POST", "/api/tools/bulk", { ids, change });
+
+  it("sets ownership on every picked tool and keeps drafts", async () => {
+    const { send, photos, png, tools } = setup();
+    const a = (await send("POST", "/api/tools", { name: "Drill" })).body.tool.id as string;
+    const draft = (await photos("/api/tools/from-photos", [png("saw.png")])).body.tools[0].id as string;
+    const other = (await send("POST", "/api/tools", { name: "Ladder" })).body.tool.id as string;
+
+    const done = await bulk(send, [a, draft], { kind: "ownership", ownership: "borrowed" });
+    expect(done.status).toBe(200);
+    expect(done.body.tools.map((tool: any) => tool.id).sort()).toEqual([a, draft].sort());
+    expect(done.body).toMatchObject({ deleted: [], kit: null });
+
+    const byId = Object.fromEntries((await tools()).map((tool) => [tool.id, tool]));
+    expect(byId[a]).toMatchObject({ ownership: "borrowed", draft: false });
+    expect(byId[draft]).toMatchObject({ ownership: "borrowed", draft: true, name: "saw" });
+    expect(byId[other]).toMatchObject({ ownership: "mine" });
+  });
+
+  it("unknown id changes nothing", async () => {
+    const { send, tools } = setup();
+    const a = (await send("POST", "/api/tools", { name: "Drill" })).body.tool.id as string;
+    const refused = await bulk(send, [a, "nope"], { kind: "category", category: "safety" });
+    expect(refused).toEqual({ status: 404, body: { error: "not-found" } });
+    expect((await tools())[0].category).toBe("tool");
+  });
+
+  it("a failure part-way leaves every tool as it was", async () => {
+    const { app, db, send, tools } = setup();
+    const a = (await send("POST", "/api/tools", { name: "Drill", tags: ["old"] })).body.tool.id as string;
+    const b = (await send("POST", "/api/tools", { name: "Saw", tags: ["old"] })).body.tool.id as string;
+    // The second tool's write fails inside the transaction.
+    db.exec(`CREATE TRIGGER fail_second BEFORE UPDATE ON personal_tools WHEN NEW.id = '${b}' BEGIN SELECT RAISE(ABORT, 'boom'); END`);
+    const failed = await app.request("/api/tools/bulk", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ids: [a, b], change: { kind: "addTags", tags: ["new"] } }),
+    });
+    expect(failed.status).toBe(500);
+    db.exec("DROP TRIGGER fail_second");
+    expect((await tools()).map((tool) => tool.tags)).toEqual([["old"], ["old"]]);
+  });
+
+  it("add to a new kit makes it once", async () => {
+    const { send, tools } = setup();
+    const a = (await send("POST", "/api/tools", { name: "Drill" })).body.tool.id as string;
+    const b = (await send("POST", "/api/tools", { name: "Saw" })).body.tool.id as string;
+    const done = await bulk(send, [a, b], { kind: "addKit", newKitName: "Truck toolbox" });
+    expect(done.status).toBe(200);
+    expect(done.body.kit).toMatchObject({ name: "Truck toolbox" });
+    for (const tool of await tools()) expect(tool.kitIds).toEqual([done.body.kit.id]);
+    const kits = (await send("GET", "/api/tools/kits")).body.kits as any[];
+    expect(kits.filter((kit) => kit.name === "Truck toolbox")).toHaveLength(1);
+
+    const out = await bulk(send, [a], { kind: "removeKit", kitId: done.body.kit.id });
+    expect(out.body.tools[0].kitIds).toEqual([]);
+  });
+
+  it("delete removes rows and files", async () => {
+    const { db, send, photos, png, tools, files, addRole } = setup();
+    const roleId = await addRole("Technician");
+    const kit = (await send("POST", "/api/tools/kits", { name: "Van" })).body.kit.id as string;
+    const a = (await send("POST", "/api/tools", { name: "Drill", roleIds: [roleId], kitIds: [kit] })).body.tool.id as string;
+    await photos(`/api/tools/${a}/photos`, [png("drill.png")]);
+    const keep = (await send("POST", "/api/tools", { name: "Saw" })).body.tool.id as string;
+    expect(files()).toHaveLength(1);
+
+    const done = await bulk(send, [a], { kind: "delete" });
+    expect(done.body).toEqual({ tools: [], deleted: [a], kit: null });
+    expect((await tools()).map((tool) => tool.id)).toEqual([keep]);
+    expect(files()).toEqual([]);
+    for (const table of ["personal_tool_photos", "personal_tool_roles", "tool_kit_items"]) {
+      expect(db.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE tool_id = ?`).get(a)).toEqual({ n: 0 });
+    }
+  });
+
+  it("refuses an empty pick", async () => {
+    const { send } = setup();
+    expect(await bulk(send, [], { kind: "delete" })).toEqual({ status: 400, body: { error: "bulk-ids" } });
   });
 });
 

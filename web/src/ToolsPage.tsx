@@ -1,7 +1,18 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
-import { ImagePlus, Plus, Search, Wrench } from "lucide-react";
+import { Check, Download, ImagePlus, ListChecks, Plus, Search, Wrench } from "lucide-react";
 import { EQUIPMENT_CATEGORIES, EQUIPMENT_CATEGORY_LABEL, type EquipmentCategory } from "@core/role-gear";
-import { TOOL_OWNERSHIP_LABEL, filterTools, toolPhotoProblem, type PersonalTool } from "@core/personal-tools";
+import {
+  TOOL_OWNERSHIP_LABEL,
+  filterTools,
+  toolPhotoProblem,
+  toolTotals,
+  toolsCsv,
+  type PersonalTool,
+  type ToolKit,
+} from "@core/personal-tools";
+import { ToolBulkBar, type BulkResult } from "./ToolBulkBar";
+import { ToolKits } from "./ToolKits";
+import { FramedPhoto } from "./ToolPhotoFrame";
 import { ToolPanel, type ToolRoleChoice } from "./ToolPanel";
 import "./tools.css";
 
@@ -30,6 +41,25 @@ const SKIP_REASON: Record<string, string> = {
 /** Photos go up a few at a time, so one request never grows too large. */
 const BATCH = 5;
 
+/** Dollars, with cents only when there are some: $300, $525.50. */
+function money(amount: number): string {
+  const whole = Number.isInteger(amount);
+  return `$${amount.toLocaleString("en-US", { minimumFractionDigits: whole ? 0 : 2, maximumFractionDigits: 2 })}`;
+}
+
+/** "2 tools · $525.50 paid · worth $300 now · 1 with photos", for the tools shown. */
+function totalsLine(tools: PersonalTool[]): string {
+  const totals = toolTotals(tools);
+  return [
+    `${totals.count} ${totals.count === 1 ? "tool" : "tools"}`,
+    totals.paid === null ? "" : `${money(totals.paid)} paid`,
+    totals.worth === null ? "" : `worth ${money(totals.worth)} now`,
+    `${totals.withPhotos} with photos`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 /**
  * My Tools: your own tools and equipment, as a grid of cards with a panel for
  * adding and changing one. Add from photos turns each photo into a draft.
@@ -37,6 +67,8 @@ const BATCH = 5;
 export function ToolsPage() {
   const [tools, setTools] = useState<PersonalTool[] | null>(null);
   const [roles, setRoles] = useState<ToolRoleChoice[]>([]);
+  const [kits, setKits] = useState<ToolKit[]>([]);
+  const [kit, setKit] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const [open, setOpen] = useState<string | null>(readOpenTool);
   const [query, setQuery] = useState("");
@@ -45,6 +77,9 @@ export function ToolsPage() {
   const [note, setNote] = useState<{ added: number; skipped: string[] } | null>(null);
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
+  // Choosing: a click picks a card instead of opening it, for changing many at once.
+  const [choosing, setChoosing] = useState(false);
+  const [picked, setPicked] = useState<string[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
   // A tool added in the panel keeps that panel (and what it says) once saved.
   const [adopted, setAdopted] = useState<string | null>(null);
@@ -87,10 +122,46 @@ export function ToolsPage() {
         );
       })
       .catch(() => setRoles([]));
+    void fetch("/api/tools/kits")
+      .then(async (response) => {
+        if (response.ok) setKits(((await response.json()) as { kits: ToolKit[] }).kits);
+      })
+      .catch(() => setKits([]));
   }, []);
 
+  function stopChoosing() {
+    setChoosing(false);
+    setPicked([]);
+  }
+
+  useEffect(() => {
+    if (!choosing) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !event.defaultPrevented) stopChoosing();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [choosing]);
+
+  // Opening a tool (by its address, or browser Back) ends choosing, so picks never outlive the tools they name.
+  useEffect(() => {
+    if (open && choosing) stopChoosing();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  function bulkDone(result: BulkResult) {
+    const changed = new Map(result.tools.map((tool) => [tool.id, tool]));
+    const gone = new Set(result.deleted);
+    setTools((list) => (list ?? []).filter((tool) => !gone.has(tool.id)).map((tool) => changed.get(tool.id) ?? tool));
+    if (gone.size) setPicked((ids) => ids.filter((id) => !gone.has(id)));
+    if (result.kit) setKits((list) => [...list, result.kit!].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" })));
+  }
+
   const all = tools ?? [];
-  const visible = useMemo(() => filterTools(all, { query, category, draftsOnly }), [all, query, category, draftsOnly]);
+  const visible = useMemo(
+    () => filterTools(all, { query, category, draftsOnly }).filter((tool) => kit === null || tool.kitIds.includes(kit)),
+    [all, query, category, draftsOnly, kit],
+  );
   const roleName = (id: string) => roles.find((role) => role.id === id)?.name;
   const drafts = all.filter((tool) => tool.draft).length;
   const categories = EQUIPMENT_CATEGORIES.filter((key) => all.some((tool) => tool.category === key));
@@ -145,6 +216,22 @@ export function ToolsPage() {
     }
   }
 
+  /** Downloads the tools shown as my-tools.csv. */
+  function exportCsv() {
+    const csv = toolsCsv(visible, { role: roleName, kit: (id) => kits.find((item) => item.id === id)?.name });
+    // A byte-order mark first, so spreadsheets read accented names as UTF-8.
+    const url = URL.createObjectURL(new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "my-tools.csv";
+    link.hidden = true;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    // Some browsers start the download after the click returns: let go of the file a moment later.
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
   function onDrop(event: DragEvent) {
     event.preventDefault();
     setDragging(false);
@@ -179,6 +266,30 @@ export function ToolsPage() {
             hidden
             onChange={(event) => void addFromPhotos(event.target.files)}
           />
+          {all.length > 0 ? (
+            <button
+              type="button"
+              className="tools-btn"
+              aria-pressed={choosing}
+              onClick={() => {
+                if (choosing) {
+                  stopChoosing();
+                  return;
+                }
+                setChoosing(true);
+                openTool(null);
+              }}
+            >
+              <ListChecks size={16} aria-hidden="true" />
+              Select
+            </button>
+          ) : null}
+          {all.length > 0 ? (
+            <button type="button" className="tools-btn" disabled={visible.length === 0} onClick={exportCsv}>
+              <Download size={16} aria-hidden="true" />
+              Export CSV
+            </button>
+          ) : null}
           <button type="button" className="tools-btn" disabled={busy} onClick={() => fileRef.current?.click()}>
             <ImagePlus size={16} aria-hidden="true" />
             {busy ? "Adding…" : "Add from photos"}
@@ -211,6 +322,23 @@ export function ToolsPage() {
           </div>
         ) : null}
 
+        {all.length > 0 ? <p className="tools-totals">{totalsLine(visible)}</p> : null}
+
+        {tools !== null && !failed ? (
+          <ToolKits
+            kits={kits}
+            tools={all}
+            selected={kit}
+            onSelect={setKit}
+            onKits={(next, deleted) => {
+              setKits(next);
+              if (deleted) {
+                setTools((list) => (list ?? []).map((tool) => ({ ...tool, kitIds: tool.kitIds.filter((id) => id !== deleted) })));
+              }
+            }}
+          />
+        ) : null}
+
         {all.length > 0 ? (
           <div className="tools-filters">
             <label className="tools-search">
@@ -239,6 +367,17 @@ export function ToolsPage() {
           </div>
         ) : null}
 
+        {choosing && all.length > 0 ? (
+          <ToolBulkBar
+            picked={picked}
+            shownIds={visible.map((tool) => tool.id)}
+            kits={kits}
+            tools={all}
+            onPick={setPicked}
+            onDone={bulkDone}
+          />
+        ) : null}
+
         {failed ? (
           <p className="tools-empty">Your tools couldn't be loaded. Reload the page to try again.</p>
         ) : tools === null ? (
@@ -256,17 +395,29 @@ export function ToolsPage() {
             {visible.map((tool) => {
               const cover = tool.photos.find((photo) => photo.cover) ?? tool.photos[0];
               const used = tool.roleIds.map(roleName).filter(Boolean);
+              const isPicked = picked.includes(tool.id);
               return (
                 <li key={tool.id}>
                   <button
                     type="button"
-                    className="tools-card"
+                    className={["tools-card", isPicked ? "is-picked" : ""].filter(Boolean).join(" ")}
+                    aria-label={choosing ? `Pick ${tool.name}` : `Open ${tool.name}`}
+                    aria-pressed={choosing ? isPicked : undefined}
                     data-tool-id={tool.id}
-                    aria-current={open === tool.id ? "true" : undefined}
-                    onClick={() => openTool(tool.id)}
+                    aria-current={!choosing && open === tool.id ? "true" : undefined}
+                    onClick={() =>
+                      choosing
+                        ? setPicked((ids) => (ids.includes(tool.id) ? ids.filter((id) => id !== tool.id) : [...ids, tool.id]))
+                        : openTool(tool.id)
+                    }
                   >
                     <span className="tools-cover">
-                      {cover ? <img src={cover.url} alt="" loading="lazy" /> : <Wrench size={30} aria-hidden="true" />}
+                      {choosing ? (
+                        <span className="tools-pick" aria-hidden="true">
+                          {isPicked ? <Check size={14} /> : null}
+                        </span>
+                      ) : null}
+                      {cover ? <FramedPhoto photo={cover} /> : <Wrench size={30} aria-hidden="true" />}
                       {tool.photos.length ? (
                         <span className="tools-count">{tool.photos.length === 1 ? "1 photo" : `${tool.photos.length} photos`}</span>
                       ) : null}
@@ -294,6 +445,7 @@ export function ToolsPage() {
           key={current && current.id !== adopted ? current.id : "new"}
           tool={current}
           roles={roles}
+          kits={kits}
           onSaved={(tool) => {
             saved(tool);
             if (open === "new") {

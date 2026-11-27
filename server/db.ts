@@ -799,6 +799,32 @@ export function openDatabase(path: string): DatabaseSync {
   db.exec("CREATE INDEX IF NOT EXISTS role_edits_role ON role_edits (occupant_id, role_id, at)");
   // Confirmed from here, answering their "worked together" request from this
   // Docier: it then counts on both sides.
+  // My Tools kits: named groups of tools. Deleting a kit keeps its tools.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS tool_kits (
+      id TEXT PRIMARY KEY,
+      occupant_id TEXT NOT NULL REFERENCES occupants(id),
+      name TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    )
+  `);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS tool_kit_items (
+      id TEXT PRIMARY KEY,
+      occupant_id TEXT NOT NULL REFERENCES occupants(id),
+      kit_id TEXT NOT NULL,
+      tool_id TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      UNIQUE (occupant_id, kit_id, tool_id)
+    )
+  `);
+  // How a tool photo shows: a quarter turn, flips, zoom, and the point kept in view.
+  addColumnIfMissing(db, "personal_tool_photos", "rotation", "INTEGER NOT NULL DEFAULT 0");
+  addColumnIfMissing(db, "personal_tool_photos", "flip_h", "INTEGER NOT NULL DEFAULT 0");
+  addColumnIfMissing(db, "personal_tool_photos", "flip_v", "INTEGER NOT NULL DEFAULT 0");
+  addColumnIfMissing(db, "personal_tool_photos", "zoom", "REAL NOT NULL DEFAULT 1");
+  addColumnIfMissing(db, "personal_tool_photos", "focus_x", "REAL NOT NULL DEFAULT 50");
+  addColumnIfMissing(db, "personal_tool_photos", "focus_y", "REAL NOT NULL DEFAULT 50");
   addColumnIfMissing(db, "role_contacts", "confirmed_at", "TEXT");
   addColumnIfMissing(db, "role_contacts", "confirmed_note", "TEXT NOT NULL DEFAULT ''");
   addColumnIfMissing(db, "map_settings", "pin_theme", "TEXT NOT NULL DEFAULT 'kind'");

@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createApp } from "../../../server/app";
 import { openDatabase } from "../../../server/db";
+import type { PersonalTool } from "@core/personal-tools";
 
 /**
  * Web tests talk to the real app: `fetch` for `/api/…` goes straight into the
@@ -38,7 +39,7 @@ export function useRealApp() {
       });
       return ((await response.json()) as { role: { id: string } }).role.id;
     },
-    async tools(): Promise<Array<{ id: string; name: string; photos: unknown[]; draft: boolean }>> {
+    async tools(): Promise<PersonalTool[]> {
       return ((await (await app.request("/api/tools")).json()) as { tools: [] }).tools;
     },
     failWhen(rule: ((method: string, path: string) => boolean) | null) {

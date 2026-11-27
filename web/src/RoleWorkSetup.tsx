@@ -3,6 +3,7 @@ import { EQUIPMENT_CATEGORY_LABEL, type EquipmentCategory, type EquipmentItem } 
 import { SCHEDULE_TYPE_LABEL, shiftLabel, workModeText } from "@core/role-work-setup";
 import { AppWindow, Cog, HardHat, Laptop, Package, Shirt, Truck, Wrench, type LucideIcon } from "lucide-react";
 import type { RoleSettingsPanel } from "./RoleSettings";
+import { RoleOwnTools } from "./RoleOwnTools";
 import { GroupFacts, GroupTags, GroupTimeline, RoleGroup, RoleGroups, ShiftDay, ShiftScale, initials, monthYear } from "./RoleGroups";
 
 const GEAR_ICON: Record<EquipmentCategory, LucideIcon> = {
@@ -112,6 +113,8 @@ export function RoleWorkSetup({ role, onEdit }: { role: WorkMapRole; onEdit: (pa
             <GroupTags items={d.equipment} />
           )}
         </RoleGroup>
+
+        <RoleOwnTools roleId={role.id} />
 
         <RoleGroup title="Uniform" panel="uniform" onEdit={onEdit} wide empty={hasUniform ? null : "Add what you wore"} note={d.uniform}>
           {d.uniformItems.length ? (

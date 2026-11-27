@@ -22,6 +22,7 @@ export type HomePage =
   | "historyReserve"
   | "resumes"
   | "documents"
+  | "tools"
   | "network"
   | "opportunities";
 
@@ -179,6 +180,13 @@ export function HomeNav({
           current={customId ? false : page === "documents"}
           slim={slim}
           onSelect={() => go("documents")}
+        />
+        <NavRow
+          icon="tools"
+          label="My Tools"
+          current={customId ? false : page === "tools"}
+          slim={slim}
+          onSelect={() => go("tools")}
         />
         <GalleryResource slim={slim} onExpand={onExpand} onOpenRole={openGalleryRole} />
         </>
@@ -375,6 +383,7 @@ type IconName =
   | "home"
   | "history"
   | "docs"
+  | "tools"
   | "studio"
   | "network"
   | "gallery"
@@ -409,6 +418,7 @@ export function Icon({ name }: { name: IconName }) {
           <path d="M4 7.5V5.5h6l1.2 1.6" />
         </>
       ) : null}
+      {name === "tools" ? <path d="M7 10h3V7L6.5 3.5a6 6 0 0 1 8 8l6 6a2 2 0 0 1-3 3l-6-6a6 6 0 0 1-8-8z" /> : null}
       {name === "studio" ? (
         <>
           <path d="M5 5.5h14v13H5z" />

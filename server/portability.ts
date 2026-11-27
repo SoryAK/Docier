@@ -58,6 +58,9 @@ const directTables = [
   "external_actions",
   "documents",
   "role_documents",
+  "personal_tools",
+  "personal_tool_photos",
+  "personal_tool_roles",
   "integration_connections",
 ] as const;
 
@@ -107,6 +110,9 @@ const restoreOrder = [
   "external_actions",
   "documents",
   "role_documents",
+  "personal_tools",
+  "personal_tool_photos",
+  "personal_tool_roles",
   "integration_connections",
 ] as const;
 
@@ -153,7 +159,7 @@ export function createPortableArchive(
   // A row naming a file outside the uploads folder would make the whole backup
   // unrestorable, so it leaves the export: file rows are dropped, and a profile
   // keeps its other fields without the photo.
-  for (const table of ["resumes", "documents", "work_history_media"]) {
+  for (const table of ["resumes", "documents", "work_history_media", "personal_tool_photos"]) {
     if (tables[table]) {
       tables[table] = tables[table]!.filter(
         (row) => row.stored_name === null || row.stored_name === undefined || isSafeStoredName(row.stored_name),
@@ -176,6 +182,7 @@ export function createPortableArchive(
     }
   }
   for (const row of tables.work_history_media ?? []) addStoredName(row, storedNames);
+  for (const row of tables.personal_tool_photos ?? []) addStoredName(row, storedNames);
   for (const row of tables.contacts ?? []) {
     if (typeof row.photo_stored_name === "string") storedNames.add(row.photo_stored_name);
   }

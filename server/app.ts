@@ -1,6 +1,19 @@
 import { answerReceivedAsk, readReceivedAsk, ReceivedAskError } from "./received-asks";
 import { linkRolePerson, RolePeopleError, unlinkRolePerson, updateRolePersonLink } from "./role-people";
 import { linkRoleDocument, RoleDocumentError, unlinkRoleDocument, uploadRoleDocument } from "./role-documents";
+import {
+  ToolError,
+  addToolPhotos,
+  createTool,
+  listTools,
+  loadToolPhoto,
+  removeTool,
+  removeToolPhoto,
+  setToolCover,
+  toolsFromPhotos,
+  updateTool,
+  type ToolPhotoFile,
+} from "./personal-tools";
 import { Hono, type Context } from "hono";
 import type { DatabaseSync } from "node:sqlite";
 import { isFrameTarget, pageAllowsFrame, PRODUCT, type ApplicationStage } from "../core/index";
@@ -2619,6 +2632,91 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
         return c.json({ error: error.code }, error.code === "not-found" ? 404 : 400);
       }
       throw error;
+    }
+  });
+
+  // My Tools: your own tools, their photos, and drafts made from photos.
+  const toolStatus = (code: ToolError["code"]) => (code === "not-found" ? 404 : 400);
+  const toolFailure = (c: Context, error: unknown) => {
+    if (error instanceof ToolError) return c.json({ error: error.code }, toolStatus(error.code));
+    throw error;
+  };
+  const photoFiles = async (c: Context): Promise<ToolPhotoFile[] | null> => {
+    const form = await c.req.formData().catch(() => null);
+    if (!form) return null;
+    const files = form.getAll("photos").filter((item): item is File => item instanceof File);
+    return Promise.all(files.map(async (file) => ({ name: file.name, type: file.type, bytes: new Uint8Array(await file.arrayBuffer()) })));
+  };
+  app.get("/api/tools", (c) => c.json({ tools: listTools(db, ensureOccupant(db).id) }));
+  app.post("/api/tools", async (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      return c.json({ tool: createTool(db, occupant.id, await c.req.json().catch(() => null)) }, 201);
+    } catch (error) {
+      return toolFailure(c, error);
+    }
+  });
+  app.post("/api/tools/from-photos", async (c) => {
+    const occupant = ensureOccupant(db);
+    const files = await photoFiles(c);
+    if (!files || files.length === 0) return c.json({ error: "photos-required" }, 400);
+    return c.json(toolsFromPhotos(db, occupant.id, uploadsDir, files), 201);
+  });
+  app.put("/api/tools/:id", async (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      return c.json({ tool: updateTool(db, occupant.id, c.req.param("id"), await c.req.json().catch(() => null)) });
+    } catch (error) {
+      return toolFailure(c, error);
+    }
+  });
+  app.delete("/api/tools/:id", (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      removeTool(db, occupant.id, uploadsDir, c.req.param("id"));
+      return c.json({ ok: true });
+    } catch (error) {
+      return toolFailure(c, error);
+    }
+  });
+  app.post("/api/tools/:id/photos", async (c) => {
+    const occupant = ensureOccupant(db);
+    const files = await photoFiles(c);
+    if (!files || files.length === 0) return c.json({ error: "photos-required" }, 400);
+    try {
+      return c.json({ tool: addToolPhotos(db, occupant.id, uploadsDir, c.req.param("id"), files) }, 201);
+    } catch (error) {
+      return toolFailure(c, error);
+    }
+  });
+  app.delete("/api/tools/:id/photos/:photoId", (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      return c.json({ tool: removeToolPhoto(db, occupant.id, uploadsDir, c.req.param("id"), c.req.param("photoId")) });
+    } catch (error) {
+      return toolFailure(c, error);
+    }
+  });
+  app.put("/api/tools/:id/photos/:photoId/cover", (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      return c.json({ tool: setToolCover(db, occupant.id, c.req.param("id"), c.req.param("photoId")) });
+    } catch (error) {
+      return toolFailure(c, error);
+    }
+  });
+  app.get("/api/tools/:id/photos/:photoId", (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      const photo = loadToolPhoto(db, occupant.id, uploadsDir, c.req.param("id"), c.req.param("photoId"));
+      if (!photo) return c.json({ error: "not-found" }, 404);
+      return c.body(Buffer.from(photo.bytes), 200, {
+        "content-type": photo.type,
+        "cache-control": "private, max-age=31536000, immutable",
+        "x-content-type-options": "nosniff",
+      });
+    } catch (error) {
+      return toolFailure(c, error);
     }
   });
 

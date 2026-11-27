@@ -1,0 +1,682 @@
+/* My Tools: a grid of your own tools, and a panel for adding and changing one. */
+/* The grid and the panel scroll on their own, so the heading stays put. */
+.home-story-page:has(> .tools-page) {
+  overflow: auto;
+  container: tools / inline-size;
+}
+
+.tools-page {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  height: 100%;
+  background: #fff;
+  color: #171717;
+}
+
+.tools-page.has-panel {
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 400px);
+}
+
+.tools-main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  max-height: 100%;
+  box-sizing: border-box;
+  padding: 22px 26px 28px;
+  overflow: auto;
+}
+
+.tools-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.tools-head > div {
+  flex: 1 1 260px;
+}
+
+.tools-head h1 {
+  margin: 0;
+  font-size: 1.375rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.tools-head p {
+  margin: 4px 0 0;
+  color: #6b6b70;
+  font-size: 0.8125rem;
+}
+
+.tools-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid #d4d4d8;
+  border-radius: 8px;
+  background: #fff;
+  color: #171717;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.tools-btn:hover {
+  background: #f4f4f5;
+}
+
+.tools-btn.is-primary {
+  border-color: #171717;
+  background: #171717;
+  color: #fff;
+}
+
+.tools-btn.is-primary:hover {
+  background: #2b2b2e;
+}
+
+.tools-btn:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.tools-note {
+  padding: 9px 12px;
+  border: 1px solid #eadfcd;
+  border-radius: 8px;
+  background: #fbf6ee;
+  color: #5f4a35;
+  font-size: 0.8125rem;
+}
+
+.tools-note p {
+  margin: 0;
+}
+
+.tools-note p + p {
+  margin-top: 4px;
+}
+
+.tools-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.tools-search {
+  display: flex;
+  flex: 1 1 220px;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid #e4e4e7;
+  border-radius: 8px;
+  color: #6b6b70;
+}
+
+.tools-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #171717;
+  font: inherit;
+  font-size: 0.8125rem;
+}
+
+.tools-search:focus-within {
+  border-color: #a1a1aa;
+}
+
+.tools-chip {
+  height: 32px;
+  padding: 0 11px;
+  border: 1px solid #e4e4e7;
+  border-radius: 999px;
+  background: #fff;
+  color: #171717;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.tools-chip span {
+  color: #6b6b70;
+  font-weight: 400;
+}
+
+.tools-chip.is-drafts span {
+  color: #8a6d4f;
+}
+
+.tools-chip[aria-pressed="true"] {
+  border-color: #171717;
+  background: #f4f4f5;
+}
+
+.tools-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tools-card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #e4e4e7;
+  border-radius: 10px;
+  background: #fff;
+  color: #171717;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tools-card:hover {
+  border-color: #c8c8cc;
+}
+
+.tools-card[aria-current="true"] {
+  border-color: #cd9f5b;
+  box-shadow: 0 0 0 2px #f6ead3;
+}
+
+.tools-cover {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 124px;
+  background: #efebe5;
+  color: #8a8a90;
+}
+
+.tools-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tools-count,
+.tools-draft {
+  position: absolute;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.tools-count {
+  bottom: 8px;
+  left: 8px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #3f3f46;
+}
+
+.tools-draft {
+  top: 8px;
+  right: 8px;
+  background: #f6ead3;
+  color: #6e5232;
+}
+
+.tools-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px 12px;
+}
+
+.tools-card-body strong {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.tools-muted {
+  color: #6b6b70;
+  font-size: 0.78rem;
+}
+
+.tools-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0 4px;
+}
+
+.tools-tags span {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #f1f1f2;
+  color: #3f3f46;
+  font-size: 0.72rem;
+}
+
+.tools-empty {
+  margin: 8px 0 0;
+  color: #6b6b70;
+  font-size: 0.8125rem;
+}
+
+.tools-start {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 48px 16px;
+  border: 1px dashed #d4d4d8;
+  border-radius: 10px;
+  color: #6b6b70;
+  text-align: center;
+}
+
+.tools-start p {
+  margin: 0;
+  color: #171717;
+  font-size: 0.875rem;
+}
+
+.tools-start .tools-hint {
+  color: #6b6b70;
+  font-size: 0.78rem;
+}
+
+.tools-drop {
+  position: absolute;
+  inset: 8px;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  border: 2px dashed #cd9f5b;
+  border-radius: 10px;
+  background: rgba(251, 246, 238, 0.9);
+  color: #5f4a35;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+/* ---- The panel ---- */
+.tool-panel {
+  min-width: 0;
+  max-height: 100%;
+  overflow: auto;
+  box-sizing: border-box;
+  border-left: 1px solid #e4e4e7;
+  background: #fff;
+}
+
+.tool-panel form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 20px 20px;
+}
+
+.tool-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tool-panel-head h2 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 1.05rem;
+  font-weight: 650;
+}
+
+.tool-icon-btn {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #6b6b70;
+  cursor: pointer;
+}
+
+.tool-icon-btn:hover {
+  background: #f1f1f2;
+  color: #171717;
+}
+
+.tool-draft-note {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid #eadfcd;
+  border-radius: 8px;
+  background: #fbf6ee;
+  color: #6e5232;
+  font-size: 0.78rem;
+}
+
+.tool-label {
+  margin: 0 0 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.tool-photo-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tool-photo {
+  position: relative;
+  width: 76px;
+  height: 76px;
+  overflow: hidden;
+  border: 1px solid #e4e4e7;
+  border-radius: 8px;
+  background: #efebe5;
+}
+
+.tool-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tool-cover {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #171717;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+
+.tool-photo-btn {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #3f3f46;
+  cursor: pointer;
+}
+
+.tool-photo-btn.is-cover {
+  right: auto;
+  left: 3px;
+}
+
+.tool-photo-add {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 76px;
+  height: 76px;
+  border: 1px dashed #c8c8cc;
+  border-radius: 8px;
+  background: #fafafa;
+  color: #6b6b70;
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.tool-photo-add:hover {
+  border-color: #a1a1aa;
+  color: #171717;
+}
+
+.tool-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.tool-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.tool-field input,
+.tool-field select,
+.tool-field textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid #d4d4d8;
+  border-radius: 7px;
+  background: #fff;
+  color: #171717;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 400;
+}
+
+.tool-field textarea {
+  height: auto;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.tool-field-error {
+  margin: 0;
+  color: #b42318;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.tool-role-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.tool-role {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 4px 3px 10px;
+  border: 1px solid #eadfcd;
+  border-radius: 999px;
+  background: #fbf6ee;
+  font-size: 0.78rem;
+}
+
+.tool-role button {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #6e5232;
+  cursor: pointer;
+}
+
+.tool-role-add {
+  height: 28px;
+  padding: 0 8px;
+  border: 1px dashed #c8c8cc;
+  border-radius: 999px;
+  background: #fff;
+  color: #3f3f46;
+  font: inherit;
+  font-size: 0.78rem;
+}
+
+.tool-panel-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid #ececee;
+}
+
+.tool-spacer {
+  flex: 1;
+}
+
+.tool-danger {
+  height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #b42318;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.tool-danger:hover {
+  background: #fdecea;
+}
+
+.tool-confirm {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8125rem;
+}
+
+.tool-confirm .tool-danger {
+  background: #b42318;
+  color: #fff;
+}
+
+.tools-page :is(button, input, select, textarea):focus-visible {
+  outline: 2px solid #cd9f5b;
+  outline-offset: 1px;
+}
+
+/* A narrow page (a phone, or a small window beside the menus): the panel goes
+   under the grid and the whole page scrolls, so Save is always reachable. */
+@container tools (max-width: 760px) {
+  .tools-page,
+  .tools-page.has-panel {
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+  }
+
+  .tools-main,
+  .tool-panel {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .tools-main {
+    padding: 16px;
+  }
+
+  .tool-panel {
+    border-top: 1px solid #e4e4e7;
+    border-left: 0;
+  }
+}
+
+.tool-panel-head h2:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ---- On a role's Setup: your own tools used there ---- */
+.role-own-tools-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.role-own-tools-list a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px;
+  border-radius: 8px;
+  color: #171717;
+  text-decoration: none;
+}
+
+.role-own-tools-list a:hover {
+  background: #f4f4f5;
+}
+
+.role-own-tools-list strong {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.role-own-tools-list small {
+  color: #6b6b70;
+  font-size: 0.75rem;
+}
+
+.role-own-tools-thumb {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  overflow: hidden;
+  border-radius: 7px;
+  background: #efebe5;
+  color: #8a8a90;
+}
+
+.role-own-tools-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.role-own-tools-more {
+  display: inline-block;
+  margin: 4px 6px 0;
+  color: #6b6b70;
+  font-size: 0.78rem;
+  text-decoration: none;
+}
+
+.role-own-tools .role-edit {
+  text-decoration: none;
+}

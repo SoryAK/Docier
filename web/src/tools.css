@@ -14,9 +14,6 @@
   color: #171717;
 }
 
-.tools-page.has-panel {
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 400px);
-}
 
 .tools-main {
   display: flex;
@@ -317,37 +314,9 @@
   pointer-events: none;
 }
 
-/* ---- The panel ---- */
-.tool-panel {
-  min-width: 0;
-  max-height: 100%;
-  overflow: auto;
-  box-sizing: border-box;
-  border-left: 1px solid #e4e4e7;
-  background: #fff;
-}
 
-.tool-panel form {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 18px 20px 20px;
-}
 
-.tool-panel-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
 
-.tool-panel-head h2 {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-  overflow-wrap: anywhere;
-  font-size: 1.05rem;
-  font-weight: 650;
-}
 
 .tool-icon-btn {
   display: grid;
@@ -382,27 +351,8 @@
   font-weight: 600;
 }
 
-.tool-photo-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
 
-.tool-photo {
-  position: relative;
-  width: 76px;
-  height: 76px;
-  overflow: hidden;
-  border: 1px solid #e4e4e7;
-  border-radius: 8px;
-  background: #efebe5;
-}
 
-.tool-photo img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
 
 .tool-cover {
   position: absolute;
@@ -416,25 +366,7 @@
   font-weight: 600;
 }
 
-.tool-photo-btn {
-  position: absolute;
-  top: 3px;
-  right: 3px;
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  border: 0;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.92);
-  color: #3f3f46;
-  cursor: pointer;
-}
 
-.tool-photo-btn.is-cover {
-  right: auto;
-  left: 3px;
-}
 
 .tool-photo-add {
   display: flex;
@@ -592,17 +524,14 @@
   outline-offset: 1px;
 }
 
-/* A narrow page (a phone, or a small window beside the menus): the panel goes
-   under the grid and the whole page scrolls, so Save is always reachable. */
+/* A narrow page (a phone, or a small window beside the menus): the page scrolls as a whole. */
 @container tools (max-width: 760px) {
-  .tools-page,
-  .tools-page.has-panel {
+  .tools-page {
     grid-template-columns: minmax(0, 1fr);
     height: auto;
   }
 
-  .tools-main,
-  .tool-panel {
+  .tools-main {
     max-height: none;
     overflow: visible;
   }
@@ -611,15 +540,8 @@
     padding: 16px;
   }
 
-  .tool-panel {
-    border-top: 1px solid #e4e4e7;
-    border-left: 0;
-  }
 }
 
-.tool-panel-head h2:focus:not(:focus-visible) {
-  outline: none;
-}
 
 /* ---- On a role's Setup: your own tools used there ---- */
 .role-own-tools-list {
@@ -773,15 +695,11 @@
   overflow: hidden;
 }
 
-.tool-photo-btn.is-adjust {
-  top: auto;
-  bottom: 3px;
-}
 
 .tool-frame-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 80;
+  z-index: 1300;
   display: grid;
   place-items: center;
   padding: 16px;
@@ -905,14 +823,12 @@
 
 /* Frames a photo can be turned in: the photo sizes itself by its frame. */
 .tools-cover,
-.tool-photo,
 .role-own-tools-thumb,
 .tool-frame-view {
   container-type: size;
 }
 
 .tools-cover img.is-turned,
-.tool-photo img.is-turned,
 .role-own-tools-thumb img.is-turned,
 .tool-frame-view img.is-turned {
   position: absolute;
@@ -1017,4 +933,300 @@
 .tools-card.is-picked .tools-pick {
   border-color: #b07f3a;
   background: #b07f3a;
+}
+
+/* Search matches, marked on the cards. */
+.tools-card mark {
+  border-radius: 3px;
+  background: #f6dfb5;
+  color: inherit;
+}
+
+.tools-tags span.is-own {
+  background: #f6f1e8;
+  color: #6e5232;
+}
+
+/* The `/` hint at the end of the search box. */
+.tools-search-key {
+  flex: none;
+  min-width: 18px;
+  padding: 0 5px;
+  border: 1px solid #d4d4d8;
+  border-radius: 4px;
+  color: #8a8a90;
+  font: inherit;
+  font-size: 0.7rem;
+  line-height: 16px;
+  text-align: center;
+}
+
+.tools-search:focus-within .tools-search-key {
+  display: none;
+}
+
+/*
+ * Quick change on a card: whose it is and its condition. The menus sit outside
+ * the card's open button (a control can't live inside a button) and are laid
+ * over the card's foot, which leaves room for them.
+ */
+.tools-grid > li {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.tools-grid > li:has(.tools-card-quick) .tools-card {
+  padding-bottom: 40px;
+}
+
+.tools-card-quick {
+  position: absolute;
+  right: 12px;
+  bottom: 10px;
+  left: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.tools-card-quick select {
+  height: 24px;
+  padding: 0 6px;
+  border: 1px solid #e4e4e7;
+  border-radius: 999px;
+  background: #fff;
+  color: #3f3f46;
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.tools-card-quick select:hover {
+  border-color: #c8c8cc;
+}
+
+.tools-card-quick .tool-field-error {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.72rem;
+}
+
+/* ---- The tool popout: photos large on one side, details on the other ---- */
+dialog.tool-gallery::backdrop {
+  background: rgba(12, 12, 12, 0.62);
+}
+
+.tool-gallery-sides {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: stretch;
+}
+
+.tool-gallery-sides.is-large {
+  grid-template-columns: minmax(0, 3fr) minmax(18rem, 2fr);
+}
+
+/* Side by side, the details scroll inside their half: the row is as tall as the photo side. */
+.tool-gallery-info-cell {
+  position: relative;
+  min-width: 0;
+}
+
+.tool-gallery-info-cell > .tool-gallery-info {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* A narrow window: the sides stack and the whole card scrolls. */
+@media (max-width: 40rem) {
+  .tool-gallery-sides,
+  .tool-gallery-sides.is-large {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tool-gallery-info-cell > .tool-gallery-info {
+    position: static;
+    overflow: visible;
+  }
+}
+
+/* The photo side: set apart from the details by a muted ground, edge to edge. */
+.tool-gallery-photos {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+  background: var(--color-background-muted, #f4f4f5);
+}
+
+.tool-gallery-hero {
+  position: relative;
+}
+
+.tool-gallery-hero img,
+.tool-gallery-empty {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
+  background: #e8e6e1;
+  color: #8a8a90;
+  object-fit: contain;
+}
+
+.tool-gallery-hero-tools {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 6px;
+}
+
+.tool-gallery-hero-move {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  display: flex;
+  gap: 6px;
+}
+
+.tool-gallery-hero .tool-cover {
+  bottom: 10px;
+  left: 10px;
+}
+
+/* The other photos scroll out from under the divider; Add photos stays put at the right. */
+.tool-gallery-strip-row {
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.tool-gallery-strip {
+  flex: 1;
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+
+.tool-gallery-thumb {
+  flex: none;
+  width: 4.5rem;
+  height: 4.5rem;
+  scroll-snap-align: start;
+}
+
+.tool-gallery-thumb[draggable="true"] {
+  cursor: grab;
+}
+
+.tool-gallery-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tool-gallery-divider {
+  flex: none;
+  width: 1px;
+  background: #d4d4d8;
+}
+
+.tool-gallery-strip-row .tool-photo-add {
+  flex: none;
+  width: 4.5rem;
+  height: 4.5rem;
+}
+
+.tool-gallery-info {
+  min-width: 0;
+  padding: 12px 16px 16px;
+}
+
+.tool-gallery-title {
+  overflow-wrap: anywhere;
+}
+
+.tool-gallery-title:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.tool-gallery-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.tool-gallery-form-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid #ececee;
+}
+
+.tool-gallery-pages {
+  padding: 8px;
+}
+
+/* More details: the fields most people skip, a click away. */
+.tool-more {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: #3f3f46;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tool-more:hover {
+  color: #171717;
+}
+
+.tool-more-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Closing with unsaved edits: Save, Discard, or Keep editing. */
+.tool-leave {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid #e8d8bd;
+  border-radius: 10px;
+  background: #fbf6ee;
+  font-size: 0.8125rem;
+}
+
+.tool-leave p {
+  margin: 0;
+}
+
+.tool-leave-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }

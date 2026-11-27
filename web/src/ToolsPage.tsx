@@ -2,18 +2,24 @@ import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { Check, Download, ImagePlus, ListChecks, Plus, Search, Wrench } from "lucide-react";
 import { EQUIPMENT_CATEGORIES, EQUIPMENT_CATEGORY_LABEL, type EquipmentCategory } from "@core/role-gear";
 import {
+  TOOL_CONDITIONS,
+  TOOL_CONDITION_LABEL,
+  TOOL_OWNERSHIPS,
   TOOL_OWNERSHIP_LABEL,
+  TOOL_PHOTO_DRAG_TYPE,
   filterTools,
+  matchParts,
   toolPhotoProblem,
   toolTotals,
   toolsCsv,
+  type BulkChange,
   type PersonalTool,
   type ToolKit,
 } from "@core/personal-tools";
 import { ToolBulkBar, type BulkResult } from "./ToolBulkBar";
 import { ToolKits } from "./ToolKits";
 import { FramedPhoto } from "./ToolPhotoFrame";
-import { ToolPanel, type ToolRoleChoice } from "./ToolPanel";
+import { ToolGallery, type ToolRoleChoice } from "./ToolGallery";
 import "./tools.css";
 
 /** The tool open in the panel lives in the address, `#/tools/<id>` (or `#/tools/new`). */
@@ -25,6 +31,12 @@ function readOpenTool(): string | null {
   } catch {
     return null;
   }
+}
+
+/** Shows another tool in the open popout without a new history step, so Back returns to the grid. */
+function showTool(id: string) {
+  const hash = `#/tools/${encodeURIComponent(id)}`;
+  if (window.location.hash !== hash) window.location.replace(hash);
 }
 
 function openTool(id: string | null) {
@@ -60,6 +72,27 @@ function totalsLine(tools: PersonalTool[]): string {
     .join(" · ");
 }
 
+/** Text with the parts that match the search marked. */
+function Highlight({ text, query }: { text: string; query: string }) {
+  return (
+    <>
+      {matchParts(text, query).map((part, index) => (part.match ? <mark key={index}>{part.text}</mark> : part.text))}
+    </>
+  );
+}
+
+/**
+ * Page shortcuts stay out of the way while typing, inside an open tool's panel
+ * or the picked-tools bar (where a stray key could lose edits or picks), and
+ * while any dialog is open.
+ */
+function shortcutBlocked(event: KeyboardEvent): boolean {
+  if (event.ctrlKey || event.metaKey || event.altKey || event.defaultPrevented) return true;
+  const target = event.target as HTMLElement | null;
+  if (target?.isContentEditable || target?.closest?.("input, textarea, select, .tool-gallery, .tools-bulk")) return true;
+  return Boolean(document.querySelector("[role='dialog'], dialog[open]"));
+}
+
 /**
  * My Tools: your own tools and equipment, as a grid of cards with a panel for
  * adding and changing one. Add from photos turns each photo into a draft.
@@ -81,6 +114,12 @@ export function ToolsPage() {
   const [choosing, setChoosing] = useState(false);
   const [picked, setPicked] = useState<string[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  // With no kits yet, "+ New kit" sits with the page's buttons and asks the kits row to open its name field.
+  const [newKitRequest, setNewKitRequest] = useState(0);
+  const newKitRef = useRef<HTMLButtonElement>(null);
+  // The card whose quick change didn't save.
+  const [quickFailed, setQuickFailed] = useState<string | null>(null);
   // A tool added in the panel keeps that panel (and what it says) once saved.
   const [adopted, setAdopted] = useState<string | null>(null);
   // The card a tool was opened from gets focus back when its panel closes.
@@ -149,6 +188,46 @@ export function ToolsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  function addTool() {
+    // A fresh panel: the tool added last time is no longer "the new one".
+    setAdopted(null);
+    openTool("new");
+  }
+
+  // `/` goes to search; `n` adds a tool, but not while choosing, where opening a tool would drop the picks.
+  const choosingRef = useRef(choosing);
+  choosingRef.current = choosing;
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (shortcutBlocked(event)) return;
+      if (event.key === "/" && searchRef.current) {
+        event.preventDefault();
+        searchRef.current.focus();
+      } else if ((event.key === "n" || event.key === "N") && !choosingRef.current) {
+        event.preventDefault();
+        addTool();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+
+  /** Changes one field of one tool from its card. Only that field changes, so a draft stays a draft. */
+  async function quickChange(tool: PersonalTool, change: BulkChange) {
+    setQuickFailed(null);
+    try {
+      const response = await fetch("/api/tools/bulk", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ids: [tool.id], change }),
+      });
+      if (!response.ok) throw new Error("quick");
+      bulkDone((await response.json()) as BulkResult);
+    } catch {
+      setQuickFailed(tool.id);
+    }
+  }
+
   function bulkDone(result: BulkResult) {
     const changed = new Map(result.tools.map((tool) => [tool.id, tool]));
     const gone = new Set(result.deleted);
@@ -167,6 +246,17 @@ export function ToolsPage() {
   const categories = EQUIPMENT_CATEGORIES.filter((key) => all.some((tool) => tool.category === key));
   const current = open && open !== "new" ? all.find((tool) => tool.id === open) ?? null : null;
   const panelOpen = open === "new" || Boolean(current);
+  // The draft after the open one in the grid's order (wrapping), while others wait.
+  const nextDraft = useMemo(() => {
+    if (!current?.draft) return null;
+    const waiting = visible.filter((tool) => tool.draft);
+    const others = all.filter((tool) => tool.draft && tool.id !== current.id);
+    if (others.length === 0) return null;
+    const at = waiting.findIndex((tool) => tool.id === current.id);
+    const after = [...waiting.slice(at + 1), ...waiting.slice(0, Math.max(at, 0))].filter((tool) => tool.id !== current.id);
+    const next = after[0] ?? others[0]!;
+    return { id: next.id, left: others.length };
+  }, [current, visible, all]);
 
   function saved(tool: PersonalTool) {
     setTools((list) => {
@@ -235,15 +325,19 @@ export function ToolsPage() {
   function onDrop(event: DragEvent) {
     event.preventDefault();
     setDragging(false);
+    // A photo moved within a tool isn't a new photo.
+    if (event.dataTransfer?.types.includes(TOOL_PHOTO_DRAG_TYPE)) return;
     void addFromPhotos(event.dataTransfer.files);
   }
 
   return (
     <section
-      className={["tools-page", panelOpen ? "has-panel" : "", dragging ? "is-dragging" : ""].filter(Boolean).join(" ")}
+      className={["tools-page", dragging ? "is-dragging" : ""].filter(Boolean).join(" ")}
       aria-label="My Tools"
       onDragOver={(event) => {
-        if (!event.dataTransfer.types.includes("Files")) return;
+        const types = event.dataTransfer?.types ?? [];
+        // Some browsers list an image dragged within the page as files too.
+        if (!types.includes("Files") || types.includes(TOOL_PHOTO_DRAG_TYPE)) return;
         event.preventDefault();
         setDragging(true);
       }}
@@ -284,6 +378,11 @@ export function ToolsPage() {
               Select
             </button>
           ) : null}
+          {all.length > 0 && kits.length === 0 ? (
+            <button ref={newKitRef} type="button" className="tools-btn" onClick={() => setNewKitRequest((count) => count + 1)}>
+              + New kit
+            </button>
+          ) : null}
           {all.length > 0 ? (
             <button type="button" className="tools-btn" disabled={visible.length === 0} onClick={exportCsv}>
               <Download size={16} aria-hidden="true" />
@@ -297,11 +396,8 @@ export function ToolsPage() {
           <button
             type="button"
             className="tools-btn is-primary"
-            onClick={() => {
-              // A fresh panel: the tool added last time is no longer "the new one".
-              setAdopted(null);
-              openTool("new");
-            }}
+            title="Add a tool (N)"
+            onClick={addTool}
           >
             <Plus size={16} aria-hidden="true" />
             Add a tool
@@ -330,6 +426,8 @@ export function ToolsPage() {
             tools={all}
             selected={kit}
             onSelect={setKit}
+            newKitRequest={newKitRequest}
+            onNamingClosed={() => newKitRef.current?.focus()}
             onKits={(next, deleted) => {
               setKits(next);
               if (deleted) {
@@ -344,7 +442,16 @@ export function ToolsPage() {
             <label className="tools-search">
               <Search size={15} aria-hidden="true" />
               <span className="sr-only">Search tools</span>
-              <input type="search" placeholder="Name, maker, model, or tag" value={query} onChange={(event) => setQuery(event.target.value)} />
+              <input
+                ref={searchRef}
+                type="search"
+                placeholder="Name, maker, model, or tag"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+              <kbd className="tools-search-key" title="Press / to search" aria-hidden="true">
+                /
+              </kbd>
             </label>
             {(["all", ...categories] as const).map((key) => (
               <button
@@ -418,21 +525,65 @@ export function ToolsPage() {
                         </span>
                       ) : null}
                       {cover ? <FramedPhoto photo={cover} /> : <Wrench size={30} aria-hidden="true" />}
-                      {tool.photos.length ? (
-                        <span className="tools-count">{tool.photos.length === 1 ? "1 photo" : `${tool.photos.length} photos`}</span>
-                      ) : null}
+                      {/* One photo is what the cover shows; a count says there are more. */}
+                      {tool.photos.length > 1 ? <span className="tools-count">{tool.photos.length} photos</span> : null}
                       {tool.draft ? <span className="tools-draft">Needs details</span> : null}
                     </span>
                     <span className="tools-card-body">
-                      <strong>{tool.name}</strong>
-                      <span className="tools-muted">{[tool.maker, tool.model].filter(Boolean).join(" · ") || "No maker or model yet"}</span>
-                      <span className="tools-tags">
-                        <span>{TOOL_OWNERSHIP_LABEL[tool.ownership]}</span>
-                        <span>{EQUIPMENT_CATEGORY_LABEL[tool.category]}</span>
-                      </span>
-                      <span className="tools-muted">{used.length ? `Used at ${used.join(", ")}` : "Not linked to a role"}</span>
+                      <strong>
+                        <Highlight text={tool.name} query={query} />
+                      </strong>
+                      {tool.maker || tool.model ? (
+                        <span className="tools-muted">
+                          <Highlight text={[tool.maker, tool.model].filter(Boolean).join(" · ")} query={query} />
+                        </span>
+                      ) : null}
+                      {/* Most tools are tools: the category shows only when it says something. */}
+                      {tool.category !== "tool" || tool.tags.length ? (
+                        <span className="tools-tags">
+                          {tool.category !== "tool" ? <span>{EQUIPMENT_CATEGORY_LABEL[tool.category]}</span> : null}
+                          {tool.tags.map((tag) => (
+                            <span key={tag} className="is-own">
+                              <Highlight text={tag} query={query} />
+                            </span>
+                          ))}
+                        </span>
+                      ) : null}
+                      {used.length ? <span className="tools-muted">Used at {used.join(", ")}</span> : null}
                     </span>
                   </button>
+                  {/* The open tool is changed in its panel, whose save would undo a change made here. */}
+                  {choosing || open === tool.id ? null : (
+                    <div className="tools-card-quick">
+                      <select
+                        aria-label={`Whose ${tool.name} is`}
+                        value={tool.ownership}
+                        onChange={(event) => void quickChange(tool, { kind: "ownership", ownership: event.target.value as never })}
+                      >
+                        {TOOL_OWNERSHIPS.map((key) => (
+                          <option key={key} value={key}>
+                            {TOOL_OWNERSHIP_LABEL[key]}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        aria-label={`Condition of ${tool.name}`}
+                        value={tool.condition}
+                        onChange={(event) => void quickChange(tool, { kind: "condition", condition: event.target.value as never })}
+                      >
+                        {TOOL_CONDITIONS.map((key) => (
+                          <option key={key || "none"} value={key}>
+                            {key ? TOOL_CONDITION_LABEL[key] : tool.condition ? "Not set" : "Condition?"}
+                          </option>
+                        ))}
+                      </select>
+                      {quickFailed === tool.id ? (
+                        <span className="tool-field-error" role="alert">
+                          Couldn't save. Try again.
+                        </span>
+                      ) : null}
+                    </div>
+                  )}
                 </li>
               );
             })}
@@ -441,16 +592,20 @@ export function ToolsPage() {
       </div>
 
       {panelOpen ? (
-        <ToolPanel
-          key={current && current.id !== adopted ? current.id : "new"}
+        <ToolGallery
+          // One popout for all existing tools, so paging changes the tool in it rather than
+          // rebuilding it; a new tool (and the one it becomes once added) has its own.
+          key={open === "new" || (current && current.id === adopted) ? "new" : "tool"}
           tool={current}
           roles={roles}
           kits={kits}
+          pageIds={visible.map((tool) => tool.id)}
           onSaved={(tool) => {
             saved(tool);
-            if (open === "new") {
+            // Read the address now: if the new tool's popout was closed while it saved, it stays closed.
+            if (readOpenTool() === "new") {
               setAdopted(tool.id);
-              openTool(tool.id);
+              showTool(tool.id);
             }
           }}
           onRemoved={(id) => {
@@ -458,6 +613,8 @@ export function ToolsPage() {
             openTool(null);
           }}
           onClose={() => openTool(null)}
+          onOpen={showTool}
+          nextDraft={nextDraft}
         />
       ) : null}
       {dragging ? <div className="tools-drop" aria-hidden="true">Drop photos to add them as drafts</div> : null}

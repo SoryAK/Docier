@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import { createPortal } from "react-dom";
 import { FlipHorizontal2, FlipVertical2, RotateCcw, RotateCw } from "lucide-react";
 import { DEFAULT_FRAMING, framingStyle, type PersonalTool, type PhotoFraming, type ToolPhoto } from "@core/personal-tools";
 
@@ -17,6 +18,7 @@ export function FramedPhoto({ photo, alt = "" }: { photo: Pick<ToolPhoto, "url" 
       src={photo.url}
       alt={alt}
       loading="lazy"
+      draggable={false}
       style={{ objectPosition: style.objectPosition, transformOrigin: style.transformOrigin, transform: style.transform }}
     />
   );
@@ -31,11 +33,14 @@ export function ToolPhotoFrame({
   photo,
   onSaved,
   onClose,
+  inPlace = false,
 }: {
   toolId: string;
   photo: ToolPhoto;
   onSaved: (tool: PersonalTool) => void;
   onClose: () => void;
+  /** Shown where it's rendered, inside the tool popout: a modal popout makes everything outside it unreachable. */
+  inPlace?: boolean;
 }) {
   const [framing, setFraming] = useState<PhotoFraming>(photo.framing ?? DEFAULT_FRAMING);
   const [busy, setBusy] = useState(false);
@@ -111,7 +116,8 @@ export function ToolPhotoFrame({
     }
   }
 
-  return (
+  // Otherwise rendered at the page's top level: the page's columns are layout containers, which would hold a fixed overlay inside them.
+  const frame = (
     <div className="tool-frame-backdrop">
       <div
         ref={dialogRef}
@@ -220,4 +226,5 @@ export function ToolPhotoFrame({
       </div>
     </div>
   );
+  return inPlace ? frame : createPortal(frame, document.body);
 }

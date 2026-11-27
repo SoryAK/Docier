@@ -4,10 +4,13 @@ import {
   BULK_TOOLS_MAX,
   DEFAULT_FRAMING,
   draftToolName,
+  duplicateToolName,
   filterTools,
+  matchParts,
   framingStyle,
   readKitName,
   readBulkRequest,
+  readPhotoOrder,
   readPhotoFraming,
   type BulkFields,
   readToolInput,
@@ -343,5 +346,52 @@ describe("bulk changes", () => {
       ids: ["a"],
       change: { kind: "removeTags", tags: ["Shop"] },
     });
+  });
+});
+
+describe("search highlight", () => {
+  it("splits text into matching and other parts, ignoring case", () => {
+    expect(matchParts("Fluke 87V", "flu")).toEqual([
+      { text: "Flu", match: true },
+      { text: "ke 87V", match: false },
+    ]);
+  });
+
+  it("marks each match once, left to right", () => {
+    expect(matchParts("aaaa", "aa")).toEqual([
+      { text: "aa", match: true },
+      { text: "aa", match: true },
+    ]);
+  });
+
+  it("treats the query as plain text", () => {
+    expect(matchParts('1/2" (13mm) bit', "(13MM)")).toEqual([
+      { text: '1/2" ', match: false },
+      { text: "(13mm)", match: true },
+      { text: " bit", match: false },
+    ]);
+  });
+
+  it("leaves text alone for an empty or missing query", () => {
+    expect(matchParts("Drill", "  ")).toEqual([{ text: "Drill", match: false }]);
+    expect(matchParts("Drill", "saw")).toEqual([{ text: "Drill", match: false }]);
+    expect(matchParts("", "saw")).toEqual([]);
+  });
+});
+
+describe("duplicates and photo order", () => {
+  it("names a copy", () => {
+    expect(duplicateToolName("Drill")).toBe("Drill (copy)");
+    const long = duplicateToolName("x".repeat(120));
+    expect(long).toHaveLength(120);
+    expect(long.endsWith(" (copy)")).toBe(true);
+  });
+
+  it("reads a photo order with every photo once", () => {
+    expect(readPhotoOrder({ photoIds: ["b", "a"] }, ["a", "b"])).toEqual({ ok: true, ids: ["b", "a"] });
+    for (const photoIds of [["a"], ["a", "b", "c"], ["a", "a"], ["a", "x"], "a,b", null]) {
+      expect(readPhotoOrder({ photoIds }, ["a", "b"])).toEqual({ ok: false, error: "photo-order" });
+    }
+    expect(readPhotoOrder(null, ["a"])).toEqual({ ok: false, error: "photo-order" });
   });
 });

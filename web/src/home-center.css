@@ -958,6 +958,41 @@
     border: 1px solid #e4e4e7;
     border-radius: 8px;
   }
+
+  /*
+   * A page in the center (My Tools, My Docs, My Network) with the assistant
+   * panel beside it: the same two cards as on Home. The page keeps the inset
+   * the center card gave it.
+   */
+  .home-sheet:not(.is-right-open) .home-center:has(> .home-stage .home-story-layout > .home-story-page + .home-story-recent) {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
+
+  .home-sheet:not(.is-right-open)
+    .home-center:has(> .home-stage .home-story-layout > .home-story-page + .home-story-recent)
+    > .home-stage {
+    padding: 0;
+    background: transparent;
+  }
+
+  .home-sheet:not(.is-right-open) .home-story-layout:has(> .home-story-page + .home-story-recent) {
+    gap: 0.4rem;
+    margin-top: 0;
+  }
+
+  .home-sheet:not(.is-right-open) .home-story-layout:has(> .home-story-recent) > .home-story-page {
+    padding: 1.2rem 0.85rem 1rem 1.05rem;
+    border: 1px solid #e4e4e7;
+    border-radius: 8px;
+  }
+
+  .home-sheet:not(.is-right-open) .home-story-layout > .home-story-page + .home-story-recent {
+    margin: 0;
+    border: 1px solid #e4e4e7;
+    border-radius: 8px;
+  }
 }
 
 /*

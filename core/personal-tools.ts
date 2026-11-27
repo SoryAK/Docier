@@ -241,6 +241,9 @@ export function readToolInput(
 
 export const BULK_TOOLS_MAX = 500;
 
+/** The drag type of a photo being moved within a tool, so a drop zone for new photos can tell it apart. */
+export const TOOL_PHOTO_DRAG_TYPE = "application/x-tool-photo";
+
 /** One change applied to every picked tool. Only fields one value can fit for many tools. */
 export type BulkChange =
   | { kind: "category"; category: EquipmentCategory }
@@ -358,6 +361,38 @@ export function filterTools(tools: PersonalTool[], filter: ToolFilter): Personal
       (filter.category === "all" || tool.category === filter.category) &&
       (!needle || toolSearchText(tool).toLowerCase().includes(needle)),
   );
+}
+
+/** A duplicate's name: "<name> (copy)", cut so it stays within the name limit. */
+export function duplicateToolName(name: string): string {
+  const suffix = " (copy)";
+  return `${name.slice(0, TEXT_MAX - suffix.length).trimEnd()}${suffix}`;
+}
+
+/** Reads `{ photoIds }`: every one of the tool's photos, each exactly once. */
+export function readPhotoOrder(raw: unknown, current: string[]): { ok: true; ids: string[] } | { ok: false; error: "photo-order" } {
+  const ids = raw && typeof raw === "object" ? (raw as { photoIds?: unknown }).photoIds : undefined;
+  const bad = { ok: false, error: "photo-order" } as const;
+  if (!Array.isArray(ids) || ids.length !== current.length || new Set(ids).size !== ids.length) return bad;
+  const known = new Set(current);
+  return ids.every((id) => typeof id === "string" && known.has(id)) ? { ok: true, ids: ids as string[] } : bad;
+}
+
+/** Splits text into the parts that match a search and the rest, ignoring case. The query is plain text. */
+export function matchParts(text: string, query: string): Array<{ text: string; match: boolean }> {
+  if (!text) return [];
+  const needle = query.trim().toLowerCase();
+  if (!needle) return [{ text, match: false }];
+  const lower = text.toLowerCase();
+  const parts: Array<{ text: string; match: boolean }> = [];
+  let from = 0;
+  for (let at = lower.indexOf(needle); at !== -1; at = lower.indexOf(needle, from)) {
+    if (at > from) parts.push({ text: text.slice(from, at), match: false });
+    parts.push({ text: text.slice(at, at + needle.length), match: true });
+    from = at + needle.length;
+  }
+  if (from < text.length) parts.push({ text: text.slice(from), match: false });
+  return parts;
 }
 
 /** The tools used on a role, by name. */

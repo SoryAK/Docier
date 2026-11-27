@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import type { PersonalTool, ToolKit } from "@core/personal-tools";
 
 const KIT_ERROR: Record<string, string> = {
@@ -16,6 +16,8 @@ export function ToolKits({
   selected,
   onSelect,
   onKits,
+  newKitRequest = 0,
+  onNamingClosed,
 }: {
   kits: ToolKit[];
   tools: PersonalTool[];
@@ -23,6 +25,10 @@ export function ToolKits({
   onSelect: (kitId: string | null) => void;
   /** The kits after one was added, renamed, or deleted. */
   onKits: (kits: ToolKit[], deleted?: string) => void;
+  /** Goes up each time the page's own "+ New kit" (shown while there are no kits) is pressed. */
+  newKitRequest?: number;
+  /** Naming ended without a new kit, while there are none: the page takes focus back. */
+  onNamingClosed?: () => void;
 }) {
   // "new" while naming a new kit, a kit's id while renaming it.
   const [naming, setNaming] = useState<string | null>(null);
@@ -31,6 +37,16 @@ export function ToolKits({
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const picked = kits.find((kit) => kit.id === selected) ?? null;
+
+  useEffect(() => {
+    if (newKitRequest > 0) startNaming(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newKitRequest]);
+
+  function stopNaming() {
+    setNaming(null);
+    if (kits.length === 0) onNamingClosed?.();
+  }
 
   function startNaming(kit: ToolKit | null) {
     setNaming(kit ? kit.id : "new");
@@ -96,18 +112,33 @@ export function ToolKits({
         onKeyDown={(event) => {
           if (event.key === "Escape") {
             event.preventDefault();
-            setNaming(null);
+            stopNaming();
           }
         }}
       />
       <button type="submit" className="tools-chip" disabled={busy}>
         {naming === "new" ? "Add kit" : "Save"}
       </button>
-      <button type="button" className="tools-chip" onClick={() => setNaming(null)}>
+      <button type="button" className="tools-chip" onClick={stopNaming}>
         Cancel
       </button>
     </form>
   );
+
+  // With no kits yet, the row stays away: the page shows "+ New kit" with its own buttons.
+  if (kits.length === 0) {
+    if (naming !== "new" && !error) return null;
+    return (
+      <div className="tools-kits">
+        {naming === "new" ? nameField : null}
+        {error ? (
+          <p className="tool-field-error" role="alert">
+            {error}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <div className="tools-kits">

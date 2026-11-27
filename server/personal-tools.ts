@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { avatarExtension, isAvatarType } from "../core/profile";
@@ -6,9 +6,11 @@ import {
   TOOL_PHOTO_LIMIT,
   applyBulkChange,
   draftToolName,
+  duplicateToolName,
   readBulkRequest,
   readKitName,
   readPhotoFraming,
+  readPhotoOrder,
   readToolInput,
   toolPhotoProblem,
   type PersonalTool,
@@ -38,6 +40,8 @@ export type ToolErrorCode =
   | "bulk-ids"
   | "bulk-too-many"
   | "bulk-change"
+  | "photo-order"
+  | "photo-missing"
   | "photo-store";
 
 export class ToolError extends Error {
@@ -547,4 +551,76 @@ export function bulkChangeTools(
   for (const storedName of files) deleteFile(uploadsDir, storedName);
   if (change.kind === "delete") return { tools: [], deleted: ids, kit: null };
   return { tools: ids.map((id) => readTool(db, occupantId, id)), deleted: [], kit };
+}
+
+// ---- Duplicating, and photo order ----
+
+/**
+ * Copies a tool as "<name> (copy)": every field, its roles, its kits, and (when
+ * asked) its photos as new files with the same framing, order, and cover. A copy
+ * of a draft is a draft.
+ */
+export function duplicateTool(db: DatabaseSync, occupantId: string, uploadsDir: string, toolId: string, raw: unknown): PersonalTool {
+  const original = readTool(db, occupantId, toolId);
+  const withPhotos = Boolean(raw && typeof raw === "object" && (raw as { photos?: unknown }).photos === true);
+  const id = randomUUID();
+  const now = new Date().toISOString();
+  const written: string[] = [];
+  db.exec("BEGIN");
+  try {
+    db.prepare(
+      `INSERT INTO personal_tools (id, occupant_id, name, category, ownership, maker, model, serial, condition, skill,
+         acquired, paid, worth, kept_at, tags, notes, draft, created_at, updated_at)
+       SELECT ?, occupant_id, ?, category, ownership, maker, model, serial, condition, skill,
+         acquired, paid, worth, kept_at, tags, notes, draft, ?, ?
+       FROM personal_tools WHERE id = ? AND occupant_id = ?`,
+    ).run(id, duplicateToolName(original.name), now, now, toolId, occupantId);
+    const role = db.prepare("INSERT INTO personal_tool_roles (id, occupant_id, tool_id, role_id, created_at) VALUES (?, ?, ?, ?, ?)");
+    for (const roleId of original.roleIds) role.run(randomUUID(), occupantId, id, roleId, now);
+    const kit = db.prepare("INSERT INTO tool_kit_items (id, occupant_id, kit_id, tool_id, created_at) VALUES (?, ?, ?, ?, ?)");
+    for (const kitId of original.kitIds) kit.run(randomUUID(), occupantId, kitId, id, now);
+    if (withPhotos) {
+      mkdirSync(uploadsDir, { recursive: true });
+      const copyRow = db.prepare(
+        `INSERT INTO personal_tool_photos (id, occupant_id, tool_id, stored_name, media_type, is_cover, sort_order, created_at,
+           rotation, flip_h, flip_v, zoom, focus_x, focus_y)
+         SELECT ?, occupant_id, ?, ?, media_type, is_cover, sort_order, ?, rotation, flip_h, flip_v, zoom, focus_x, focus_y
+         FROM personal_tool_photos WHERE id = ? AND occupant_id = ?`,
+      );
+      for (const photo of photoRows(db, occupantId, toolId)) {
+        const storedName = `tool-${randomUUID()}.${avatarExtension(photo.media_type)}`;
+        try {
+          copyFileSync(uploadPath(uploadsDir, photo.stored_name), uploadPath(uploadsDir, storedName));
+        } catch {
+          // The photo's file is gone (or unreadable): say so, and make no copy.
+          throw new ToolError("photo-missing");
+        }
+        written.push(storedName);
+        copyRow.run(randomUUID(), id, storedName, now, photo.id, occupantId);
+      }
+    }
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    for (const storedName of written) deleteFile(uploadsDir, storedName);
+    throw error;
+  }
+  return readTool(db, occupantId, id);
+}
+
+/** Puts a tool's photos in the given order: every photo, each once. The cover stays the cover. */
+export function setPhotoOrder(db: DatabaseSync, occupantId: string, toolId: string, raw: unknown): PersonalTool {
+  const tool = readTool(db, occupantId, toolId);
+  const read = readPhotoOrder(raw, tool.photos.map((photo) => photo.id));
+  if (!read.ok) throw new ToolError(read.error);
+  const move = db.prepare("UPDATE personal_tool_photos SET sort_order = ? WHERE id = ? AND occupant_id = ? AND tool_id = ?");
+  db.exec("BEGIN");
+  try {
+    read.ids.forEach((photoId, index) => move.run(index, photoId, occupantId, toolId));
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+  return readTool(db, occupantId, toolId);
 }

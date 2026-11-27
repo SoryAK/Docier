@@ -61,6 +61,8 @@ const directTables = [
   "personal_tools",
   "personal_tool_photos",
   "personal_tool_roles",
+  "tool_kits",
+  "tool_kit_items",
   "integration_connections",
 ] as const;
 
@@ -113,6 +115,8 @@ const restoreOrder = [
   "personal_tools",
   "personal_tool_photos",
   "personal_tool_roles",
+  "tool_kits",
+  "tool_kit_items",
   "integration_connections",
 ] as const;
 

@@ -83,6 +83,11 @@
   background: #2b2b2e;
 }
 
+.tools-btn[aria-pressed="true"] {
+  border-color: #cd9f5b;
+  background: #fbf6ee;
+}
+
 .tools-btn:disabled {
   cursor: default;
   opacity: 0.6;
@@ -652,6 +657,7 @@
 }
 
 .role-own-tools-thumb {
+  position: relative;
   display: grid;
   flex: none;
   place-items: center;
@@ -679,4 +685,336 @@
 
 .role-own-tools .role-edit {
   text-decoration: none;
+}
+
+/* ---- Kits, totals ---- */
+.tools-totals {
+  margin: -6px 0 0;
+  color: #6b6b70;
+  font-size: 0.8125rem;
+}
+
+.tools-kits {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tools-kit-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.tools-chip.is-kit[aria-pressed="true"] {
+  border-color: #cd9f5b;
+  background: #fbf6ee;
+}
+
+.tools-chip.is-add {
+  border-style: dashed;
+  color: #3f3f46;
+}
+
+.tools-kit-form {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tools-kit-form input {
+  width: 12rem;
+  height: 32px;
+  box-sizing: border-box;
+  padding: 0 10px;
+  border: 1px solid #a1a1aa;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.8125rem;
+}
+
+.tools-kit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.8125rem;
+}
+
+.tools-link {
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: #3f3f46;
+  font: inherit;
+  font-size: 0.8125rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.tools-link.is-danger {
+  color: #b42318;
+}
+
+.tool-danger.is-solid {
+  background: #b42318;
+  color: #fff;
+}
+
+.tool-role.is-kit {
+  border-color: #e4e4e7;
+  background: #f4f4f5;
+}
+
+/* ---- Photo framing ---- */
+.tools-cover {
+  overflow: hidden;
+}
+
+.tool-photo-btn.is-adjust {
+  top: auto;
+  bottom: 3px;
+}
+
+.tool-frame-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(20, 20, 20, 0.35);
+}
+
+.tool-frame {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(420px, 100%);
+  max-height: calc(100vh - 32px);
+  box-sizing: border-box;
+  overflow: auto;
+  padding: 18px 20px;
+  border-radius: 12px;
+  background: #fff;
+  color: #171717;
+  box-shadow: 0 22px 60px rgba(20, 20, 20, 0.22);
+}
+
+.tool-frame h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.tool-frame-hint {
+  margin: -4px 0 0;
+  color: #6b6b70;
+  font-size: 0.78rem;
+}
+
+/* The whole photo, to point at what stays in view. */
+.tool-frame-pick {
+  display: grid;
+  place-items: center;
+  padding: 8px;
+  border-radius: 10px;
+  background: #f4f4f5;
+}
+
+.tool-frame-photo {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.tool-frame-photo img {
+  display: block;
+  max-width: 100%;
+  max-height: 180px;
+  user-select: none;
+  pointer-events: none;
+}
+
+.tool-frame-photo:focus-visible {
+  outline: 2px solid #cd9f5b;
+  outline-offset: 3px;
+}
+
+/* The same shape as a card's cover, so what you see is what the card shows. */
+.tool-frame-view {
+  position: relative;
+  width: min(210px, 100%);
+  align-self: center;
+  aspect-ratio: 210 / 124;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #efebe5;
+}
+
+.tool-frame-view img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  user-select: none;
+}
+
+.tool-frame-dot {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: rgba(205, 159, 91, 0.9);
+  box-shadow: 0 0 0 1px rgba(20, 20, 20, 0.35);
+  pointer-events: none;
+}
+
+.tool-frame-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.tool-frame-tools .tool-icon-btn[aria-pressed="true"] {
+  background: #f4f4f5;
+  color: #171717;
+}
+
+.tool-frame-zoom {
+  display: flex;
+  flex: 1 1 140px;
+  align-items: center;
+  gap: 8px;
+  margin-left: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.tool-frame-zoom input {
+  flex: 1;
+  accent-color: #cd9f5b;
+}
+
+/* Frames a photo can be turned in: the photo sizes itself by its frame. */
+.tools-cover,
+.tool-photo,
+.role-own-tools-thumb,
+.tool-frame-view {
+  container-type: size;
+}
+
+.tools-cover img.is-turned,
+.tool-photo img.is-turned,
+.role-own-tools-thumb img.is-turned,
+.tool-frame-view img.is-turned {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100cqh;
+  height: 100cqw;
+  translate: -50% -50%;
+}
+
+/* Changing many tools at once: the bar shown while choosing. */
+.tools-bulk {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid #e8d8bd;
+  border-radius: 10px;
+  background: #fbf6ee;
+}
+
+.tools-bulk-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  font-size: 0.8125rem;
+}
+
+.tools-bulk-row strong {
+  font-weight: 600;
+}
+
+.tools-bulk select,
+.tools-bulk input {
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid #d4d4d8;
+  border-radius: 8px;
+  background: #fff;
+  color: #171717;
+  font: inherit;
+  font-size: 0.8125rem;
+}
+
+.tools-bulk input {
+  width: 150px;
+}
+
+.tools-bulk .tools-btn {
+  height: 32px;
+}
+
+.tools-bulk-tags {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tools-btn.is-danger {
+  border-color: #f0c4bf;
+  color: #b42318;
+}
+
+.tools-bulk-confirm .tools-btn.is-danger {
+  border-color: #b42318;
+  background: #b42318;
+  color: #fff;
+}
+
+.tools-bulk-status:empty {
+  display: none;
+}
+
+.tools-bulk-status {
+  margin: 0;
+  color: #3f3f46;
+  font-size: 0.8125rem;
+}
+
+.tools-card.is-picked {
+  border-color: #cd9f5b;
+  box-shadow: 0 0 0 2px #f6ead3;
+}
+
+/* The pick box, in the cover's top-left corner while choosing. */
+.tools-pick {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid #a1a1aa;
+  border-radius: 5px;
+  background: #fff;
+  color: #fff;
+}
+
+.tools-card.is-picked .tools-pick {
+  border-color: #b07f3a;
+  background: #b07f3a;
 }

@@ -1,5 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { draftToolName, filterTools, readToolInput, toolPhotoProblem, toolsForRole, toolSearchText, type PersonalTool } from "./personal-tools";
+import {
+  applyBulkChange,
+  BULK_TOOLS_MAX,
+  DEFAULT_FRAMING,
+  draftToolName,
+  filterTools,
+  framingStyle,
+  readKitName,
+  readBulkRequest,
+  readPhotoFraming,
+  type BulkFields,
+  readToolInput,
+  toolPhotoProblem,
+  toolsCsv,
+  toolsForRole,
+  toolSearchText,
+  toolTotals,
+  type PersonalTool,
+  type ToolKit,
+} from "./personal-tools";
 
 const roles = new Set(["r1", "r2"]);
 
@@ -22,6 +41,7 @@ function tool(over: Partial<PersonalTool> = {}): PersonalTool {
     notes: "",
     draft: false,
     roleIds: [],
+    kitIds: [],
     photos: [],
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
@@ -69,6 +89,7 @@ describe("reading a tool", () => {
         tags: ["electrical", "Meters"],
         notes: "True-RMS.",
         roleIds: ["r1"],
+        kitIds: [],
       },
     });
   });
@@ -155,5 +176,172 @@ describe("photos", () => {
     expect(toolPhotoProblem({ type: "text/plain", size: 5 })).toBe("photo-type");
     expect(toolPhotoProblem({ type: "image/png", size: 0 })).toBe("photo-empty");
     expect(toolPhotoProblem({ type: "image/png", size: 6 * 1024 * 1024 })).toBe("photo-too-large");
+  });
+});
+
+describe("kits", () => {
+  const kits: ToolKit[] = [
+    { id: "k1", name: "Electrical kit", createdAt: "" },
+    { id: "k2", name: "Truck toolbox", createdAt: "" },
+  ];
+
+  it("refuses a kit that isn't there", () => {
+    expect(readToolInput({ name: "A", kitIds: ["k9"] }, roles, new Set(["k1"]))).toEqual({ ok: false, error: "kit-missing" });
+    expect(readToolInput({ name: "A", kitIds: ["k1", "k1"] }, roles, new Set(["k1"]))).toMatchObject({ ok: true, value: { kitIds: ["k1"] } });
+  });
+
+  it("names a kit", () => {
+    expect(readKitName("  Plumbing  ", kits)).toEqual({ ok: true, name: "Plumbing" });
+    expect(readKitName(" ", kits)).toEqual({ ok: false, error: "kit-name-required" });
+    expect(readKitName("x".repeat(80), kits)).toEqual({ ok: true, name: "x".repeat(60) });
+    expect(readKitName("electrical KIT", kits)).toEqual({ ok: false, error: "kit-name-taken" });
+    expect(readKitName("electrical KIT", kits, "k1")).toEqual({ ok: true, name: "electrical KIT" });
+  });
+});
+
+describe("totals and export", () => {
+  it("adds up what's shown", () => {
+    expect(toolTotals([tool(), tool()])).toEqual({ count: 2, paid: null, worth: null, withPhotos: 0 });
+    expect(
+      toolTotals([
+        tool({ paid: 425.5, worth: 300, photos: [{ id: "p", url: "", cover: true, framing: DEFAULT_FRAMING }] }),
+        tool({ paid: 100 }),
+        tool(),
+      ]),
+    ).toEqual({ count: 3, paid: 525.5, worth: 300, withPhotos: 1 });
+  });
+
+  it("writes a CSV a spreadsheet reads safely", () => {
+    const csv = toolsCsv(
+      [
+        tool({
+          name: 'Meter, "87V"',
+          notes: "line one\nline two",
+          maker: "=HYPERLINK(1)",
+          tags: ["a", "b"],
+          roleIds: ["r1"],
+          kitIds: ["k1"],
+          paid: 425.5,
+          skill: 4,
+          draft: true,
+        }),
+      ],
+      { role: (id) => (id === "r1" ? "Giants Direct" : undefined), kit: (id) => (id === "k1" ? "Electrical kit" : undefined) },
+    );
+    const [header, row] = csv.split("\r\n");
+    expect(header).toBe(
+      "Name,Category,Whose it is,Maker,Model,Serial,Condition,How well you use it,When you got it,Paid,Worth now,Where it's kept,Tags,Used on,Kits,Notes,Needs details",
+    );
+    // The line break inside the notes stays inside its quoted cell.
+    expect(row).toBe('"Meter, ""87V""",Tool,Mine,\'=HYPERLINK(1),,,,4,,425.5,,,a; b,Giants Direct,Electrical kit,"line one\nline two",Yes');
+    expect(csv.endsWith("\r\n")).toBe(true);
+  });
+});
+
+describe("photo framing", () => {
+  it("reads a framing", () => {
+    const good = { rotation: 90, flipH: true, flipV: false, zoom: 2, focusX: 30, focusY: 70 };
+    expect(readPhotoFraming(good)).toEqual({ ok: true, value: good });
+    expect(readPhotoFraming({ ...good, rotation: 45 })).toEqual({ ok: false, error: "framing-invalid" });
+    expect(readPhotoFraming({ ...good, zoom: 9 })).toEqual({ ok: false, error: "framing-invalid" });
+    expect(readPhotoFraming({ ...good, focusX: 120 })).toEqual({ ok: false, error: "framing-invalid" });
+    expect(readPhotoFraming(null)).toEqual({ ok: false, error: "framing-invalid" });
+  });
+
+  it("turns a framing into CSS", () => {
+    expect(framingStyle(DEFAULT_FRAMING)).toEqual({ objectPosition: "50% 50%", transformOrigin: "50% 50%", transform: undefined });
+    // Flips come first, so "across" stays across on screen after a turn; everything turns and zooms around the chosen point.
+    expect(framingStyle({ rotation: 90, flipH: true, flipV: false, zoom: 2, focusX: 30, focusY: 70 })).toEqual({
+      objectPosition: "30% 70%",
+      transformOrigin: "30% 70%",
+      transform: "scaleX(-1) rotate(90deg) scale(2)",
+    });
+  });
+});
+
+describe("bulk changes", () => {
+  const kits: ToolKit[] = [{ id: "k1", name: "Truck toolbox", createdAt: "" }];
+  const known = { toolIds: new Set(["a", "b"]), kits };
+  const read = (body: unknown) => readBulkRequest(body, known);
+  const fields: BulkFields = { category: "tool", ownership: "mine", condition: "", tags: ["Truck", "Shop"], kitIds: [] };
+
+  it("refuses an empty or oversized pick", () => {
+    expect(read({ ids: [], change: { kind: "delete" } })).toEqual({ ok: false, error: "bulk-ids" });
+    expect(read({ change: { kind: "delete" } })).toEqual({ ok: false, error: "bulk-ids" });
+    const many = Array.from({ length: BULK_TOOLS_MAX + 1 }, (_, i) => `t${i}`);
+    expect(readBulkRequest({ ids: many, change: { kind: "delete" } }, { toolIds: new Set(many), kits })).toEqual({
+      ok: false,
+      error: "bulk-too-many",
+    });
+    expect(BULK_TOOLS_MAX).toBe(500);
+  });
+
+  it("refuses changes it doesn't offer", () => {
+    expect(read({ ids: ["a"], change: { kind: "name", name: "x" } })).toEqual({ ok: false, error: "bulk-change" });
+    expect(read({ ids: ["a"], change: { kind: "category", category: "spaceship" } })).toEqual({ ok: false, error: "bulk-change" });
+    expect(read({ ids: ["a"], change: { kind: "ownership", ownership: "stolen" } })).toEqual({ ok: false, error: "bulk-change" });
+    expect(read({ ids: ["a"], change: { kind: "addTags", tags: [" "] } })).toEqual({ ok: false, error: "bulk-change" });
+    expect(read({ ids: ["a"], change: null })).toEqual({ ok: false, error: "bulk-change" });
+  });
+
+  it("refuses the whole change for one unknown tool", () => {
+    expect(read({ ids: ["a", "nope"], change: { kind: "delete" } })).toEqual({ ok: false, error: "not-found" });
+  });
+
+  it("checks the kit", () => {
+    expect(read({ ids: ["a"], change: { kind: "addKit", kitId: "k9" } })).toEqual({ ok: false, error: "kit-missing" });
+    expect(read({ ids: ["a"], change: { kind: "removeKit", kitId: "k9" } })).toEqual({ ok: false, error: "kit-missing" });
+    expect(read({ ids: ["a"], change: { kind: "addKit", newKitName: "truck TOOLBOX" } })).toEqual({ ok: false, error: "kit-name-taken" });
+    expect(read({ ids: ["a"], change: { kind: "addKit", newKitName: "  " } })).toEqual({ ok: false, error: "kit-name-required" });
+    expect(read({ ids: ["a"], change: { kind: "addKit", newKitName: " Van " } })).toEqual({
+      ok: true,
+      ids: ["a"],
+      change: { kind: "addKit", newKitName: "Van" },
+    });
+  });
+
+  it("reads each id once, in order", () => {
+    expect(read({ ids: ["b", "a", "b"], change: { kind: "condition", condition: "good" } })).toEqual({
+      ok: true,
+      ids: ["b", "a"],
+      change: { kind: "condition", condition: "good" },
+    });
+  });
+
+  it("sets one field and leaves the rest", () => {
+    expect(applyBulkChange(fields, { kind: "category", category: "safety" })).toEqual({ ...fields, category: "safety" });
+    expect(applyBulkChange(fields, { kind: "ownership", ownership: "borrowed" })).toEqual({ ...fields, ownership: "borrowed" });
+    expect(applyBulkChange(fields, { kind: "condition", condition: "fair" })).toEqual({ ...fields, condition: "fair" });
+  });
+
+  it("add tags skips ones it has", () => {
+    expect(applyBulkChange(fields, { kind: "addTags", tags: ["truck", "New"] }).tags).toEqual(["Truck", "Shop", "New"]);
+  });
+
+  it("add tags stops at twenty", () => {
+    const full = { ...fields, tags: Array.from({ length: 19 }, (_, i) => `t${i}`) };
+    const tags = applyBulkChange(full, { kind: "addTags", tags: ["x", "y"] }).tags;
+    expect(tags).toHaveLength(20);
+    expect(tags.at(-1)).toBe("x");
+  });
+
+  it("remove tags ignores case", () => {
+    expect(applyBulkChange(fields, { kind: "removeTags", tags: ["truck"] }).tags).toEqual(["Shop"]);
+  });
+
+  it("adds to a kit once and takes out of it", () => {
+    const inKit = applyBulkChange(fields, { kind: "addKit", kitId: "k1" });
+    expect(inKit.kitIds).toEqual(["k1"]);
+    expect(applyBulkChange(inKit, { kind: "addKit", kitId: "k1" }).kitIds).toEqual(["k1"]);
+    expect(applyBulkChange(inKit, { kind: "removeKit", kitId: "k1" }).kitIds).toEqual([]);
+    expect(applyBulkChange(fields, { kind: "addKit", newKitName: "Van" }, "k2").kitIds).toEqual(["k2"]);
+  });
+
+  it("reads tags from the request the usual way", () => {
+    expect(read({ ids: ["a"], change: { kind: "removeTags", tags: [" Shop ", "shop"] } })).toEqual({
+      ok: true,
+      ids: ["a"],
+      change: { kind: "removeTags", tags: ["Shop"] },
+    });
   });
 });

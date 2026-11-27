@@ -3,7 +3,7 @@
  * they used them on. A role's Setup holds the employer's equipment; these are
  * yours (or shared, borrowed, rented). Never published.
  */
-import { EQUIPMENT_CATEGORIES, type EquipmentCategory } from "./role-gear";
+import { EQUIPMENT_CATEGORIES, EQUIPMENT_CATEGORY_LABEL, type EquipmentCategory } from "./role-gear";
 import { PROFILE_AVATAR_MAX_BYTES, avatarExtension, isAvatarType } from "./profile";
 
 export const TOOL_OWNERSHIPS = ["mine", "shared", "borrowed", "rented"] as const;
@@ -28,7 +28,77 @@ export const TOOL_CONDITION_LABEL: Record<ToolCondition, string> = {
 /** The most photos one tool keeps. */
 export const TOOL_PHOTO_LIMIT = 20;
 
-export type ToolPhoto = { id: string; url: string; cover: boolean };
+/** How a photo shows, without changing the file: a quarter turn, flips, zoom, and the point kept in view. */
+export type PhotoFraming = {
+  rotation: 0 | 90 | 180 | 270;
+  flipH: boolean;
+  flipV: boolean;
+  /** 1 to 3. */
+  zoom: number;
+  /** 0 to 100, from the left. */
+  focusX: number;
+  /** 0 to 100, from the top. */
+  focusY: number;
+};
+
+export const DEFAULT_FRAMING: PhotoFraming = { rotation: 0, flipH: false, flipV: false, zoom: 1, focusX: 50, focusY: 50 };
+
+export function readPhotoFraming(raw: unknown): { ok: true; value: PhotoFraming } | { ok: false; error: "framing-invalid" } {
+  const bad = { ok: false, error: "framing-invalid" } as const;
+  if (!raw || typeof raw !== "object") return bad;
+  const value = raw as Record<string, unknown>;
+  const within = (number: unknown, min: number, max: number) =>
+    typeof number === "number" && Number.isFinite(number) && number >= min && number <= max;
+  if (![0, 90, 180, 270].includes(value.rotation as number)) return bad;
+  if (typeof value.flipH !== "boolean" || typeof value.flipV !== "boolean") return bad;
+  if (!within(value.zoom, 1, 3) || !within(value.focusX, 0, 100) || !within(value.focusY, 0, 100)) return bad;
+  return {
+    ok: true,
+    value: {
+      rotation: value.rotation as PhotoFraming["rotation"],
+      flipH: value.flipH,
+      flipV: value.flipV,
+      zoom: value.zoom as number,
+      focusX: value.focusX as number,
+      focusY: value.focusY as number,
+    },
+  };
+}
+
+/**
+ * The CSS that shows a photo framed. The chosen point (a point on the photo as
+ * taken) is lined up in its box, and the photo turns and zooms around it, so it
+ * stays in view. Flips come before the turn, so "across" means across on screen.
+ */
+export function framingStyle(framing: PhotoFraming): { objectPosition: string; transformOrigin: string; transform: string | undefined } {
+  const parts = [
+    framing.flipH ? "scaleX(-1)" : "",
+    framing.flipV ? "scaleY(-1)" : "",
+    framing.rotation ? `rotate(${framing.rotation}deg)` : "",
+    framing.zoom !== 1 ? `scale(${framing.zoom})` : "",
+  ].filter(Boolean);
+  const point = `${framing.focusX}% ${framing.focusY}%`;
+  return { objectPosition: point, transformOrigin: point, transform: parts.length ? parts.join(" ") : undefined };
+}
+
+export type ToolPhoto = { id: string; url: string; cover: boolean; framing: PhotoFraming };
+
+/** A named group of tools, like "Electrical kit". A tool can be in several. */
+export type ToolKit = { id: string; name: string; createdAt: string };
+
+const KIT_NAME_MAX = 60;
+
+/** Checks a kit's name: required, and not another kit's name in any case. `selfId` is the kit being renamed. */
+export function readKitName(
+  raw: unknown,
+  kits: ToolKit[],
+  selfId?: string,
+): { ok: true; name: string } | { ok: false; error: "kit-name-required" | "kit-name-taken" } {
+  const name = typeof raw === "string" ? raw.trim().slice(0, KIT_NAME_MAX) : "";
+  if (!name) return { ok: false, error: "kit-name-required" };
+  const taken = kits.some((kit) => kit.id !== selfId && kit.name.toLowerCase() === name.toLowerCase());
+  return taken ? { ok: false, error: "kit-name-taken" } : { ok: true, name };
+}
 
 export type ToolPhotoProblem = "photo-type" | "photo-empty" | "photo-too-large";
 
@@ -62,6 +132,7 @@ export type PersonalTool = {
   /** Added from a photo and not yet saved with details. */
   draft: boolean;
   roleIds: string[];
+  kitIds: string[];
   photos: ToolPhoto[];
   createdAt: string;
   updatedAt: string;
@@ -78,7 +149,8 @@ export type ToolInputError =
   | "skill-invalid"
   | "acquired-invalid"
   | "amount-invalid"
-  | "role-missing";
+  | "role-missing"
+  | "kit-missing";
 
 const TEXT_MAX = 120;
 const NOTES_MAX = 2000;
@@ -113,6 +185,7 @@ function readAmount(value: unknown): number | null | undefined {
 export function readToolInput(
   raw: unknown,
   roleIds: ReadonlySet<string>,
+  kitIds: ReadonlySet<string> = new Set(),
 ): { ok: true; value: ToolInput } | { ok: false; error: ToolInputError } {
   const value = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   const name = text(value.name);
@@ -138,6 +211,8 @@ export function readToolInput(
 
   const linked = [...new Set(Array.isArray(value.roleIds) ? value.roleIds.filter((id): id is string => typeof id === "string") : [])];
   if (linked.some((id) => !roleIds.has(id))) return { ok: false, error: "role-missing" };
+  const kits = [...new Set(Array.isArray(value.kitIds) ? value.kitIds.filter((id): id is string => typeof id === "string") : [])];
+  if (kits.some((id) => !kitIds.has(id))) return { ok: false, error: "kit-missing" };
 
   return {
     ok: true,
@@ -157,8 +232,108 @@ export function readToolInput(
       tags: readTags(value.tags),
       notes: text(value.notes, NOTES_MAX),
       roleIds: linked,
+      kitIds: kits,
     },
   };
+}
+
+// ---- Changing many tools at once ----
+
+export const BULK_TOOLS_MAX = 500;
+
+/** One change applied to every picked tool. Only fields one value can fit for many tools. */
+export type BulkChange =
+  | { kind: "category"; category: EquipmentCategory }
+  | { kind: "ownership"; ownership: ToolOwnership }
+  | { kind: "condition"; condition: ToolCondition }
+  | { kind: "addTags"; tags: string[] }
+  | { kind: "removeTags"; tags: string[] }
+  | { kind: "addKit"; kitId: string }
+  | { kind: "addKit"; newKitName: string }
+  | { kind: "removeKit"; kitId: string }
+  | { kind: "delete" };
+
+export type BulkError = "bulk-ids" | "bulk-too-many" | "bulk-change" | "not-found" | "kit-missing" | "kit-name-required" | "kit-name-taken";
+
+export type BulkFields = Pick<PersonalTool, "category" | "ownership" | "condition" | "tags" | "kitIds">;
+
+function readBulkChange(raw: unknown, kits: ToolKit[]): { ok: true; change: BulkChange } | { ok: false; error: BulkError } {
+  if (!raw || typeof raw !== "object") return { ok: false, error: "bulk-change" };
+  const value = raw as Record<string, unknown>;
+  const bad = { ok: false, error: "bulk-change" } as const;
+  const kitKnown = (id: unknown) => typeof id === "string" && kits.some((kit) => kit.id === id);
+  switch (value.kind) {
+    case "category":
+      return EQUIPMENT_CATEGORIES.includes(value.category as EquipmentCategory)
+        ? { ok: true, change: { kind: "category", category: value.category as EquipmentCategory } }
+        : bad;
+    case "ownership":
+      return TOOL_OWNERSHIPS.includes(value.ownership as ToolOwnership)
+        ? { ok: true, change: { kind: "ownership", ownership: value.ownership as ToolOwnership } }
+        : bad;
+    case "condition":
+      return TOOL_CONDITIONS.includes(value.condition as ToolCondition)
+        ? { ok: true, change: { kind: "condition", condition: value.condition as ToolCondition } }
+        : bad;
+    case "addTags":
+    case "removeTags": {
+      const tags = readTags(value.tags);
+      return tags.length ? { ok: true, change: { kind: value.kind, tags } } : bad;
+    }
+    case "addKit": {
+      if (value.newKitName !== undefined) {
+        const name = readKitName(value.newKitName, kits);
+        return name.ok ? { ok: true, change: { kind: "addKit", newKitName: name.name } } : name;
+      }
+      return kitKnown(value.kitId) ? { ok: true, change: { kind: "addKit", kitId: value.kitId as string } } : { ok: false, error: "kit-missing" };
+    }
+    case "removeKit":
+      return kitKnown(value.kitId) ? { ok: true, change: { kind: "removeKit", kitId: value.kitId as string } } : { ok: false, error: "kit-missing" };
+    case "delete":
+      return { ok: true, change: { kind: "delete" } };
+    default:
+      return bad;
+  }
+}
+
+/** Reads `{ ids, change }`. Every id must be one of the occupant's tools, or nothing changes. */
+export function readBulkRequest(
+  raw: unknown,
+  known: { toolIds: Set<string>; kits: ToolKit[] },
+): { ok: true; ids: string[]; change: BulkChange } | { ok: false; error: BulkError } {
+  const body = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  if (!Array.isArray(body.ids)) return { ok: false, error: "bulk-ids" };
+  const ids = [...new Set(body.ids.filter((id): id is string => typeof id === "string" && id !== ""))];
+  if (ids.length === 0) return { ok: false, error: "bulk-ids" };
+  if (ids.length > BULK_TOOLS_MAX) return { ok: false, error: "bulk-too-many" };
+  if (ids.some((id) => !known.toolIds.has(id))) return { ok: false, error: "not-found" };
+  const change = readBulkChange(body.change, known.kits);
+  return change.ok ? { ok: true, ids, change: change.change } : change;
+}
+
+/** A tool's shared fields after one change. `newKitId` is the kit just made for `newKitName`. */
+export function applyBulkChange(fields: BulkFields, change: Exclude<BulkChange, { kind: "delete" }>, newKitId?: string): BulkFields {
+  switch (change.kind) {
+    case "category":
+      return { ...fields, category: change.category };
+    case "ownership":
+      return { ...fields, ownership: change.ownership };
+    case "condition":
+      return { ...fields, condition: change.condition };
+    case "addTags":
+      return { ...fields, tags: readTags([...fields.tags, ...change.tags]) };
+    case "removeTags": {
+      const gone = new Set(change.tags.map((tag) => tag.toLowerCase()));
+      return { ...fields, tags: fields.tags.filter((tag) => !gone.has(tag.toLowerCase())) };
+    }
+    case "addKit": {
+      const kitId = "kitId" in change ? change.kitId : newKitId;
+      if (!kitId || fields.kitIds.includes(kitId)) return fields;
+      return { ...fields, kitIds: [...fields.kitIds, kitId] };
+    }
+    case "removeKit":
+      return { ...fields, kitIds: fields.kitIds.filter((id) => id !== change.kitId) };
+  }
 }
 
 /** A draft added from a photo is named after its file, so the drafts can be told apart. */
@@ -188,4 +363,73 @@ export function filterTools(tools: PersonalTool[], filter: ToolFilter): Personal
 /** The tools used on a role, by name. */
 export function toolsForRole(tools: PersonalTool[], roleId: string): PersonalTool[] {
   return tools.filter((tool) => tool.roleIds.includes(roleId)).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** What the tools shown add up to. A money total is null when no tool has that value. */
+export function toolTotals(tools: PersonalTool[]): { count: number; paid: number | null; worth: number | null; withPhotos: number } {
+  const sum = (pick: (tool: PersonalTool) => number | null) => {
+    const values = tools.map(pick).filter((value): value is number => value !== null);
+    return values.length ? Math.round(values.reduce((total, value) => total + value, 0) * 100) / 100 : null;
+  };
+  return {
+    count: tools.length,
+    paid: sum((tool) => tool.paid),
+    worth: sum((tool) => tool.worth),
+    withPhotos: tools.filter((tool) => tool.photos.length > 0).length,
+  };
+}
+
+const CSV_HEADER = [
+  "Name",
+  "Category",
+  "Whose it is",
+  "Maker",
+  "Model",
+  "Serial",
+  "Condition",
+  "How well you use it",
+  "When you got it",
+  "Paid",
+  "Worth now",
+  "Where it's kept",
+  "Tags",
+  "Used on",
+  "Kits",
+  "Notes",
+  "Needs details",
+];
+
+/** One CSV cell: quoted when it must be, and never read as a formula by a spreadsheet. */
+function csvCell(value: string): string {
+  const safe = /^[=+\-@]/.test(value) ? `'${value}` : value;
+  return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
+}
+
+/** The tools as CSV, a header row first, roles and kits by name. */
+export function toolsCsv(
+  tools: PersonalTool[],
+  names: { role: (id: string) => string | undefined; kit: (id: string) => string | undefined },
+): string {
+  const named = (ids: string[], name: (id: string) => string | undefined) =>
+    ids.map(name).filter((value): value is string => Boolean(value)).join("; ");
+  const rows = tools.map((tool) => [
+    tool.name,
+    EQUIPMENT_CATEGORY_LABEL[tool.category],
+    TOOL_OWNERSHIP_LABEL[tool.ownership],
+    tool.maker,
+    tool.model,
+    tool.serial,
+    tool.condition ? TOOL_CONDITION_LABEL[tool.condition] : "",
+    tool.skill === null ? "" : String(tool.skill),
+    tool.acquired,
+    tool.paid === null ? "" : String(tool.paid),
+    tool.worth === null ? "" : String(tool.worth),
+    tool.keptAt,
+    tool.tags.join("; "),
+    named(tool.roleIds, names.role),
+    named(tool.kitIds, names.kit),
+    tool.notes,
+    tool.draft ? "Yes" : "",
+  ]);
+  return [CSV_HEADER, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n") + "\r\n";
 }

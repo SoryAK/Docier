@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { ImagePlus, Star, X } from "lucide-react";
+import { Crop, ImagePlus, Star, X } from "lucide-react";
+import { FramedPhoto, ToolPhotoFrame } from "./ToolPhotoFrame";
 import { EQUIPMENT_CATEGORIES, EQUIPMENT_CATEGORY_LABEL } from "@core/role-gear";
 import {
   TOOL_CONDITIONS,
@@ -9,6 +10,7 @@ import {
   TOOL_PHOTO_LIMIT,
   toolPhotoProblem,
   type PersonalTool,
+  type ToolKit,
 } from "@core/personal-tools";
 
 export type ToolRoleChoice = { id: string; name: string };
@@ -29,6 +31,7 @@ type Draft = {
   tags: string;
   notes: string;
   roleIds: string[];
+  kitIds: string[];
 };
 
 function draftOf(tool: PersonalTool | null): Draft {
@@ -48,6 +51,7 @@ function draftOf(tool: PersonalTool | null): Draft {
     tags: tool?.tags.join(", ") ?? "",
     notes: tool?.notes ?? "",
     roleIds: tool?.roleIds ?? [],
+    kitIds: tool?.kitIds ?? [],
   };
 }
 
@@ -61,6 +65,7 @@ const FIELD_ERROR: Record<string, { field: keyof Draft | "form"; text: string }>
   "acquired-invalid": { field: "acquired", text: "Pick a month." },
   "amount-invalid": { field: "paid", text: "Use a number, like 425 or 425.50." },
   "role-missing": { field: "roleIds", text: "One of these roles is gone. Take it off and save again." },
+  "kit-missing": { field: "kitIds", text: "One of these kits is gone. Take it off and save again." },
 };
 
 const PHOTO_ERROR: Record<string, string> = {
@@ -95,6 +100,7 @@ function checkPhotos(files: File[]): { good: File[]; note: string } {
 export function ToolPanel({
   tool,
   roles,
+  kits = [],
   onSaved,
   onRemoved,
   onClose,
@@ -102,6 +108,7 @@ export function ToolPanel({
   /** The tool to change; null to add one. */
   tool: PersonalTool | null;
   roles: ToolRoleChoice[];
+  kits?: ToolKit[];
   onSaved: (tool: PersonalTool) => void;
   onRemoved: (id: string) => void;
   onClose: () => void;
@@ -111,6 +118,8 @@ export function ToolPanel({
   const [busy, setBusy] = useState(false);
   const [photoNote, setPhotoNote] = useState("");
   const [confirming, setConfirming] = useState(false);
+  // The photo being framed in the Adjust photo dialog.
+  const [adjusting, setAdjusting] = useState<string | null>(null);
   // Photos picked before a new tool is saved, uploaded right after it is.
   const [pending, setPending] = useState<Array<{ file: File; url: string }>>([]);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -259,6 +268,7 @@ export function ToolPanel({
   const title = tool ? tool.name : "New tool";
   const photoCount = (tool?.photos.length ?? 0) + pending.length;
   const unlinked = roles.filter((role) => !draft.roleIds.includes(role.id));
+  const otherKits = kits.filter((kit) => !draft.kitIds.includes(kit.id));
 
   return (
     <aside ref={panelRef} className="tool-panel" aria-label={title}>
@@ -278,16 +288,16 @@ export function ToolPanel({
         <div className="tool-photos">
           <p className="tool-label">Photos</p>
           <div className="tool-photo-row">
-            {tool?.photos.map((photo) => (
+            {tool?.photos.map((photo, index) => (
               <div key={photo.id} className="tool-photo">
-                <img src={photo.url} alt="" />
+                <FramedPhoto photo={photo} />
                 {photo.cover ? (
                   <span className="tool-cover">Cover</span>
                 ) : (
                   <button
                     type="button"
                     className="tool-photo-btn is-cover"
-                    aria-label="Make this the cover"
+                    aria-label={`Make photo ${index + 1} the cover`}
                     title="Make this the cover"
                     disabled={busy}
                     onClick={() => void photoAction("PUT", `${encodeURIComponent(photo.id)}/cover`)}
@@ -297,8 +307,18 @@ export function ToolPanel({
                 )}
                 <button
                   type="button"
+                  className="tool-photo-btn is-adjust"
+                  aria-label={`Adjust photo ${index + 1}`}
+                  title="Adjust: rotate, flip, zoom"
+                  disabled={busy}
+                  onClick={() => setAdjusting(photo.id)}
+                >
+                  <Crop size={12} aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
                   className="tool-photo-btn"
-                  aria-label="Remove photo"
+                  aria-label={`Remove photo ${index + 1}`}
                   disabled={busy}
                   onClick={() => void photoAction("DELETE", encodeURIComponent(photo.id))}
                 >
@@ -463,6 +483,47 @@ export function ToolPanel({
           {fieldError("roleIds")}
         </div>
 
+        {kits.length > 0 || draft.kitIds.length > 0 ? (
+          <div className="tool-roles">
+            <p className="tool-label">Kits</p>
+            <div className="tool-role-row">
+              {draft.kitIds.map((id) => {
+                const name = kits.find((kit) => kit.id === id)?.name ?? "A deleted kit";
+                return (
+                  <span key={id} className="tool-role is-kit">
+                    {name}
+                    <button
+                      type="button"
+                      aria-label={`Take out of ${name}`}
+                      onClick={() => set("kitIds", draft.kitIds.filter((other) => other !== id))}
+                    >
+                      <X size={11} aria-hidden="true" />
+                    </button>
+                  </span>
+                );
+              })}
+              {otherKits.length ? (
+                <select
+                  aria-label="Add to a kit"
+                  className="tool-role-add"
+                  value=""
+                  onChange={(event) => {
+                    if (event.target.value) set("kitIds", [...draft.kitIds, event.target.value]);
+                  }}
+                >
+                  <option value="">+ Add to a kit</option>
+                  {otherKits.map((kit) => (
+                    <option key={kit.id} value={kit.id}>
+                      {kit.name}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
+            </div>
+            {fieldError("kitIds")}
+          </div>
+        ) : null}
+
         <label className="tool-field">
           Notes
           <textarea rows={3} value={draft.notes} onChange={(event) => set("notes", event.target.value)} />
@@ -505,6 +566,14 @@ export function ToolPanel({
           )}
         </div>
       </form>
+      {tool && adjusting && tool.photos.some((photo) => photo.id === adjusting) ? (
+        <ToolPhotoFrame
+          toolId={tool.id}
+          photo={tool.photos.find((photo) => photo.id === adjusting)!}
+          onSaved={onSaved}
+          onClose={() => setAdjusting(null)}
+        />
+      ) : null}
     </aside>
   );
 }

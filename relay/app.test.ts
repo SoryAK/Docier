@@ -120,6 +120,67 @@ describe("Linked Evidence on a publication", () => {
   });
 });
 
+describe("tools and photos on a publication", () => {
+  const JPEG = "data:image/jpeg;base64,/9j/4AAQ";
+  async function page(extra: Record<string, unknown>, roles: unknown[] = projection.roles) {
+    const db = openRelayDatabase(":memory:");
+    const app = createRelayApp(db, "owner-secret");
+    await app.request("/relay/publications/tools", {
+      method: "PUT",
+      headers: { authorization: "Bearer owner-secret", "content-type": "application/json" },
+      body: JSON.stringify({ projection: { ...projection, slug: "tools", roles, ...extra } }),
+    });
+    const html = await (await app.request("/r/tools")).text();
+    db.close();
+    return html;
+  }
+
+  it("shows the Tools section and each job's tools", async () => {
+    const html = await page({
+      sections: [...projection.sections, "tools"],
+      tools: [
+        { id: "t1", name: "Drill <b>", makerModel: "Makita · XFD131", facts: [{ label: "How well I use it", value: "4 of 5" }], roleIds: ["role-1"], photoUrl: JPEG },
+      ],
+    });
+    expect(html).toContain("<h2>Tools</h2>");
+    expect(html).toContain(`<img src="${JPEG}" alt="Drill &lt;b&gt;">`);
+    expect(html).toContain("How well I use it");
+    expect(html).toContain("Tools: Drill &lt;b&gt;");
+    expect(html).not.toContain("Drill <b>");
+  });
+
+  it("draws only image data or web links, never another address", async () => {
+    const role = projection.roles[0]!;
+    const html = await page(
+      {
+        sections: [...projection.sections, "tools", "media"],
+        tools: [{ id: "t1", name: "Drill", makerModel: "", facts: [], roleIds: [], photoUrl: "/api/tools/t1/photos/p1" }],
+      },
+      [
+        {
+          ...role,
+          media: [
+            { id: "m1", kind: "photo", title: "Local", url: "/api/work-map/media/m1", caption: "", isPublic: true },
+            { id: "m2", kind: "photo", title: "Svg", url: "data:image/svg+xml;base64,PHN2Zz4=", caption: "", isPublic: true },
+            { id: "m3", kind: "photo", title: "Linked", url: "https://example.com/a.jpg", caption: "", isPublic: true },
+            { id: "m4", kind: "photo", title: "Data", url: JPEG, caption: "", isPublic: true },
+          ],
+        },
+      ],
+    );
+    expect(html).not.toContain("/api/");
+    expect(html).not.toContain("svg+xml");
+    expect(html).toContain('src="https://example.com/a.jpg"');
+    expect(html).toContain(`src="${JPEG}"`);
+  });
+
+  it("an older page without tools still opens", async () => {
+    const html = await page({});
+    expect(html).toContain("Lead Systems Engineer");
+    expect(html).not.toContain("<h2>Tools</h2>");
+  });
+});
+
 describe("publishing relay", () => {
   it("lets an agent read the same snapshot a person opens", async () => {
     const db = openRelayDatabase(":memory:");

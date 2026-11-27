@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { stubBrowser, useRealApp } from "./test/app-fetch";
+import { fakeCanvas } from "./test/canvas";
 import { ToolsPage } from "./ToolsPage";
 
 const PNG = Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13]);
@@ -1366,43 +1367,6 @@ describe("paging without rebuilding the popout", () => {
     expect((within(panel("Saw")).getByLabelText("Maker") as HTMLInputElement).value).toBe("");
   });
 });
-
-/** A stand-in canvas: the test page has none. It records each photo's turn and flips. */
-function fakeCanvas() {
-  const drawn: Array<{ rotate: number; scale: [number, number] }> = [];
-  const realBitmap = globalThis.createImageBitmap;
-  const realContext = HTMLCanvasElement.prototype.getContext;
-  const realData = HTMLCanvasElement.prototype.toDataURL;
-  let closed = 0;
-  globalThis.createImageBitmap = (async () => ({ width: 1200, height: 800, close: () => (closed += 1) })) as never;
-  HTMLCanvasElement.prototype.getContext = function getContext() {
-    const step = { rotate: 0, scale: [1, 1] as [number, number] };
-    return {
-      fillStyle: "",
-      fillRect() {},
-      translate() {},
-      rotate(angle: number) {
-        step.rotate = Math.round((angle * 180) / Math.PI);
-      },
-      scale(x: number, y: number) {
-        step.scale = [x, y];
-      },
-      drawImage() {
-        drawn.push({ ...step });
-      },
-    } as never;
-  } as never;
-  HTMLCanvasElement.prototype.toDataURL = () => "data:image/jpeg;base64,U0hSVU5L";
-  return {
-    drawn,
-    closed: () => closed,
-    restore() {
-      globalThis.createImageBitmap = realBitmap;
-      HTMLCanvasElement.prototype.getContext = realContext;
-      HTMLCanvasElement.prototype.toDataURL = realData;
-    },
-  };
-}
 
 describe("share pages", () => {
   /** The page the Share dialog downloads, read back as text. */

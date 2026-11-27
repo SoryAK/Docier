@@ -23,7 +23,9 @@ import {
   type WorkMapRole,
   type WorkMapSnapshot,
 } from "@core/work-map";
+import { embedPublicPhotos } from "@core/career-page";
 import { CareerMap } from "./CareerMap";
+import { preparePublicPhotos } from "./photo-data";
 import { PREVIEW_REFRESH } from "./preview-placement";
 import "./work-map.css";
 
@@ -276,6 +278,31 @@ export function WorkMapPreview({
                     <p className="work-map-preview-skills">{snapshot.skills.join(" · ")}</p>
                   </section>
                 ) : null}
+                {snapshot.sections.includes("tools") && (snapshot.tools ?? []).length > 0 ? (
+                  <section aria-label="Tools" className="work-map-preview-tools">
+                    <div className="history-cat-row">
+                      <p className="history-cat">
+                        <b>Tools</b>
+                      </p>
+                    </div>
+                    <ul>
+                      {(snapshot.tools ?? []).map((tool) => (
+                        <li key={tool.id}>
+                          {tool.photoUrl ? <img src={tool.photoUrl} alt={tool.name} /> : null}
+                          <div>
+                            <strong>{tool.name}</strong>
+                            {tool.makerModel ? <small>{tool.makerModel}</small> : null}
+                            {tool.facts.map((fact) => (
+                              <small key={fact.label}>
+                                {fact.label}: {fact.value}
+                              </small>
+                            ))}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ) : null}
                 {mode === "preview" &&
                 showMap &&
                 !snapshot.roles.some((role) => role.locations.length > 0) ? (
@@ -287,6 +314,7 @@ export function WorkMapPreview({
                   exactLocations={exactLocations}
                   role={selected}
                   showSiteNotes={mode === "preview"}
+                  tools={(snapshot.tools ?? []).filter((tool) => tool.roleIds.includes(selected.id)).map((tool) => tool.name)}
                 />
               ) : null}
             </aside>
@@ -316,10 +344,13 @@ function PreviewRole({
   role,
   exactLocations,
   showSiteNotes,
+  tools,
 }: {
   role: PreviewRole;
   exactLocations: boolean;
   showSiteNotes: boolean;
+  /** Names of the page's tools used at this job. */
+  tools: string[];
 }) {
   const dates = datesFromSpan(role.span);
   const place =
@@ -422,6 +453,7 @@ function PreviewRole({
               </ul>
             </section>
           ) : null}
+          {tools.length > 0 ? <p className="work-map-preview-skills">Tools: {tools.join(" · ")}</p> : null}
           {chips.length > 0 ? (
             <ul className="work-map-preview-chips">
               {chips.map((item) => (
@@ -591,8 +623,15 @@ export function WorkMapPreviewPage() {
       );
       return;
     }
+    const body = (await response.json()) as PreviewResponse;
+    // The photos as they'll publish: prepared here, then put in as the server would.
+    const embedded = embedPublicPhotos(body.snapshot, await preparePublicPhotos(body.snapshot));
+    if (!embedded.ok) {
+      setError("Too many photos to publish at once. Make some role photos private, or take some tools off your career page.");
+      return;
+    }
     setError("");
-    setPreview((await response.json()) as PreviewResponse);
+    setPreview({ ...body, snapshot: embedded.value });
   }
 
   function close() {

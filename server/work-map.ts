@@ -1,6 +1,7 @@
 import { moveColleaguesToNetwork, readRolePeople } from "./role-people";
 import { forgetRoleDocumentLinks, readRoleDocuments } from "./role-documents";
-import { forgetToolRoleLinks } from "./personal-tools";
+import { forgetToolRoleLinks, listTools } from "./personal-tools";
+import { careerPageTools } from "../core/career-page";
 import { prepareRoleLinks, type RoleLinkKind } from "../core/role-links";
 import { prepareRoleGlance } from "../core/role-glance";
 import {
@@ -1262,6 +1263,7 @@ export function readWorkMapSettings(
       "media",
       "evidence",
       "skills",
+      "tools",
       "contact",
     ],
     hideCurrentEmployer: false,
@@ -1284,6 +1286,7 @@ export async function saveWorkMapSettings(
     "media",
     "evidence",
     "skills",
+    "tools",
     "contact",
   ]);
   const settings: WorkMapPublicationSettings = {
@@ -1395,7 +1398,10 @@ export function composeWorkMapSnapshot(
 ): WorkMapSnapshot {
   const source = readWorkMap(db, occupantId);
   const profile = readProfile(db, occupantId);
+  const tools = listTools(db, occupantId);
   const createdAt = new Date().toISOString();
+  // Tools count only when some are shown, so pages from before tools aren't marked changed.
+  const shownTools = source.settings.sections.includes("tools") ? careerPageTools(tools, source.roles) : [];
   const sourceFingerprint = createHash("sha256")
     .update(
       JSON.stringify({
@@ -1403,6 +1409,7 @@ export function composeWorkMapSnapshot(
         roles: source.roles,
         skills: source.skills,
         settings: source.settings,
+        ...(shownTools.length ? { tools: shownTools } : {}),
       }),
     )
     .digest("hex");
@@ -1412,6 +1419,7 @@ export function composeWorkMapSnapshot(
     profile,
     roles: source.roles,
     skills: source.skills,
+    tools,
     settings: source.settings,
     sourceFingerprint,
     createdAt,

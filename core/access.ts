@@ -14,6 +14,7 @@ export const ACCESS_SECTION_LABEL: Record<WorkMapPublishSection, string> = {
   media: "Media",
   evidence: "Evidence",
   skills: "Skills",
+  tools: "Tools",
   contact: "Contact",
 };
 
@@ -126,6 +127,7 @@ export function limitProjection<T extends WorkMapSnapshot | Omit<WorkMapSnapshot
         }))
       : [],
     skills: open.has("skills") ? projection.skills : [],
+    tools: open.has("tools") ? (projection.tools ?? []) : [],
   };
 }
 

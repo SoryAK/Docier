@@ -127,7 +127,12 @@ export function limitProjection<T extends WorkMapSnapshot | Omit<WorkMapSnapshot
         }))
       : [],
     skills: open.has("skills") ? projection.skills : [],
-    tools: open.has("tools") ? (projection.tools ?? []) : [],
+    // Without career history, a tool doesn't say which jobs it was used at.
+    tools: !open.has("tools")
+      ? []
+      : open.has("history")
+        ? (projection.tools ?? [])
+        : (projection.tools ?? []).map((tool) => ({ ...tool, roleIds: [], facts: tool.facts.filter((fact) => fact.label !== "Used at") })),
   };
 }
 

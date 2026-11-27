@@ -1408,7 +1408,10 @@ export function composeWorkMapSnapshot(
         profile,
         roles: source.roles,
         skills: source.skills,
-        settings: source.settings,
+        // Likewise the Tools section itself, so it joining the defaults doesn't mark a page changed.
+        settings: shownTools.length
+          ? source.settings
+          : { ...source.settings, sections: source.settings.sections.filter((section) => section !== "tools") },
         ...(shownTools.length ? { tools: shownTools } : {}),
       }),
     )

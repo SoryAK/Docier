@@ -249,10 +249,10 @@ export function HomeBar({
     if (code === "private-not-publishable") {
       return "A private Work Map cannot be published.";
     }
-    if (code === "photos-too-large") {
+    if (code === "photos-too-large" || code === "too-large") {
       return "Too many photos to publish at once. Make some role photos private, or take some tools off your career page.";
     }
-    if (code === "photos-invalid" || code === "too-large") {
+    if (code === "photos-invalid") {
       return "The photos couldn't be prepared. Try publishing again.";
     }
     return code ?? "The Work Map could not be published.";

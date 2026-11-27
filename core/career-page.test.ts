@@ -129,6 +129,13 @@ describe("tools on the career page", () => {
     expect(limitProjection({ ...page, tools: undefined }, ["tools"]).tools).toEqual([]);
   });
 
+  it("a link without career history doesn't say where a tool was used", () => {
+    const [shown] = limitProjection(snapshot(), ["tools"]).tools ?? [];
+    expect(shown?.roleIds).toEqual([]);
+    expect(JSON.stringify(shown)).not.toContain("Giants Direct");
+    expect(shown?.facts).toContainEqual({ label: "How well I use it", value: "4 of 5" });
+  });
+
   it("notes when the shown tools change", () => {
     const before = snapshot();
     const after = snapshot({ tools: [tool({ name: "Hammer drill" })] });

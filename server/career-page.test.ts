@@ -106,6 +106,21 @@ describe("tools and photos on the career page", () => {
     expect(response.status).toBe(201);
   });
 
+  it("a page whose settings were never saved isn't marked changed by the new Tools section", async () => {
+    const db = openDatabase(":memory:");
+    const app = createApp(db, { relay: { publish: vi.fn(async () => undefined), revoke: vi.fn(async () => undefined) } });
+    await app.request("/api/profile", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ fullName: "Sory Kaba" }) });
+    const { composeWorkMapSnapshot } = await import("./work-map");
+    const occupant = db.prepare("SELECT id FROM occupants").get() as { id: string };
+    const now = composeWorkMapSnapshot(db, occupant.id).sourceFingerprint;
+    db.prepare("INSERT INTO work_map_publication_settings (occupant_id, settings_json, updated_at) VALUES (?, ?, ?)").run(
+      occupant.id,
+      JSON.stringify({ ...((await (await app.request("/api/work-map/settings")).json()) as { settings: { sections: string[] } }).settings, sections: ["profile", "history", "map", "milestones", "media", "evidence", "skills", "contact"] }),
+      "2026-01-01T00:00:00.000Z",
+    );
+    expect(composeWorkMapSnapshot(db, occupant.id).sourceFingerprint).toBe(now);
+  });
+
   it("marks the page changed when a tool comes off it", async () => {
     const { send, toolId } = await setup();
     await send("POST", "/api/work-map/publish", {});

@@ -593,7 +593,9 @@ export function ToolsPage() {
 
       {panelOpen ? (
         <ToolGallery
-          key={current && current.id !== adopted ? current.id : "new"}
+          // One popout for all existing tools, so paging changes the tool in it rather than
+          // rebuilding it; a new tool (and the one it becomes once added) has its own.
+          key={open === "new" || (current && current.id === adopted) ? "new" : "tool"}
           tool={current}
           roles={roles}
           kits={kits}

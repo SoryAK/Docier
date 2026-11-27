@@ -1228,6 +1228,7 @@ describe("saves that finish late", () => {
       return realFetch(input, init);
     }) as typeof fetch;
     await user.click(within(panel("New tool")).getByRole("button", { name: "Add tool" }));
+    // Closing while the save runs: it's already saving, so the popout just closes.
     await user.click(within(panel("New tool")).getByRole("button", { name: "Close" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     release();
@@ -1236,5 +1237,99 @@ describe("saves that finish late", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(window.location.hash).toBe("#/tools");
     globalThis.fetch = realFetch;
+  });
+});
+
+describe("closing with unsaved changes", () => {
+  it("asks before throwing changes away, and can keep editing, discard, or save", async () => {
+    const id = await addToolThroughApi("Drill");
+    window.location.hash = `#/tools/${id}`;
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await startEditing(user, "Drill");
+    await user.type(within(panel("Drill")).getByLabelText("Maker"), "Makita");
+
+    await user.keyboard("{Escape}");
+    const ask = await within(panel("Drill")).findByRole("alertdialog", { name: "Save your changes?" });
+    await user.click(within(ask).getByRole("button", { name: "Keep editing" }));
+    expect((within(panel("Drill")).getByLabelText("Maker") as HTMLInputElement).value).toBe("Makita");
+
+    await user.click(within(panel("Drill")).getByRole("button", { name: "Close" }));
+    await user.click(within(await within(panel("Drill")).findByRole("alertdialog")).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect((await server.tools())[0]!.maker).toBe("Makita");
+  });
+
+  it("discards when asked to, and closes at once when nothing changed", async () => {
+    const id = await addToolThroughApi("Drill");
+    window.location.hash = `#/tools/${id}`;
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await startEditing(user, "Drill");
+    await user.type(within(panel("Drill")).getByLabelText("Maker"), "Makita");
+    await user.keyboard("{Escape}");
+    await user.click(within(await within(panel("Drill")).findByRole("alertdialog")).getByRole("button", { name: "Discard" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect((await server.tools())[0]!.maker).toBe("");
+
+    // Nothing changed: no question.
+    await user.click(screen.getByRole("button", { name: "Open Drill" }));
+    await startEditing(user, "Drill");
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("asks about a new tool you've started filling in", async () => {
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await user.click(await screen.findByRole("button", { name: "Add a tool" }));
+    await user.type(within(panel("New tool")).getByLabelText("Name"), "Drill");
+    await user.keyboard("{Escape}");
+    expect(await within(panel("New tool")).findByRole("alertdialog", { name: "Save your changes?" })).toBeTruthy();
+  });
+});
+
+describe("paging without rebuilding the popout", () => {
+  it("keeps the same popout and focus on Next tool while paging", async () => {
+    await addToolThroughApi("Drill");
+    await addToolThroughApi("Saw");
+    const ladder = await addToolThroughApi("Ladder");
+    window.location.hash = `#/tools/${ladder}`;
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    const popout = await screen.findByRole("dialog", { name: "Ladder" });
+    await user.click(within(popout).getByRole("button", { name: "Next tool" }));
+    const saw = await screen.findByRole("dialog", { name: "Saw" });
+    expect(saw).toBe(popout);
+    expect(document.activeElement).toBe(within(saw).getByRole("button", { name: "Next tool" }));
+    await user.keyboard("{Enter}");
+    expect(await screen.findByRole("dialog", { name: "Drill" })).toBe(popout);
+  });
+
+  it("a save that finishes after paging away doesn't change the tool shown now", async () => {
+    const drill = await addToolThroughApi("Drill");
+    const saw = await addToolThroughApi("Saw");
+    window.location.hash = `#/tools/${drill}`;
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await startEditing(user, "Drill");
+    let release: () => void = () => {};
+    const held = new Promise<void>((resolve) => (release = resolve));
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === "PUT") await held;
+      return realFetch(input, init);
+    }) as typeof fetch;
+    await user.type(within(panel("Drill")).getByLabelText("Maker"), "Makita");
+    await user.click(within(panel("Drill")).getByRole("button", { name: "Save" }));
+    globalThis.fetch = realFetch;
+    // The address moves to Saw (Back or Forward) while Drill saves: the same popout now shows Saw.
+    window.location.hash = `#/tools/${saw}`;
+    await startEditing(user, "Saw");
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    // Saw is still being edited, untouched by Drill's late save.
+    expect(within(panel("Saw")).getByLabelText("Name")).toBeTruthy();
+    expect((within(panel("Saw")).getByLabelText("Maker") as HTMLInputElement).value).toBe("");
   });
 });

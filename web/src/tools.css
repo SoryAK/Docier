@@ -1207,3 +1207,26 @@ dialog.tool-gallery::backdrop {
   flex-direction: column;
   gap: 14px;
 }
+
+/* Closing with unsaved edits: Save, Discard, or Keep editing. */
+.tool-leave {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid #e8d8bd;
+  border-radius: 10px;
+  background: #fbf6ee;
+  font-size: 0.8125rem;
+}
+
+.tool-leave p {
+  margin: 0;
+}
+
+.tool-leave-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}

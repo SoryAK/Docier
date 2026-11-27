@@ -195,7 +195,34 @@ export function ToolGallery({
   const [large, setLarge] = useState(readLarge);
   // Photos picked before a new tool is saved, uploaded right after it is.
   const [pending, setPending] = useState<Array<{ file: File; url: string }>>([]);
+  // Asking "Save your changes?" before closing with unsaved edits.
+  const [leaving, setLeaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  // The tool shown now. The popout stays open while paging, so a save that finishes
+  // after paging away checks it and leaves the tool shown now alone.
+  const toolIdRef = useRef(tool?.id ?? null);
+  toolIdRef.current = tool?.id ?? null;
+  const shownId = useRef(tool?.id ?? null);
+  useEffect(() => {
+    if (shownId.current === (tool?.id ?? null)) return;
+    const wasNew = shownId.current === null;
+    shownId.current = tool?.id ?? null;
+    // A new tool just added is the same popout carrying on (its message stays), not a page change.
+    if (wasNew) return;
+    // Another tool, in the same popout: start it fresh, as if it had just opened.
+    setEditing(!tool || tool.draft);
+    setDraft(draftOf(tool));
+    setMore(hasMore(draftOf(tool)));
+    setError(null);
+    setPhotoNote("");
+    setConfirming(false);
+    setDuplicating(false);
+    setShown(0);
+    setFullSize(false);
+    setAdjusting(null);
+    setLeaving(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tool?.id]);
   // A save that finishes after this popout has gone (another tool opened, or it closed) mustn't move anywhere.
   const mounted = useRef(true);
   useEffect(() => {
@@ -387,8 +414,10 @@ export function ToolGallery({
 
   async function save(event: FormEvent, thenOpen?: string) {
     event.preventDefault();
+    const startedOn = toolIdRef.current;
     const saved = await saveFields();
-    if (!saved || !mounted.current) return;
+    // Gone, or paged to another tool while saving: leave the tool shown now alone.
+    if (!saved || !mounted.current || (startedOn !== null && toolIdRef.current !== startedOn)) return;
     if (tool && thenOpen && onOpen) {
       onOpen(thenOpen);
       return;
@@ -397,6 +426,29 @@ export function ToolGallery({
     setDraft(draftOf(saved));
     setEditing(false);
     keepFocus();
+  }
+
+  /** Edits not yet saved: a changed tool, or a new tool with anything filled in or a photo picked. */
+  const unsaved = editing && (tool ? changed : JSON.stringify(draft) !== JSON.stringify(draftOf(null)) || pending.length > 0);
+
+  /** Closes, first asking "Save your changes?" when there are unsaved edits. */
+  function requestClose() {
+    // While a save is running the changes are already being saved: no need to ask.
+    if (unsaved && !busy) {
+      setLeaving(true);
+      return;
+    }
+    onClose();
+  }
+
+  /** Saves, then closes; a failed save stays open, saying why. */
+  async function saveAndClose() {
+    const saved = await saveFields();
+    if (!saved) {
+      setLeaving(false);
+      return;
+    }
+    if (mounted.current) onClose();
   }
 
   /** Moves to another tool; changes not yet saved are saved first, and a failed save stays here. */
@@ -479,7 +531,7 @@ export function ToolGallery({
         icon={large ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
         onClick={toggleLarge}
       />
-      <IconButton label="Close" variant="ghost" size="sm" icon={<X size={18} />} onClick={onClose} />
+      <IconButton label="Close" variant="ghost" size="sm" icon={<X size={18} />} onClick={requestClose} />
     </HStack>
   );
 
@@ -715,6 +767,31 @@ export function ToolGallery({
         </Heading>
         {windowButtons}
       </HStack>
+      {leaving ? (
+        <div className="tool-leave" role="alertdialog" aria-label="Save your changes?" aria-describedby="tool-leave-text">
+          <p id="tool-leave-text">
+            <strong>Save your changes?</strong> {tool ? `What you changed in ${tool.name} isn't saved yet.` : "This new tool isn't added yet."}
+          </p>
+          <div className="tool-leave-actions">
+            <button type="button" className="tools-btn is-primary" disabled={busy} onClick={() => void saveAndClose()} autoFocus>
+              {tool ? "Save" : "Add tool"}
+            </button>
+            <button type="button" className="tools-btn" disabled={busy} onClick={onClose}>
+              Discard
+            </button>
+            <button
+              type="button"
+              className="tools-link"
+              onClick={() => {
+                setLeaving(false);
+                window.setTimeout(() => nameRef.current?.focus(), 0);
+              }}
+            >
+              Keep editing
+            </button>
+          </div>
+        </div>
+      ) : null}
       {tool?.draft ? <p className="tool-draft-note">Added from a photo. Fill in what you know and save; it stops needing details.</p> : null}
       <label className="tool-field">
         Name
@@ -954,7 +1031,12 @@ export function ToolGallery({
             return;
           }
           if (fullSize) return;
-          onClose();
+          // Escape while asking about unsaved changes keeps editing.
+          if (leaving) {
+            setLeaving(false);
+            return;
+          }
+          requestClose();
         }}
         onKeyDown={(event) => {
           if (!paging || editing || fullSize || adjusting || event.defaultPrevented) return;

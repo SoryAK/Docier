@@ -69,6 +69,7 @@ describe("tools and photos on the career page", () => {
     const { db, send, publish, toolId, mediaId } = await setup();
     const done = await send("POST", "/api/work-map/publish", { photos: { [`media:${mediaId}`]: JPEG, [`tool:${toolId}`]: JPEG } });
     expect(done.status).toBe(201);
+    expect(done.body.photosLeftOut).toEqual([]);
     const sent = publish.mock.calls[0]![0];
     expect(sent.roles[0]!.media.map((item) => item.url)).toEqual([JPEG]);
     expect(sent.tools?.[0]?.photoUrl).toBe(JPEG);
@@ -81,7 +82,10 @@ describe("tools and photos on the career page", () => {
 
   it("without prepared photos, the local ones are left off", async () => {
     const { send, publish } = await setup();
-    expect((await send("POST", "/api/work-map/publish")).status).toBe(201);
+    const done = await send("POST", "/api/work-map/publish");
+    expect(done.status).toBe(201);
+    expect(done.body.photosLeftOut).toHaveLength(2);
+    expect(done.body.photosLeftOut).toContain("Drill");
     const sent = publish.mock.calls[0]![0];
     expect(sent.roles[0]!.media).toEqual([]);
     expect(sent.tools?.[0]?.photoUrl).toBe("");

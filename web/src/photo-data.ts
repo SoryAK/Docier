@@ -4,6 +4,8 @@ import type { WorkMapMedia } from "@core/work-map";
 
 /** The widest a photo goes onto a share page or the career page, so the page stays small. */
 const PHOTO_WIDTH = 640;
+/** The tallest, so a tall photo stays under the page's size limit per photo too. */
+const PHOTO_HEIGHT = 960;
 
 /** How long one photo may take to read before the page goes on without it. */
 const PHOTO_WAIT_MS = 15000;
@@ -35,7 +37,7 @@ export async function photoData(url: string, framing: PhotoFraming): Promise<str
     const keepHeight = fullHeight / zoom;
     const left = Math.min(Math.max((framing.focusX / 100) * fullWidth - keepWidth / 2, 0), fullWidth - keepWidth);
     const top = Math.min(Math.max((framing.focusY / 100) * fullHeight - keepHeight / 2, 0), fullHeight - keepHeight);
-    const scale = Math.min(1, PHOTO_WIDTH / keepWidth);
+    const scale = Math.min(1, PHOTO_WIDTH / keepWidth, PHOTO_HEIGHT / keepHeight);
     const canvas = document.createElement("canvas");
     canvas.width = Math.max(1, Math.round(keepWidth * scale));
     canvas.height = Math.max(1, Math.round(keepHeight * scale));

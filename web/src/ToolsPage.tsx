@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
-import { Check, Download, ImagePlus, ListChecks, Plus, Search, Wrench } from "lucide-react";
+import { Check, Download, ImagePlus, ListChecks, Plus, Search, Share2, Wrench } from "lucide-react";
 import { EQUIPMENT_CATEGORIES, EQUIPMENT_CATEGORY_LABEL, type EquipmentCategory } from "@core/role-gear";
 import {
   TOOL_CONDITIONS,
@@ -20,6 +20,7 @@ import { ToolBulkBar, type BulkResult } from "./ToolBulkBar";
 import { ToolKits } from "./ToolKits";
 import { FramedPhoto } from "./ToolPhotoFrame";
 import { ToolGallery, type ToolRoleChoice } from "./ToolGallery";
+import { ToolShareDialog } from "./ToolShareDialog";
 import "./tools.css";
 
 /** The tool open in the panel lives in the address, `#/tools/<id>` (or `#/tools/new`). */
@@ -113,6 +114,8 @@ export function ToolsPage() {
   // Choosing: a click picks a card instead of opening it, for changing many at once.
   const [choosing, setChoosing] = useState(false);
   const [picked, setPicked] = useState<string[]>([]);
+  // The Share dialog: a page about the tools shown (or picked) to send someone.
+  const [sharing, setSharing] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   // With no kits yet, "+ New kit" sits with the page's buttons and asks the kits row to open its name field.
@@ -240,6 +243,12 @@ export function ToolsPage() {
   const visible = useMemo(
     () => filterTools(all, { query, category, draftsOnly }).filter((tool) => kit === null || tool.kitIds.includes(kit)),
     [all, query, category, draftsOnly, kit],
+  );
+  // What Share sends: the picked tools while picking (none picked, nothing), else the tools shown.
+  const shareSet = useMemo(
+    () => (choosing ? all.filter((tool) => picked.includes(tool.id)) : visible),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [choosing, picked, visible, tools],
   );
   const roleName = (id: string) => roles.find((role) => role.id === id)?.name;
   const drafts = all.filter((tool) => tool.draft).length;
@@ -381,6 +390,18 @@ export function ToolsPage() {
           {all.length > 0 && kits.length === 0 ? (
             <button ref={newKitRef} type="button" className="tools-btn" onClick={() => setNewKitRequest((count) => count + 1)}>
               + New kit
+            </button>
+          ) : null}
+          {all.length > 0 ? (
+            <button
+              type="button"
+              className="tools-btn"
+              disabled={shareSet.length === 0}
+              title={choosing && picked.length === 0 ? "Pick tools to share them" : undefined}
+              onClick={() => setSharing(true)}
+            >
+              <Share2 size={16} aria-hidden="true" />
+              Share
             </button>
           ) : null}
           {all.length > 0 ? (
@@ -615,6 +636,14 @@ export function ToolsPage() {
           onClose={() => openTool(null)}
           onOpen={showTool}
           nextDraft={nextDraft}
+        />
+      ) : null}
+      {sharing ? (
+        <ToolShareDialog
+          tools={shareSet}
+          roles={roles}
+          kits={kits}
+          onClose={() => setSharing(false)}
         />
       ) : null}
       {dragging ? <div className="tools-drop" aria-hidden="true">Drop photos to add them as drafts</div> : null}

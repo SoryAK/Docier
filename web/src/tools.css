@@ -1230,3 +1230,94 @@ dialog.tool-gallery::backdrop {
   align-items: center;
   gap: 8px;
 }
+
+/* ---- Share pages ---- */
+dialog.tool-share::backdrop {
+  background: rgba(12, 12, 12, 0.45);
+}
+
+.tool-share-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 18px 18px;
+  color: #171717;
+}
+
+.tool-share-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tool-share-head h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.tool-share-note {
+  margin: 0;
+  color: #6b6b70;
+  font-size: 0.8125rem;
+}
+
+.tool-share-who {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.tool-share-who legend {
+  margin-bottom: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.tool-share-who label {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid #e4e4e7;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tool-share-who label:has(input:checked) {
+  border-color: #cd9f5b;
+  background: #fbf6ee;
+}
+
+.tool-share-who small {
+  grid-column: 2;
+  color: #6b6b70;
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.tool-share-named {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8125rem;
+}
+
+.tool-share-preview {
+  width: 100%;
+  height: 22rem;
+  border: 1px solid #e4e4e7;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.tool-share-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}

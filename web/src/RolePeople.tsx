@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { confirmedBothWays, matchContacts, suggestRolePeople, type RolePerson } from "@core/role-people";
 import type { WorkMapRole } from "@core/work-map";
 import { BadgeCheck, Copy, Mail, Pencil, Plus, Send, UserPlus, X } from "lucide-react";
@@ -23,8 +23,9 @@ type Draft = {
 };
 
 /**
- * The people worked with on a role. Each is a My Network contact linked to the
- * role; the note and the month belong to this job. Unlinking keeps them in My Network.
+ * The people worked with on a role: its Colleagues tab. Each is a My Network
+ * contact linked to the role; the note and the month belong to this job.
+ * Unlinking keeps them in My Network.
  */
 export function RolePeople({
   role,
@@ -35,23 +36,26 @@ export function RolePeople({
   role: WorkMapRole;
   roles: WorkMapRole[];
   onSaved: () => void;
-  /** Opens the list with this person marked, as when they're picked in History. */
+  /** Marks this person in the list, as when they're picked in History. */
   openRequest?: { linkId: string; nonce: number } | null;
 }) {
-  const [open, setOpen] = useState(false);
+  // The tab is the list: it reads fresh contacts and answers when it opens.
+  const open = true;
   const [query, setQuery] = useState("");
+  // The name box shows once you ask to add someone.
+  const [finding, setFinding] = useState(false);
   const [contacts, setContacts] = useState<NetworkContact[] | null>(null);
+  // Goes up after each add, link, or unlink, so My Network is read again and the search knows who's there.
+  const [contactsRead, setContactsRead] = useState(0);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [ask, setAsk] = useState<Ask | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
-  const wrapRef = useRef<HTMLDivElement>(null);
   const [marked, setMarked] = useState<string | null>(null);
   useEffect(() => {
     if (!openRequest) return;
     setDraft(null);
     setAsk(null);
-    setOpen(true);
     setMarked(openRequest.linkId);
     const timer = window.setTimeout(() => setMarked(null), 1800);
     return () => window.clearTimeout(timer);
@@ -60,9 +64,9 @@ export function RolePeople({
   const name = role.organization.trim() || role.title.trim() || "this role";
 
   useEffect(() => {
-    setOpen(false);
     setDraft(null);
     setAsk(null);
+    setFinding(false);
     setQuery("");
     setMessage("");
   }, [role.id]);
@@ -99,26 +103,18 @@ export function RolePeople({
     return () => {
       cancelled = true;
     };
-  }, [open, role.id]);
+  }, [open, role.id, contactsRead]);
 
   useEffect(() => {
-    if (!open) return;
-    function onDown(event: PointerEvent) {
-      if (!wrapRef.current?.contains(event.target as Node)) setOpen(false);
-    }
     function onKey(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
       if (draft) setDraft(null);
       else if (ask) setAsk(null);
-      else setOpen(false);
+      else setFinding(false);
     }
-    document.addEventListener("pointerdown", onDown);
     document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("pointerdown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open, draft, ask]);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [draft, ask]);
 
   const linkedIds = people.map((person) => person.contactId);
   const matches = useMemo(() => matchContacts(contacts ?? [], query, linkedIds), [contacts, query, linkedIds]);
@@ -144,6 +140,7 @@ export function RolePeople({
       if (await work()) {
         after?.();
         onSaved();
+        setContactsRead((count) => count + 1);
       }
     } catch {
       setMessage("That could not be saved. Check your connection and try again.");
@@ -153,7 +150,10 @@ export function RolePeople({
   }
 
   const base = `/api/work-map/roles/${encodeURIComponent(role.id)}/people`;
-  const link = (contactId: string) => run(() => send(base, "POST", { contactId, since: "" }), () => setQuery(""));
+  const link = (contactId: string) => run(() => send(base, "POST", { contactId, since: "" }), () => {
+    setQuery("");
+    setFinding(false);
+  });
   const unlink = (person: RolePerson) => {
     if (!window.confirm(`Take ${person.name} off ${name}? They stay in My Network.`)) return;
     void run(() => send(`${base}/${encodeURIComponent(person.linkId)}`, "DELETE"));
@@ -252,6 +252,7 @@ export function RolePeople({
         const added = ((await response.json()) as { person: RolePerson }).person;
         setDraft(null);
         setQuery("");
+        setFinding(false);
         if (askAfter) setAsk(askDraft(added));
         return true;
       });
@@ -267,24 +268,9 @@ export function RolePeople({
   }
 
   return (
-    <div className="role-view-people" ref={wrapRef}>
-      {people.length > 0 ? (
-        <button type="button" className="role-view-faces" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
-          <span className="role-view-stack" aria-hidden="true">
-            {people.slice(0, 3).map((person) => (
-              <Face key={person.linkId} person={person} confirmed={person.confirmation?.status === "approved"} />
-            ))}
-          </span>
-          Worked with {people.length}
-        </button>
-      ) : (
-        <button type="button" className="role-view-text" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
-          + Who you worked with
-        </button>
-      )}
-
+    <section className="role-view-section role-view-people" aria-label={`Colleagues at ${name}`}>
       {open ? (
-        <div className="role-view-pop role-people" role="dialog" aria-label={`People at ${name}`}>
+        <div className="role-view-pop role-people is-inline">
           {ask ? (
             ask.link ? (
               <div className="role-people-form">
@@ -380,10 +366,6 @@ export function RolePeople({
             </form>
           ) : (
             <>
-              <div className="role-people-head">
-                <h3>Worked with</h3>
-                <small>Saved in My Network</small>
-              </div>
               {people.length > 0 ? (
                 <ul className="role-people-list">
                   {people.map((person) => (
@@ -421,8 +403,10 @@ export function RolePeople({
                     </li>
                   ))}
                 </ul>
-              ) : (
-                <p className="role-view-empty">Add the people from {name}. They join My Network, linked to this job.</p>
+              ) : finding ? null : (
+                <button type="button" className="role-group-add" onClick={() => setFinding(true)}>
+                  + Add the people you worked with at {name}
+                </button>
               )}
 
               {suggestions.length > 0 ? (
@@ -438,11 +422,13 @@ export function RolePeople({
                 </div>
               ) : null}
 
+              {finding ? (
               <div className="role-people-find">
                 <UserPlus size={15} aria-hidden="true" />
                 <input
+                  autoFocus
                   aria-label="Add someone by name"
-                  placeholder="Add someone…"
+                  placeholder="Type a name…"
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   onKeyDown={(event) => {
@@ -455,7 +441,12 @@ export function RolePeople({
                   disabled={busy}
                 />
               </div>
-              {query.trim() ? (
+              ) : people.length > 0 ? (
+                <button type="button" className="role-view-text role-inline-add" onClick={() => setFinding(true)}>
+                  <Plus size={14} aria-hidden="true" /> Add someone
+                </button>
+              ) : null}
+              {finding && query.trim() ? (
                 <ul className="role-people-matches">
                   {matches.map((contact) => (
                     <li key={contact.id}>
@@ -473,11 +464,12 @@ export function RolePeople({
                 </ul>
               ) : null}
               {message ? <p className="role-view-error" role="alert">{message}</p> : null}
+              <p className="role-group-share">Each person is saved in My Network, linked to this job.</p>
             </>
           )}
         </div>
       ) : null}
-    </div>
+    </section>
   );
 }
 

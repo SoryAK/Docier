@@ -24,6 +24,7 @@ import {
   ArrowUturnLeftIcon,
   ArrowTrendingUpIcon,
   BanknotesIcon,
+  Bars3BottomLeftIcon,
   BriefcaseIcon,
   ChartBarIcon,
   BuildingOffice2Icon,
@@ -49,6 +50,7 @@ import {
   WrenchScrewdriverIcon,
 } from "@heroicons/react/24/outline";
 import { formatHistoryPlace } from "@core/career-history";
+import { ROLE_LINK_KINDS, ROLE_LINK_LABEL, type RoleLinkKind, type RoleLinks } from "@core/role-links";
 import {
   SCHEDULE_TYPES,
   SCHEDULE_TYPE_LABEL,
@@ -71,6 +73,8 @@ import {
   type GearPanel,
   type ReflectionPanel,
 } from "./RoleSettingsMore";
+import { brandLogoIcon } from "./BrandLogo";
+import { socialMarkIcon } from "./SocialMark";
 import { PAY_ERROR, PAY_PANELS, PayPanels, payBody, payDraft, type PayPanel } from "./RoleSettingsPay";
 import { SettingsCard, SettingsRow, SettingsStatus } from "./SettingsRows";
 
@@ -92,15 +96,15 @@ function groupsFor(role: WorkMapRole): { label: string; panels: PanelConfig[] }[
     {
       label: school ? "School" : "Role",
       panels: [
-        { id: "basics", label: "Basics", description: school ? "School, program, place, and dates." : "Company, title, place, and dates.", icon: school ? AcademicCapIcon : BriefcaseIcon },
-        { id: "about", label: "About", description: "A few lines on what this was.", icon: DocumentTextIcon },
+        { id: "basics", label: "Basics", description: school ? "School, program, place, dates, and links." : "Company, title, place, dates, and links.", icon: school ? AcademicCapIcon : BriefcaseIcon },
+        { id: "about", label: "About", description: "A one-line summary, and a few lines on what this was.", icon: DocumentTextIcon },
         { id: "achievements", label: "Achievements", description: "What you got done, one per line.", icon: TrophyIcon },
       ],
     },
   ];
   if (!school) {
     groups.push({
-      label: "Work setup",
+      label: "Setup",
       panels: [
         { id: "schedule", label: "Schedule", description: "Type, hours, and where you worked.", icon: CalendarDaysIcon },
         { id: "shifts", label: "Shifts", description: "The shifts you worked, with their times.", icon: ClockIcon },
@@ -167,6 +171,28 @@ function roleDraft(role: WorkMapRole) {
   };
 }
 
+function linksDraft(role: WorkMapRole): RoleLinks {
+  return Object.fromEntries(ROLE_LINK_KINDS.map((kind) => [kind, role.details[kind] ?? ""])) as RoleLinks;
+}
+
+const LINK_PLACEHOLDER: Record<RoleLinkKind, string> = {
+  website: "company.com",
+  linkedin: "linkedin.com/company/…",
+  instagram: "instagram.com/…",
+  facebook: "facebook.com/…",
+  x: "x.com/…",
+  youtube: "youtube.com/@…",
+};
+
+const LINK_ICON: Record<RoleLinkKind, ComponentType<SVGProps<SVGSVGElement>>> = {
+  website: socialMarkIcon("site"),
+  linkedin: brandLogoIcon("linkedin"),
+  instagram: brandLogoIcon("instagram"),
+  facebook: brandLogoIcon("facebook"),
+  x: brandLogoIcon("x"),
+  youtube: brandLogoIcon("youtube"),
+};
+
 function setupDraft(role: WorkMapRole) {
   const d = role.details;
   return {
@@ -217,16 +243,23 @@ export function RoleSettings({
   const groups = groupsFor(role);
   const panels = groups.flatMap((group) => group.panels);
   const [panel, setPanel] = useState<RoleSettingsPanel>(panels.some((item) => item.id === openPanel) ? openPanel : "basics");
+  // What's saved, per part. Each moves to what was sent once that part saves, so a
+  // later Save after a partial failure compares with what's really stored.
   const [initialRole] = useState(() => roleDraft(role));
-  const [initialSetup] = useState(() => setupDraft(role));
+  const [initialSetup, setInitialSetup] = useState(() => setupDraft(role));
   const [draft, setDraft] = useState(initialRole);
   const [setup, setSetup] = useState(initialSetup);
-  const [initialPay] = useState(() => payDraft(role));
+  const [initialPay, setInitialPay] = useState(() => payDraft(role));
   const [pay, setPay] = useState(initialPay);
-  const [initialGear] = useState(() => gearDraft(role));
+  const [initialGear, setInitialGear] = useState(() => gearDraft(role));
   const [gear, setGear] = useState(initialGear);
-  const [initialReflection] = useState(() => reflectionDraft(role));
+  const [initialReflection, setInitialReflection] = useState(() => reflectionDraft(role));
   const [reflection, setReflection] = useState(initialReflection);
+  const [initialLinks, setInitialLinks] = useState(() => linksDraft(role));
+  const [links, setLinks] = useState(initialLinks);
+  // The one line shown in larger type above the description.
+  const [initialSummary, setInitialSummary] = useState(() => role.details.summary);
+  const [summary, setSummary] = useState(initialSummary);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const config = panels.find((item) => item.id === panel) ?? panels[0]!;
@@ -236,7 +269,9 @@ export function RoleSettings({
   const payChanged = JSON.stringify(pay) !== JSON.stringify(initialPay);
   const gearChanged = JSON.stringify(gear) !== JSON.stringify(initialGear);
   const reflectionChanged = JSON.stringify(reflection) !== JSON.stringify(initialReflection);
-  const detailsChanged = setupChanged || payChanged || gearChanged || reflectionChanged;
+  const linksChanged = JSON.stringify(links) !== JSON.stringify(initialLinks);
+  const summaryChanged = summary.trim() !== initialSummary.trim();
+  const detailsChanged = setupChanged || payChanged || gearChanged || reflectionChanged || linksChanged || summaryChanged;
   const people = [...new Set((role.people ?? []).map((person) => person.name))];
 
   const edit = (patch: Partial<typeof draft>) => setDraft((current) => ({ ...current, ...patch }));
@@ -247,11 +282,51 @@ export function RoleSettings({
     setError(null);
     try {
       // Each part saves on its own; a refusal opens the panel it's about.
-      const parts: Array<[boolean, string, unknown, Record<string, { panel: RoleSettingsPanel; message: string }>, string]> = [
-        [gearChanged, "gear", gearBody(gear), GEAR_ERROR, "The gear could not be saved. Try again."],
-        [reflectionChanged, "reflection", reflectionBody(reflection), REFLECTION_ERROR, "Looking back could not be saved. Try again."],
+      const parts: Array<[boolean, string, unknown, Record<string, { panel: RoleSettingsPanel; message: string }>, string, () => void]> = [
+        [gearChanged, "gear", gearBody(gear), GEAR_ERROR, "The gear could not be saved. Try again.", () => setInitialGear(gear)],
+        [
+          reflectionChanged,
+          "reflection",
+          reflectionBody(reflection),
+          REFLECTION_ERROR,
+          "Looking back could not be saved. Try again.",
+          () => setInitialReflection(reflection),
+        ],
       ];
-      for (const [changed, path, body, errors, fallback] of parts) {
+      if (summaryChanged) {
+        const response = await fetch(`/api/work-map/roles/${encodeURIComponent(role.id)}/details`, {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ summary: summary.trim() }),
+        });
+        if (!response.ok) {
+          setPanel("about");
+          setError("The summary could not be saved. Try again.");
+          onSaved();
+          return;
+        }
+        setInitialSummary(summary);
+      }
+      if (linksChanged) {
+        const response = await fetch(`/api/work-map/roles/${encodeURIComponent(role.id)}/links`, {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(links),
+        });
+        if (!response.ok) {
+          const failed = (await response.json().catch(() => ({}))) as { error?: string; field?: RoleLinkKind };
+          setPanel("basics");
+          setError(
+            failed.error === "url-invalid" && failed.field
+              ? `The ${ROLE_LINK_LABEL[failed.field]} link isn't a web address. Use one like ${LINK_PLACEHOLDER[failed.field].replace("…", "name")}.`
+              : "The links could not be saved. Try again.",
+          );
+          onSaved();
+          return;
+        }
+        setInitialLinks(links);
+      }
+      for (const [changed, path, body, errors, fallback, saved] of parts) {
         if (!changed) continue;
         const response = await fetch(`/api/work-map/roles/${encodeURIComponent(role.id)}/${path}`, {
           method: "PUT",
@@ -266,6 +341,7 @@ export function RoleSettings({
           onSaved();
           return;
         }
+        saved();
       }
       if (payChanged) {
         const response = await fetch(`/api/work-map/roles/${encodeURIComponent(role.id)}/pay`, {
@@ -281,6 +357,7 @@ export function RoleSettings({
           onSaved();
           return;
         }
+        setInitialPay(pay);
       }
       if (setupChanged) {
         const response = await fetch(`/api/work-map/roles/${encodeURIComponent(role.id)}/work-setup`, {
@@ -311,6 +388,7 @@ export function RoleSettings({
           onSaved();
           return;
         }
+        setInitialSetup(setup);
       }
       if (roleChanged) {
         const pinned = /^\d+$/.test(role.locationLabel.trim());
@@ -421,12 +499,42 @@ export function RoleSettings({
         </SettingsCard>
       ) : null}
 
+      {panel === "basics" ? (
+        <SettingsCard title={school ? "School links" : "Company links"}>
+          {ROLE_LINK_KINDS.map((kind) => (
+            <SettingsRow
+              key={kind}
+              title={ROLE_LINK_LABEL[kind]}
+              icon={LINK_ICON[kind]}
+              description={kind === "website" ? "Shown under the role's banner, for you only. Links never go on your page." : undefined}
+              control={
+                <TextInput
+                  label={ROLE_LINK_LABEL[kind]}
+                  isLabelHidden
+                  size="sm"
+                  width={CONTROL_WIDTH}
+                  placeholder={LINK_PLACEHOLDER[kind]}
+                  value={links[kind]}
+                  onChange={(value) => setLinks((current) => ({ ...current, [kind]: value }))}
+                />
+              }
+            />
+          ))}
+        </SettingsCard>
+      ) : null}
+
       {panel === "about" ? (
         <SettingsCard>
           <SettingsRow
+            title="Summary"
+            icon={Bars3BottomLeftIcon}
+            description="One line in larger type, above the description."
+            detail={<TextArea label="Summary" isLabelHidden size="sm" width="100%" rows={2} value={summary} onChange={setSummary} />}
+          />
+          <SettingsRow
             title="Description"
             icon={PencilSquareIcon}
-            description="Shown at the top of the role."
+            description="The rest: what the job was, in a few lines."
             detail={<TextArea label="Description" isLabelHidden size="sm" width="100%" rows={6} value={draft.description} onChange={(value) => edit({ description: value })} />}
           />
         </SettingsCard>
@@ -566,7 +674,7 @@ export function RoleSettings({
                 people.length > 0 ? (
                   <HStack gap={1} wrap="wrap" align="center">
                     <Text type="supporting" color="secondary">
-                      From who you worked with:
+                      From your colleagues:
                     </Text>
                     {people.slice(0, 6).map((person) => (
                       <Button key={person} label={person} variant={setup.reportsTo === person ? "secondary" : "ghost"} size="sm" onClick={() => editSetup({ reportsTo: person })} />

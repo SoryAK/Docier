@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button } from "@astryxdesign/core/Button";
 import { Dialog, DialogHeader } from "@astryxdesign/core/Dialog";
 import { Icon } from "@astryxdesign/core/Icon";
@@ -18,6 +18,9 @@ import type { MapFitMode } from "./map-camera";
 import { AchievementPopout } from "./AchievementPopout";
 import { RoleHistoryPanel } from "./RoleHistoryPanel";
 import { RoleView, type RoleFocusRequest } from "./RoleView";
+import { RoleScrollbar } from "./RoleScrollbar";
+import { AssistantPanelHead } from "./AssistantPanel";
+import type { AssistantAction } from "@core/assistant-panel";
 import "./home-center.css";
 
 export function HomeCenter({
@@ -26,10 +29,12 @@ export function HomeCenter({
   onSelectRole,
   onCloseRole,
   viewRequest = null,
+  roleRequest = null,
   pageContent = null,
   onStart,
   roleView = false,
   onRoleSaved,
+  assistant,
 }: {
   revision?: number;
   focusRoleId: string | null;
@@ -39,10 +44,14 @@ export function HomeCenter({
   /** A first step when the story is empty: add a job or school, or import a resume. */
   onStart?: (action: "job" | "school" | "import") => void;
   viewRequest?: { id: number; updates: boolean; updateId: string | null } | null;
+  /** Something on the focused role to show, such as a search hit. */
+  roleRequest?: RoleFocusRequest | null;
   pageContent?: ReactNode;
   /** On Career History, a focused role is shown here, with its History in place of Recent. */
   roleView?: boolean;
   onRoleSaved?: () => void;
+  /** The assistant panel's switch and close, at the top of History and Updates. */
+  assistant?: { chatPopped: boolean; onAssist: (action: AssistantAction) => void };
 }) {
   const [roles, setRoles] = useState<WorkMapRole[]>([]);
   const [settings, setSettings] = useState<MapSettings | null>(null);
@@ -59,6 +68,11 @@ export function HomeCenter({
   // An entry picked in a role's History, shown in the role beside it.
   const [roleFocus, setRoleFocus] = useState<RoleFocusRequest | null>(null);
   const [popoutAchievement, setPopoutAchievement] = useState<string | null>(null);
+  // A request is for the role it came with: another role starts fresh.
+  useEffect(() => setRoleFocus(null), [focusRoleId]);
+  useEffect(() => {
+    if (roleRequest) setRoleFocus(roleRequest);
+  }, [roleRequest]);
   // A different role closes an achievement left open.
   useEffect(() => setPopoutAchievement(null), [focusRoleId]);
 
@@ -143,8 +157,13 @@ export function HomeCenter({
     setUpdateId(id);
   }
 
+  // The story and a role keep a column at the right (Recent, or the role's History);
+  // it stands as its own card beside the main one.
+  const roleScrollRef = useRef<HTMLDivElement>(null);
+  const split = !pageContent && (view !== "map" || Boolean(showRole && focus));
+
   return (
-    <div className="home-center">
+    <div className={split ? "home-center is-split" : "home-center"}>
       <main
         className="home-stage home-center-live"
         aria-label={pageContent ? "Page" : view === "map" ? "Map" : "Career story"}
@@ -165,8 +184,9 @@ export function HomeCenter({
             {pageContent ? (
               <div className="home-story-page">{pageContent}</div>
             ) : showRole && focus ? (
-              <div className="home-role">
+              <div className="home-role" ref={roleScrollRef}>
                 <RoleView role={focus} roles={roles} onSaved={() => onRoleSaved?.()} focusRequest={roleFocus} onClose={onCloseRole} />
+                <RoleScrollbar scroller={roleScrollRef} />
               </div>
             ) : view === "map" ? (
               <div className="home-center-map">
@@ -286,6 +306,9 @@ export function HomeCenter({
               )}
                 {showRole && focus ? (
                   <section className="home-story-recent home-role-history">
+                    {assistant ? (
+                      <AssistantPanelHead tab="history" historyLabel="History" chatPopped={assistant.chatPopped} onAssist={assistant.onAssist} />
+                    ) : null}
                     <RoleHistoryPanel
                       role={focus}
                       onSaved={() => onRoleSaved?.()}
@@ -305,6 +328,9 @@ export function HomeCenter({
                   </section>
                 ) : (
                 <section className="home-story-recent" aria-label="Recent events">
+                  {assistant ? (
+                    <AssistantPanelHead tab="history" historyLabel="Updates" chatPopped={assistant.chatPopped} onAssist={assistant.onAssist} />
+                  ) : null}
                   <div className="home-story-recent-switch">
                     <SegmentedControl
                       label="Recent views"
@@ -706,15 +732,18 @@ export function liveUpdates(roles: WorkMapRole[], now = new Date()): LiveUpdate[
     role.achievements.forEach((text, index) => {
       const trimmed = text.trim();
       if (!trimmed) return;
+      // Only an achievement's own month is shown; without one it has no date, as on the role.
+      const date = role.achievementDates?.[index] ?? "";
+      const when = inboxStamp(date, now);
       items.push({
         id: `${role.id}-done-${index}`,
         organization,
         kind: "Achievement",
         text: trimmed,
-        stamp,
-        frame,
-        when: role.startDate,
-        ownDate: false,
+        stamp: when,
+        frame: when || frame,
+        when: when ? date : role.startDate,
+        ownDate: Boolean(when),
       });
     });
     return items;

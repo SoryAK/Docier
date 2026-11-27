@@ -186,7 +186,7 @@ export function AchievementDetail({
       icon: UserRound,
       chips: links.people.map((id) => ({ value: id, label: people.find((p) => p.linkId === id)?.name ?? "Someone" })),
       options: people.filter((p) => !links.people.includes(p.linkId)).map((p) => ({ value: p.linkId, label: p.name })),
-      empty: "Add people to the role first, under Who you worked with.",
+      empty: "Add people to the role first, under Colleagues.",
     },
     {
       group: "moments",

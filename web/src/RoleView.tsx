@@ -5,28 +5,42 @@ import {
   formatTenureMonths,
   tenureMonths,
 } from "@core/career-history";
+import { roleGlance, type GlanceKind } from "@core/role-glance";
+import { roleLinkList } from "@core/role-links";
 import { roleCoverPhoto, type WorkMapRole } from "@core/work-map";
-import { ArrowLeft, CalendarDays, ChevronRight, Globe, ImagePlus, Images, MapPin, Pencil, Plus, Trash2, UserRound, X } from "lucide-react";
+import { ArrowLeft, Banknote, BriefcaseBusiness, CalendarDays, ChevronRight, Clock, ImagePlus, Images, Lock, MapPin, Pencil, Plus, Star, Trash2, UserRound, X, type LucideIcon } from "lucide-react";
 import { AchievementDate } from "./AchievementDate";
 import { AchievementDetail } from "./AchievementDetail";
 import { AchievementProof } from "./AchievementProof";
+import { RoleDocuments } from "./RoleDocuments";
 import { RolePeople } from "./RolePeople";
 import { RoleSettings, type RoleSettingsPanel } from "./RoleSettings";
 import { RoleEvents } from "./RoleEvents";
-import { RoleGearSection, RoleReflectionSection } from "./RoleMoreSections";
+import { RoleReflectionSection } from "./RoleMoreSections";
 import { RolePaySection } from "./RolePaySection";
 import { RolePlaces } from "./RolePlaces";
 import { RoleWorkSetup } from "./RoleWorkSetup";
+import { BrandLogo } from "./BrandLogo";
+import { SocialMark } from "./SocialMark";
 import "./role-view.css";
 
-type RoleTab = "overview" | "achievements";
+type RoleTab = "overview" | "achievements" | "setup" | "pay" | "colleagues" | "documents";
+
+const GLANCE_ICON: Record<GlanceKind, LucideIcon> = {
+  work: BriefcaseBusiness,
+  hours: Clock,
+  manager: UserRound,
+  pay: Banknote,
+};
 
 /** A thing picked in the role's History, to show in the role. */
-export type RoleFocusRequest = { kind: "achievement" | "person" | "overview"; id: string; nonce: number };
+/** What to show on a role: an achievement, a person, the start, or a tab (`id` is the tab). */
+export type RoleFocusRequest = { kind: "achievement" | "person" | "overview" | "tab"; id: string; nonce: number };
 
 /**
  * One role, opened from Career History: its photo as a banner (or a cream band),
- * buttons for what it has, and two tabs. The role's History sits beside it.
+ * its name below, a line of what it was like at a glance, and its tabs: two for
+ * a school, six for a job. The role's History sits beside it.
  */
 export function RoleView({
   role,
@@ -99,13 +113,31 @@ export function RoleView({
       setTab("overview");
       return;
     }
+    if (focusRequest.kind === "tab") {
+      setTab(focusRequest.id as RoleTab);
+      setOpenAchievement(null);
+      return;
+    }
     if (focusRequest.kind === "person") {
+      setTab("colleagues");
       setPeopleRequest({ linkId: focusRequest.id, nonce: focusRequest.nonce });
       return;
     }
     setTab("achievements");
     setOpenAchievement(focusRequest.id);
   }, [focusRequest]);
+
+  // On a narrow screen the tabs scroll: keep the open one in view.
+  const tabsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const active = tabsRef.current?.querySelector<HTMLElement>('[aria-selected="true"]');
+    const row = tabsRef.current;
+    if (!active || !row) return;
+    const left = active.offsetLeft - row.offsetLeft;
+    if (left < row.scrollLeft || left + active.offsetWidth > row.scrollLeft + row.clientWidth - 28) {
+      row.scrollTo({ left: Math.max(0, left - 16), behavior: "smooth" });
+    }
+  }, [tab]);
 
   // A different role starts on its overview, with nothing left open.
   useEffect(() => {
@@ -124,6 +156,29 @@ export function RoleView({
   const details = role.details;
   const summary = details.summary.trim();
   const description = role.description.trim();
+  const links = roleLinkList(details);
+  const isJob = role.kind !== "school";
+  const glance = isJob ? roleGlance(details) : [];
+  const tabs: Array<{ id: RoleTab; label: string; count?: number; locked?: boolean }> = [
+    { id: "overview", label: "Overview" },
+    { id: "achievements", label: "Achievements", count: role.achievements.length },
+    ...(isJob
+      ? ([
+          { id: "setup", label: "Setup" },
+          { id: "pay", label: "Pay & benefits", locked: true },
+        ] as const)
+      : []),
+    { id: "colleagues", label: "Colleagues", count: role.people?.length ?? 0 },
+    { id: "documents", label: "Documents", count: role.documents?.length ?? 0 },
+  ];
+  // One panel shows at a time; each tab names it, and it names the tab showing it.
+  const panelId = `${role.id}-panel`;
+  const tabId = (id: RoleTab) => `${role.id}-tab-${id}`;
+
+  function openTab(next: RoleTab) {
+    setTab(next);
+    setOpenAchievement(null);
+  }
 
   return (
     <article className="role-view" aria-label={name}>
@@ -135,25 +190,7 @@ export function RoleView({
       ) : null}
       <header className={cover ? "role-view-banner" : "role-view-banner is-cream"}>
         {cover ? <img className="role-view-cover" src={cover.url} alt="" /> : null}
-        {details.website || details.linkedin ? (
-          <div className="role-view-corner">
-            {details.website ? (
-              <a className="role-view-round" href={details.website} target="_blank" rel="noreferrer" title="Website" aria-label="Website">
-                <Globe size={16} aria-hidden="true" />
-              </a>
-            ) : null}
-            {details.linkedin ? (
-              <a className="role-view-round" href={details.linkedin} target="_blank" rel="noreferrer" title="LinkedIn" aria-label="LinkedIn">
-                <UserRound size={16} aria-hidden="true" />
-              </a>
-            ) : null}
-          </div>
-        ) : null}
         <div className="role-view-heading">
-          <div className="role-view-names">
-            <h1>{name}</h1>
-            {subtitle ? <p>{subtitle}</p> : null}
-          </div>
           <div className="role-view-actions">
             {photos.length > 0 ? (
               <button type="button" className="role-view-glass" onClick={() => galleryRef.current?.showModal()}>
@@ -174,58 +211,132 @@ export function RoleView({
         </div>
       </header>
 
-      <div className="role-view-meta">
-        <p>
-          {[place, period].filter(Boolean).join(" · ")}
-          {role.isCurrent ? <mark>Current</mark> : null}
-          {tenure ? <span className="role-view-tenure">({tenure})</span> : null}
-        </p>
-        <RolePeople role={role} roles={roles} onSaved={onSaved} openRequest={peopleRequest} />
+      <div className="role-view-names">
+        <div className="role-view-name-row">
+          <h1>{name}</h1>
+          {isJob && details.workplaceRating ? (
+            <button
+              type="button"
+              className="role-view-rating"
+              title="Your overall rating, in Looking back"
+              aria-label={`Rated ${details.workplaceRating} out of 5 overall`}
+              onClick={() => openTab("overview")}
+            >
+              <Star size={15} aria-hidden="true" />
+              {details.workplaceRating}/5
+            </button>
+          ) : null}
+          {links.length > 0 ? (
+            <nav className="role-view-links" aria-label="Company links">
+              {links.map((link) =>
+                link.kind === "website" ? (
+                  // The website by a globe alone, like the networks; its address shows on hover and is read aloud.
+                  <a key={link.kind} className="is-logo is-site" href={link.url} target="_blank" rel="noreferrer" title={link.label} aria-label={`Website: ${link.label}`}>
+                    <SocialMark kind="site" />
+                  </a>
+                ) : (
+                  // A network's logo says what it is; its name shows on hover and is read aloud.
+                  <a key={link.kind} className="is-logo" href={link.url} target="_blank" rel="noreferrer" title={link.label} aria-label={link.label}>
+                    <BrandLogo kind={link.kind} />
+                  </a>
+                ),
+              )}
+            </nav>
+          ) : null}
+        </div>
+        <div className="role-view-title-row">
+          {subtitle ? <p>{subtitle}</p> : null}
+          {subtitle && (place || period) ? <span className="role-view-divider" aria-hidden="true" /> : null}
+          <p className="role-view-span">
+            {[place, period].filter(Boolean).join(" · ")}
+            {tenure ? <span className="role-view-tenure">({tenure})</span> : null}
+          </p>
+        </div>
       </div>
+
+      {glance.length > 0 ? (
+        <ul className="role-view-glance" aria-label={`${name} at a glance`}>
+          {glance.map((item) => {
+            const Icon = GLANCE_ICON[item.kind];
+            return (
+              <li key={item.kind}>
+                <button type="button" onClick={() => openTab(item.tab)}>
+                  <Icon size={15} aria-hidden="true" />
+                  <span>{item.text}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
 
       {settings ? <RoleSettings role={role} panel={settings} onClose={() => setSettings(null)} onSaved={onSaved} /> : null}
       {(
         <>
-          <div className="role-view-tabs" role="tablist" aria-label={`${name} sections`}>
-            <button type="button" role="tab" aria-selected={tab === "overview"} onClick={() => setTab("overview")}>
-              Overview
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === "achievements"}
-              onClick={() => {
-                setTab("achievements");
-                setOpenAchievement(null);
-              }}
-            >
-              Achievements
-              {role.achievements.length > 0 ? <span>{role.achievements.length}</span> : null}
-            </button>
+          <div
+            ref={tabsRef}
+            className="role-view-tabs"
+            role="tablist"
+            aria-label={`${name} sections`}
+            onKeyDown={(event) => {
+              // Arrow keys, Home, and End move between tabs, as tabs do.
+              const at = tabs.findIndex((item) => item.id === tab);
+              const to =
+                event.key === "ArrowRight" ? (at + 1) % tabs.length
+                : event.key === "ArrowLeft" ? (at - 1 + tabs.length) % tabs.length
+                : event.key === "Home" ? 0
+                : event.key === "End" ? tabs.length - 1
+                : -1;
+              if (to < 0) return;
+              event.preventDefault();
+              openTab(tabs[to]!.id);
+              tabsRef.current?.querySelectorAll<HTMLElement>("[role=tab]")[to]?.focus();
+            }}
+          >
+            {tabs.map((item) => (
+              <button
+                key={item.id}
+                id={tabId(item.id)}
+                type="button"
+                role="tab"
+                aria-selected={tab === item.id}
+                aria-controls={panelId}
+                tabIndex={tab === item.id ? 0 : -1}
+                onClick={() => openTab(item.id)}
+              >
+                {item.label}
+                {item.locked ? <Lock size={12} aria-label="Only you see this" className="role-view-tab-lock" /> : null}
+                {item.count ? <span>{item.count}</span> : null}
+              </button>
+            ))}
           </div>
 
           {tab === "overview" ? (
-            <div className="role-view-pane" role="tabpanel">
-              {summary || description ? (
-                <div className="role-view-story">
-                  {summary ? <p className="role-view-lead">{summary}</p> : null}
-                  {description && description !== summary ? <p>{description}</p> : null}
+            <div className="role-view-pane is-overview" role="tabpanel" id={panelId} aria-labelledby={tabId(tab)}>
+              <section className="role-view-section role-view-about" aria-labelledby={`${role.id}-about`}>
+                <div className="role-view-section-head">
+                  <h2 id={`${role.id}-about`}>Description</h2>
+                  {summary || description ? (
+                    <button type="button" className="role-edit" onClick={() => setSettings("about")}>
+                      Edit
+                    </button>
+                  ) : null}
                 </div>
-              ) : (
-                <p className="role-view-empty">
-                  Nothing written about this job yet.{" "}
-                  <button type="button" className="role-view-text" onClick={() => setSettings("about")}>
-                    + Add a few lines
+                {summary || description ? (
+                  <div className="role-view-story">
+                    {summary ? <p className="role-view-lead">{summary}</p> : null}
+                    {description && description !== summary ? <p>{description}</p> : null}
+                  </div>
+                ) : (
+                  <button type="button" className="role-group-add" onClick={() => setSettings("about")}>
+                    + Add a few lines about what this {role.kind === "school" ? "was" : "job was"}
                   </button>
-                </p>
-              )}
+                )}
+              </section>
 
-              {role.kind === "school" ? null : <RoleWorkSetup role={role} onEdit={setSettings} />}
-              {role.kind === "school" ? null : <RolePaySection role={role} onEdit={setSettings} />}
-              {role.kind === "school" ? null : <RoleGearSection role={role} onEdit={setSettings} />}
-              {role.kind === "school" ? null : <RoleReflectionSection role={role} onEdit={setSettings} />}
+              {isJob ? <RoleReflectionSection role={role} onEdit={setSettings} /> : null}
 
-              <section className="role-view-section" aria-labelledby={`${role.id}-photos`}>
+              <section className="role-view-section role-view-photos" aria-labelledby={`${role.id}-photos`}>
                 <div className="role-view-section-head">
                   <h2 id={`${role.id}-photos`}>Photos &amp; events</h2>
                   {photos.length > 0 ? (
@@ -234,29 +345,53 @@ export function RoleView({
                     </button>
                   ) : null}
                 </div>
-                <div className="role-view-strip">
-                  {photos.slice(0, 6).map((photo) => (
-                    <button key={photo.id} type="button" onClick={() => galleryRef.current?.showModal()} aria-label={photo.caption || photo.title || "Photo"}>
-                      <img src={photo.url} alt="" />
+                {photos.length > 0 ? (
+                  <>
+                    <div className="role-view-strip">
+                      {photos.slice(0, 6).map((photo) => (
+                        <button key={photo.id} type="button" onClick={() => galleryRef.current?.showModal()} aria-label={photo.caption || photo.title || "Photo"}>
+                          <img src={photo.url} alt="" />
+                        </button>
+                      ))}
+                    </div>
+                    <button type="button" className="role-view-text role-inline-add" disabled={photoBusy} onClick={() => fileRef.current?.click()}>
+                      <Plus size={14} aria-hidden="true" /> {photoBusy ? "Adding…" : "Add photos"}
                     </button>
-                  ))}
-                  <button type="button" className="role-view-add-photo" disabled={photoBusy} onClick={() => fileRef.current?.click()} aria-label="Add photos">
-                    <Plus size={20} aria-hidden="true" />
+                  </>
+                ) : (
+                  <button type="button" className="role-group-add" disabled={photoBusy} onClick={() => fileRef.current?.click()}>
+                    {photoBusy ? "Adding…" : `+ Add photos from ${name}`}
                   </button>
-                </div>
+                )}
                 {photoMessage ? <p className="role-view-error" role="alert">{photoMessage}</p> : null}
                 <RoleEvents role={role} onSaved={onSaved} />
               </section>
 
-              <section className="role-view-section" aria-labelledby={`${role.id}-places`}>
+              <section className="role-view-section role-view-places" aria-labelledby={`${role.id}-places`}>
                 <div className="role-view-section-head">
                   <h2 id={`${role.id}-places`}>Places</h2>
                 </div>
                 <RolePlaces role={role} mainPlace={place} onSaved={onSaved} />
               </section>
             </div>
+          ) : tab === "setup" ? (
+            <div className="role-view-pane" role="tabpanel" id={panelId} aria-labelledby={tabId(tab)}>
+              <RoleWorkSetup role={role} onEdit={setSettings} />
+            </div>
+          ) : tab === "pay" ? (
+            <div className="role-view-pane" role="tabpanel" id={panelId} aria-labelledby={tabId(tab)}>
+              <RolePaySection role={role} onEdit={setSettings} onSaved={onSaved} />
+            </div>
+          ) : tab === "documents" ? (
+            <div className="role-view-pane" role="tabpanel" id={panelId} aria-labelledby={tabId(tab)}>
+              <RoleDocuments role={role} onSaved={onSaved} />
+            </div>
+          ) : tab === "colleagues" ? (
+            <div className="role-view-pane" role="tabpanel" id={panelId} aria-labelledby={tabId(tab)}>
+              <RolePeople role={role} roles={roles} onSaved={onSaved} openRequest={peopleRequest} />
+            </div>
           ) : (
-            <div className="role-view-pane" role="tabpanel">
+            <div className="role-view-pane" role="tabpanel" id={panelId} aria-labelledby={tabId(tab)}>
               {openAchievement ? (
                 <AchievementDetail role={role} achievementId={openAchievement} onBack={() => setOpenAchievement(null)} onSaved={onSaved} />
               ) : role.achievements.length > 0 ? (
@@ -314,11 +449,13 @@ export function RoleView({
                   })}
                 </ol>
               ) : (
-                <p className="role-view-empty">No achievements yet. What are you proud of from {name}?</p>
+                <button type="button" className="role-group-add" onClick={() => setSettings("achievements")}>
+                  + Add an achievement: what are you proud of from {name}?
+                </button>
               )}
-              {openAchievement ? null : (
-                <button type="button" className="role-view-text" onClick={() => setSettings("achievements")}>
-                  + Add an achievement
+              {openAchievement || role.achievements.length === 0 ? null : (
+                <button type="button" className="role-view-text role-inline-add" onClick={() => setSettings("achievements")}>
+                  <Plus size={14} aria-hidden="true" /> Add an achievement
                 </button>
               )}
             </div>
@@ -365,3 +502,4 @@ export function RoleView({
     </article>
   );
 }
+

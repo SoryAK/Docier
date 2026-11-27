@@ -7,7 +7,7 @@ Career History is where people will spend most of their time, and clicking a rol
 ## Goals
 
 - Clicking a role shows that role across the page, using the room on the right instead of squeezing it into the left panel.
-- The role reads as a page about the job, with its photo, and its parts come in the form that suits each: buttons for photos and links, a face stack for people, two short tabs, sections for photos and places.
+- The role reads as a page about the job, with its photo, and its parts come in the form that suits each: buttons for photos, links by the name, a few short tabs (one of them for colleagues), sections for photos and places.
 - The right panel tells the role's story over time, year by year, and takes new notes and milestones as they happen.
 - Everything shown can be added to where it appears, and the role's main fields change in one Edit, the same fields used to add it.
 
@@ -20,6 +20,7 @@ Anti-goals: a long row of tabs; boxes and pills crammed into narrow space; achie
 - **Card in the left panel, links open elsewhere:** tried first; the card was squeezed and the left panel lost the list.
 - **Banner and tabs, header and tiles, story and side boxes, one long page:** tried; tiles and long tab rows felt busy.
 - **D · banner with buttons, two tabs, History on the right.** **Picked.** Prototype: `web/prototypes/role-card/index.html` (kept on the developer's machine).
+- **Later (2026-11-24): the name under the banner, a line at a glance, six tabs for a job.** Work setup, Pay & benefits, Gear, and Looking back had stacked on Overview as four cards that each opened with "Show all"; they became tabs of their own instead, and their key facts went in one line under the name. Tried as pills and as plain text: plain text picked. Pay was weighed as hidden behind an eye, masked as dots, or off until a switch in the Pay tab turns it on: the switch picked. This revisits the "long row of tabs" anti-goal on purpose; on a narrow screen the row scrolls sideways.
 
 ## The design (as decided)
 
@@ -28,10 +29,23 @@ Three columns, as on Home.
 **Left: the Career History list.** It stays a list when a role is open; the open role is highlighted, and clicking another role switches to it.
 
 **Middle: the role.**
-- **Banner:** the role's cover photo, or a cream band (`#fbf6ee` to `#f4ecdf`) when there is none. On it: the company (two lines at most), the title, a photos button that opens a gallery ("Add photos" when there are none), and Edit. Website and LinkedIn are small round icons in the banner's corner, shown only when saved.
-- **Under the banner:** place · dates, a "current" tag and how long; on the right, a stack of faces for the people worked with, which opens their list.
-- **Two tabs:** Overview and Achievements (with a count).
-  - Overview: the summary and description in words, a few quiet facts, then a **Photos & events** section (thumbnails, then events) and a **Places** section (the main site, client sites, travel).
+- **Banner:** the role's cover photo, or a cream band (`#fbf6ee` to `#f4ecdf`) when there is none. On it, in the top corner: a photos button that opens a gallery ("Add photos" when there are none), and Edit. Under it, on the card: the company (two lines at most) and the title. The company's links (website, LinkedIn, Instagram, Facebook, X, YouTube) sit on the line with the company's name, at its right: the website by a globe and each network by its logo, with no text (the address or name shows on hover and is read aloud), shown only when saved; the banner itself carries no links. They are set under Basics → Company links, saved together and recorded in Edits, and never go on your public page.
+- **Under the name:** the title, a thin divider, then place · dates and how long ("Present" says a role is current, so there is no separate tag; the commute stays in Looking back). On a phone the place and dates go under the title and the divider hides.
+- **At a glance:** for a job, one line of plain facts under the title, above the place and dates, each with a small icon and each opening its tab: work type and where ("Full-time, on site"), hours a week, who you reported to, and pay (only when switched on). The overall rating sits beside the company's name as a small gold "★ 4/5", opening the Overview, where Looking back is. A fact shows only when it is set; with none, the line is not there. Built by `roleGlance` in `core/role-glance.ts`.
+- **Pay at a glance:** off by default. "Show pay under the name" at the top of the Pay & benefits tab turns it on for that role; it is saved in the role's details (`glance.pay`), recorded in Edits ("Showed pay under the name" / "Hid pay under the name"), can be undone, and never goes on your public page.
+- **Tabs:** Overview, Achievements (with a count), and Colleagues (with a count) for every role; a job adds Setup (labelled short so six tabs fit; the setup, then equipment and gear) and Pay & benefits (with a lock), between Achievements and Colleagues. A job's Overview has Looking back after its story, before Photos & events.  Colleagues is the list of people worked with, in the page: add, change, ask to confirm, and take off the role; picking a person in History opens it with them marked.
+  - Overview: the summary and description in words, a few quiet facts, then a **Photos & event
+- **Inside the detail tabs (2026-11-24):** Work setup, Pay & benefits, and Looking back are built of groups that sit two across where there's room and stack on a phone. Each group has a small uppercase heading and its own Edit, which opens that part of the role's settings (Schedule, Shifts, Team, Growth, Equipment, Uniform; Pay, Pay history, Benefits, Time off; Rating, Commute, Leaving). Facts are short label-and-value rows; skills and benefits are tags (skills gained in green); shifts are drawn as bars on a day; promotions and pay changes are a small timeline; time off and ratings are bars; equipment is a list with an icon for its kind and a "Given to me" or "Worked on" tag. Notes are a grey line under their group, with no label. A group with nothing in it shows a dashed "+ Add …" line that opens its settings. Each tab ends with one grey line saying what goes on your page. Chosen from a prototype of four layouts: a grouped list, mixed with the cards' and numbers' drawings.s** section (thumbnails, then events) and a **Places** section (the main site, client sites, travel).
+- **Documents (2026-11-24):** a role's last tab, after Colleagues, for benefits packages, handbooks, policies, pay stubs, contracts, reviews, training, and other files about the job. Each is a file in Documents linked to the role (`role_documents`), so one handbook can sit on two roles at the same company. The tab groups them by kind (the job's own papers first: offer, contract, benefits, pay stub; then the company's: handbook, policy; then the rest), each row opening the file, with rename-or-change-kind and "Take off this role", which keeps the file in Documents. "+ Add a document" asks what it is, then uploads a file or picks one already in Documents (papers only: not resumes or canvas files). Removing a file from Documents takes it off every role; deleting a role keeps its files in Documents. Adding and taking off are recorded in Edits. A benefits package also shows as a link in Pay & benefits → Benefits. Never published. The new kinds are shared with the Documents page.
+- **Wide screens (2026-11-24):** the right-hand column (History on a role, Recent on the story) is its own card. From 1280 px the cards sit 12 px apart in a band that grows to about 1,760 px before space opens at the sides; the list and History widen a little on big screens. When the role card passes about 864 px, its Overview runs in two columns: Description, Photos & events, and Places stack on the left, Looking back on the right. Narrower, or for a school, it stays one column.
+- **Design pass (2026-11-24):** one set of rules across the role's tabs.
+  - Headings: the open tab is the page's title, so no tab repeats its own name; Overview keeps its section headings (Description, Looking back). Group labels are sentence case in semibold, not tracked capitals.
+  - Layout: the groups fill two columns that each stack on their own (CSS columns), so a short group never leaves a hole beside a tall one; full-width groups (equipment, uniform, leaving, a document kind) span both.
+  - Bars: a label and its value over a bar the width of the group.
+  - Adding: a dashed box when a section is empty; a small "+ Add …" link once it has something. This covers groups, photos, events, places, achievements, colleagues (the name box opens on asking), and documents.
+  - Gold: the active tab, your data (rating, bars), and adding. Edit is grey until pointed at.
+  - Words: "Full-time, on site"; a rate shown as "/hr" or "/yr" isn't followed by "hourly" or "salary"; a differential reads "Weekend differential"; "+ When" and "+ Proof".
+  - Phone: the tab row fades at its right edge and scrolls the open tab into view.
   - Achievements: the list, each with a small proof tag for the evidence behind it.
 - **Adding in place:** small "+" adds where each thing appears; empty spots say what to add.
 - **Edit** opens the role's main fields (kind, title, organization, place, dates, current, description, achievements) in the middle.
@@ -49,7 +63,7 @@ Three columns, as on Home.
 1. **First live slice:** the three columns with the data a role already has: banner, links, gallery, face stack (from the role's saved colleagues), two tabs, Photos & events and Places sections, History by year from the role's start, end, milestones, events, notes, and achievements, and adding a note or milestone. Edit for the main fields. The role's address.
 2. **People shared with My Network:** "Worked with" lists My Network people linked to the role; adding someone adds or links them there.
    - A person is one My Network contact. The link to a role (`role_contacts`) carries what belongs to that job: a short note ("trained me") and the month you started working together (blank means the role's start).
-   - In the role view: the face stack opens the list; type a name to link someone from My Network or add someone new (name, their role, company filled from the role, email, the note, since). Change uses the same fields. "Take off this role" only unlinks; deleting a person stays on My Network.
+   - In the role view: the Colleagues tab holds the list (once a face stack that opened it); type a name to link someone from My Network or add someone new (name, their role, company filled from the role, email, the note, since). Change uses the same fields. "Take off this role" only unlinks; deleting a person stays on My Network.
    - People linked to other roles at the same company are offered as one-click suggestions; nothing is linked automatically.
    - History shows "Started working with …" in the year you started working together.
    - My Network shows the roles each person is linked to; each opens that role.
@@ -80,7 +94,7 @@ Three columns, as on Home.
    - Places: under Places, "+ Add a place" opens a form (name, kind: site, client site, or travel; an address with Find, which looks it up so it goes on the map; show on my page). Each place can be changed or removed from its row; these are logged in Edits.
    - Tablet, landscape (801 to 1180 px): the list narrows to 17rem, and the role's History moves under the role, in one column that scrolls.
    - Tablet, portrait, and phone (800 px and under): the list hides while a role is open, and "← Career history" at the top of the role goes back to it. History sits under the role.
-   - Phone (560 px and under): the banner's buttons go under the name, so the name keeps the full width.
+   - Phone (560 px and under): a shorter banner, and the name, the glance line, and the place line keep a 16 px gutter. The tabs scroll sideways.
 
 Achievements without a date sit in the year the role started.
 

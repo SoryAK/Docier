@@ -8,7 +8,7 @@ The check name GitHub should require is **`test`**.
 ## What a run does today
 
 1. **Required files** — README, LICENSE, SECURITY, CONTRIBUTING, Code of Conduct
-2. **`pnpm install --frozen-lockfile`** then **`pnpm test`** (Vitest at `core/` and `server/` HTTP seams)
+2. **`pnpm install --frozen-lockfile`** then **`pnpm test`** (Vitest at `core/` and `server/` HTTP seams, and web screens in `web/src/**/*.test.tsx`)
 3. **`pnpm typecheck`** (`tsc --noEmit`) — no type errors get in
 4. **`pnpm build`** — the production web build must succeed from a clean clone
 5. **If Prisma exists** — `npx prisma generate` (legacy; this rebuild does not use it)
@@ -47,6 +47,16 @@ pnpm build
 Prototypes stay on each developer's machine. The app must not import them, and
 the type check skips their folders (`web/prototypes`, `web/src/prototype`), so a
 local prototype can't fail it.
+
+## Web tests
+
+Screens are tested in `web/src/**/*.test.tsx` with Testing Library, in a
+browser-like page (`web/src/test/jsdom-node.ts`). They talk to the real server
+code, not stand-ins: `useRealApp()` from `web/src/test/app-fetch.ts` sends the
+page's `/api` requests into the app with an in-memory database and a temporary
+uploads folder, and can make one kind of request fail to check what the screen
+says. Call `stubBrowser()` first for the browser features the test page lacks.
+Layout (CSS) isn't checked there; look at it in a browser.
 
 ## Ruleset (manual, once)
 

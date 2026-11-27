@@ -1,4 +1,7 @@
 import { moveColleaguesToNetwork, readRolePeople } from "./role-people";
+import { forgetRoleDocumentLinks, readRoleDocuments } from "./role-documents";
+import { prepareRoleLinks, type RoleLinkKind } from "../core/role-links";
+import { prepareRoleGlance } from "../core/role-glance";
 import {
   logRoleEvent,
   markUndone,
@@ -247,7 +250,7 @@ export async function undoRoleEdit(
     db.prepare(
       `UPDATE work_history SET kind = ?, title = ?, company = ?, location = ?,
          start_date = ?, end_date = ?, is_current = ?, description = ?,
-         achievements_json = ? WHERE id = ? AND occupant_id = ?`,
+         degree = ?, field = ?, achievements_json = ? WHERE id = ? AND occupant_id = ?`,
     ).run(
       next.kind,
       next.title,
@@ -257,6 +260,8 @@ export async function undoRoleEdit(
       next.endDate,
       Number(next.isCurrent),
       next.description,
+      next.degree,
+      next.field,
       JSON.stringify(next.achievements),
       roleId,
       occupantId,
@@ -371,6 +376,7 @@ export function saveWorkMapDetails(
     leaving: current.leaving,
     commute: current.commute,
     uniformItems: current.uniformItems,
+    glance: current.glance,
     // Names typed here become items; items already saved keep their details.
     equipmentItems: Array.isArray(input.equipment)
       ? syncEquipmentItems(current.equipmentItems, stringArray(input.equipment))
@@ -421,6 +427,10 @@ export function saveWorkMapDetails(
     summary: "summary" in input ? text(input.summary) : current.summary,
     website: linkOrCurrent(input.website, current.website, "website" in input),
     linkedin: linkOrCurrent(input.linkedin, current.linkedin, "linkedin" in input),
+    instagram: linkOrCurrent(input.instagram, current.instagram, "instagram" in input),
+    facebook: linkOrCurrent(input.facebook, current.facebook, "facebook" in input),
+    x: linkOrCurrent(input.x, current.x, "x" in input),
+    youtube: linkOrCurrent(input.youtube, current.youtube, "youtube" in input),
     colleagues:
       "colleagues" in input
         ? workMapColleagues(input.colleagues)
@@ -517,6 +527,36 @@ export function saveGear(
   return { ok: true, details };
 }
 
+/** Saves the company's links on a role: its website and social accounts. */
+export function saveRoleLinks(
+  db: DatabaseSync,
+  occupantId: string,
+  roleId: string,
+  input: JsonObject,
+): { ok: true; details: WorkMapRoleDetails } | { ok: false; error: "url-invalid"; field: RoleLinkKind } {
+  requireRole(db, occupantId, roleId);
+  const prepared = prepareRoleLinks(input);
+  if (!prepared.ok) return prepared;
+  const details: WorkMapRoleDetails = { ...readDetails(db, occupantId, roleId), ...prepared.value };
+  writeDetails(db, occupantId, roleId, details);
+  return { ok: true, details };
+}
+
+/** Saves what shows in the line under a role's name by choice: for now, its pay. */
+export function saveRoleGlance(
+  db: DatabaseSync,
+  occupantId: string,
+  roleId: string,
+  input: JsonObject,
+): { ok: true; details: WorkMapRoleDetails } | { ok: false; error: "glance-invalid" } {
+  requireRole(db, occupantId, roleId);
+  const prepared = prepareRoleGlance(input);
+  if (!prepared.ok) return prepared;
+  const details: WorkMapRoleDetails = { ...readDetails(db, occupantId, roleId), ...prepared.value };
+  writeDetails(db, occupantId, roleId, details);
+  return { ok: true, details };
+}
+
 /** Saves how a role looks in hindsight: ratings, leaving, commute, environment. */
 export function saveReflection(
   db: DatabaseSync,
@@ -597,6 +637,7 @@ export function removeWorkMapRole(
     db.prepare(
       `DELETE FROM role_contacts WHERE role_id = ? AND occupant_id = ?`,
     ).run(id, occupantId);
+    forgetRoleDocumentLinks(db, occupantId, id);
     removeRoleEdits(db, occupantId, id);
     db.prepare(
       `DELETE FROM career_facts
@@ -1429,6 +1470,7 @@ function mapRole(
     linkedEvidence: readLinkedEvidence(db, occupantId, String(row.id), achievementFields),
     details: readDetails(db, occupantId, String(row.id)),
     people: readRolePeople(db, occupantId, String(row.id)),
+    documents: readRoleDocuments(db, occupantId, String(row.id)),
     edits: readRoleEdits(db, occupantId, String(row.id), {
       fields: readRoleFields(db, occupantId, String(row.id))!,
       details: readDetails(db, occupantId, String(row.id)),

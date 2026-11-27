@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EMPTY_PAY, daysLeft, formatPay, payEventText, paySummary, preparePayAndBenefits } from "./role-pay";
+import { EMPTY_PAY, daysLeft, differentialText, formatPay, payEventText, paySummary, preparePayAndBenefits } from "./role-pay";
 
 let n = 0;
 const makeId = () => `id${++n}`;
@@ -88,5 +88,13 @@ describe("pay and benefits", () => {
       }),
     ).toBe("$24.50/hr · Every two weeks · 2 benefits · 16 PTO days left (2023)");
     expect(paySummary({ compensation: EMPTY_PAY, benefits: [], timeOff: [] })).toBe("");
+  });
+});
+
+describe("a pay differential", () => {
+  it("reads in the pay's own currency, or as a percent", () => {
+    expect(differentialText({ id: "a", label: "Weekend", amount: 2, unit: "per-hour" }, "USD")).toBe("+$2/hr");
+    expect(differentialText({ id: "b", label: "Nights", amount: 1.25, unit: "per-hour" }, "EUR")).toBe("+€1.25/hr");
+    expect(differentialText({ id: "c", label: "Holiday", amount: 10, unit: "percent" }, "USD")).toBe("+10%");
   });
 });

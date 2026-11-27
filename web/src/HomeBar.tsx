@@ -6,6 +6,8 @@ import type { OccupantNoticeHref } from "@core/notices";
 import type { RelayStatus } from "@core/projection";
 import { normalizeSlug, publicationLink, type WorkMapPublicationSettings } from "@core/work-map";
 import { HOME_NAV_ID, Icon } from "./HomeNav";
+import { AssistantTools } from "./AssistantPanel";
+import type { AssistantAction, AssistantState } from "@core/assistant-panel";
 import { HomeNotices } from "./HomeNotices";
 import { RequestsMenu, useRequestsWaiting, type RequestsTab } from "./Requests";
 import { Share2 } from "lucide-react";
@@ -24,12 +26,11 @@ export function HomeBar({
   menuLabel,
   onMenu,
   onSettings,
-  onEditProfile,
   onTour,
   onSearch,
-  onProforna,
+  onAssist,
   onRequests,
-  profornaOpen,
+  assistant,
   bioMode,
   onBioMode,
   onPreview,
@@ -46,14 +47,14 @@ export function HomeBar({
   menuLabel?: string;
   onMenu: () => void;
   onSettings: (section?: "profile" | "publication") => void;
-  onEditProfile?: () => void;
   /** Starts the tour of Home again. */
   onTour?: () => void;
   onSearch: () => void;
-  onProforna?: () => void;
+  /** The chat icon, its menu, and the assistant panel button. */
+  onAssist?: (action: AssistantAction) => void;
   /** Opens the full Requests dialog on a tab, optionally on one request. */
   onRequests?: (tab: RequestsTab, id?: string) => void;
-  profornaOpen?: boolean;
+  assistant?: AssistantState;
   bioMode: HomeBioMode;
   onBioMode: (mode: HomeBioMode) => void;
   onPreview: (where: "here" | "window") => void;
@@ -239,7 +240,7 @@ export function HomeBar({
 
   function publishFailure(code: string | undefined) {
     if (code === "slug-required") {
-      return "Save a public slug in publication settings before publishing.";
+      return "Save a page address in Publication settings before publishing.";
     }
     if (code === "sections-required") {
       return "Choose at least one section in publication settings before publishing.";
@@ -324,7 +325,7 @@ export function HomeBar({
     if (!slug) {
       slugDraftRef.current = current.settings.slug;
       setSlugDraft(current.settings.slug);
-      setVisibilityNote("A public slug is required.");
+      setVisibilityNote("A page address is required.");
       return;
     }
     if (slug === current.settings.slug) {
@@ -334,7 +335,7 @@ export function HomeBar({
       }
       return;
     }
-    await saveSettings({ ...current.settings, slug }, "Could not save the public slug.");
+    await saveSettings({ ...current.settings, slug }, "Could not save the page address.");
   }
 
   async function chooseVisibility(value: WorkMapPublicationSettings["visibility"]) {
@@ -632,7 +633,7 @@ export function HomeBar({
                 <div className="home-sync-slug-row">
                   <div className="home-sync-slug-field">
                   <TextInput
-                    label="Public slug"
+                    label="Page address"
                     size="sm"
                     width="100%"
                     value={slugDraft}
@@ -787,10 +788,6 @@ export function HomeBar({
               aria-haspopup="menu"
               onClick={openRequests}
             >
-              <span className="home-request-node" aria-hidden="true" />
-              <svg className="home-request-link" viewBox="0 0 40 8" preserveAspectRatio="none" aria-hidden="true">
-                <path d="M1 4H39" />
-              </svg>
               <span className="home-request-plane" aria-hidden="true">
                 <Icon name="request" />
               </span>
@@ -843,26 +840,13 @@ export function HomeBar({
             />
           </div>
         ) : null}
-        {onRequests && onProforna ? (
+        {onRequests && onAssist ? (
           <span className="home-bar-request-divider">
             <Divider orientation="vertical" variant="strong" />
           </span>
         ) : null}
-        {onProforna ? (
-          <button
-            type="button"
-            className={
-              profornaOpen
-                ? "home-notice-btn home-proforna-toggle is-current"
-                : "home-notice-btn home-proforna-toggle"
-            }
-            aria-label={profornaOpen ? "Hide Docier" : "Show Docier"}
-            title={profornaOpen ? "Hide Docier" : "Show Docier"}
-            aria-pressed={profornaOpen}
-            onClick={onProforna}
-          >
-            <Icon name={profornaOpen ? "panel" : "panelOff"} />
-          </button>
+        {onAssist && assistant ? (
+          <AssistantTools state={assistant} onAssist={onAssist} />
         ) : null}
         <HomeNotices
           open={menu === "notices"}
@@ -923,19 +907,6 @@ export function HomeBar({
                   {headline ? <p className="home-user-role">{headline}</p> : null}
                 </div>
               </div>
-              {onEditProfile ? (
-                <button
-                  type="button"
-                  className="home-user-item"
-                  role="menuitem"
-                  onClick={() => {
-                    setMenu(null);
-                    onEditProfile();
-                  }}
-                >
-                  Edit profile
-                </button>
-              ) : null}
               <button
                 type="button"
                 className="home-user-item"
@@ -1005,7 +976,7 @@ const VISIBILITY_OPTIONS: Array<{
 function linkGap(reason: "private" | "access-controlled" | "slug" | "origin"): string {
   if (reason === "private") return "A private career has no public link.";
   if (reason === "access-controlled") return "An access-controlled career uses its own link.";
-  if (reason === "slug") return "Save a public slug to get a link.";
+  if (reason === "slug") return "Save a page address to get a link.";
   return "The link appears once the Relay is connected.";
 }
 

@@ -6,7 +6,7 @@ import type { WorkMapRoleDetails } from "./work-map";
  * undone; people, places, photos, and evidence are only logged.
  */
 
-export type RoleEditArea = "role" | "details" | "people" | "places" | "photos" | "evidence";
+export type RoleEditArea = "role" | "details" | "people" | "places" | "photos" | "evidence" | "documents";
 
 /** The role's own fields, as one edit changes them. */
 export type RoleFields = {
@@ -18,6 +18,9 @@ export type RoleFields = {
   endDate: string;
   isCurrent: boolean;
   description: string;
+  /** A school's degree and field of study ("" for a job). */
+  degree: string;
+  field: string;
   achievements: RoleAchievement[];
 };
 
@@ -69,6 +72,8 @@ const FIELD_LABEL: Record<Exclude<keyof RoleFields, "achievements">, string> = {
   endDate: "end date",
   isCurrent: "current",
   description: "description",
+  degree: "degree",
+  field: "field of study",
 };
 
 function describeAchievements(before: RoleAchievement[], after: RoleAchievement[]): string[] {
@@ -119,6 +124,10 @@ const DETAIL_LABEL: Partial<Record<keyof WorkMapRoleDetails, string>> = {
   summary: "the summary",
   website: "the website",
   linkedin: "the LinkedIn link",
+  instagram: "the Instagram link",
+  facebook: "the Facebook link",
+  x: "the X link",
+  youtube: "the YouTube link",
   colleagues: "colleagues",
   overviewFields: "the overview",
   techStack: "the tools",
@@ -143,6 +152,7 @@ const DETAIL_LABEL: Partial<Record<keyof WorkMapRoleDetails, string>> = {
   skills: "skills used",
   skillsGained: "skills gained",
   promotions: "promotions",
+  glance: "what shows under the name",
   share: "what shows on your page",
 };
 
@@ -182,6 +192,10 @@ export function describeDetailsChange(before: WorkMapRoleDetails, after: WorkMap
     keys.push(key);
     // Equipment names follow the items, which say what changed.
     if (key === "equipment" && !sameValue(before.equipmentItems, after.equipmentItems)) continue;
+    if (key === "glance") {
+      parts.push(after.glance?.pay ? "Showed pay under the name" : "Hid pay under the name");
+      continue;
+    }
     const noun = NAMED_LISTS[key];
     if (noun) parts.push(...describeList(noun, before[key], after[key]));
     else parts.push(`Changed ${DETAIL_LABEL[key] ?? key}`);

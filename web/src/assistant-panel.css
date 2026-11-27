@@ -1,0 +1,394 @@
+/* The assistant panel's top, the top bar's chat tools, and the popped-out chat. */
+
+/* ---- Top bar: chat icon, its menu, and the panel button ---- */
+.assistant-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.assistant-chat-tool {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 6px;
+}
+
+.assistant-chat-tool .assistant-chat-btn {
+  border-radius: 6px 0 0 6px;
+}
+
+.home-notice-btn.assistant-chat-caret {
+  width: 18px;
+  border-radius: 0 6px 6px 0;
+  color: #6b6b70;
+}
+
+.home-notice-btn.assistant-chat-caret svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Chat is open: the icon and its caret are shaded together. */
+.assistant-chat-tool.is-current {
+  background: #ececee;
+}
+
+.assistant-chat-tool.is-current .home-notice-btn {
+  color: #171717;
+}
+
+.assistant-chat-tool .home-notice-btn[aria-pressed="true"],
+.assistant-chat-tool.is-current .home-notice-btn:not(:hover):not(:focus-visible) {
+  background: transparent;
+}
+
+.assistant-chat-tool:not(.is-current) .home-notice-btn:hover,
+.assistant-chat-tool:not(.is-current) .home-notice-btn:focus-visible {
+  background: #ececee;
+}
+
+.assistant-chat-tool.is-current .home-notice-btn:hover,
+.assistant-chat-tool.is-current .home-notice-btn:focus-visible {
+  background: #e0e0e3;
+}
+
+.assistant-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  min-width: 13.5rem;
+  padding: 4px;
+  border: 1px solid #e4e4e7;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(20, 20, 20, 0.12);
+}
+
+.assistant-menu button {
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #171717;
+  font: inherit;
+  font-size: 0.8125rem;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.assistant-menu button:hover,
+.assistant-menu button:focus-visible {
+  background: #f4f4f5;
+}
+
+/* ---- The panel's top: History | Chat, pop out, close ---- */
+.assistant-head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.home-role-history > .assistant-head {
+  padding: 10px 10px 0 12px;
+}
+
+.home-proforna.is-open > .assistant-head {
+  margin: -4px -6px 10px 0;
+}
+
+.home-story-recent:not(.home-role-history) > .assistant-head {
+  margin-right: -4px;
+}
+
+.assistant-switch {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 7px;
+  background: #f1f1f2;
+}
+
+.assistant-switch button {
+  padding: 3px 11px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #6b6b70;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.assistant-switch button:hover {
+  color: #171717;
+}
+
+.assistant-switch button[aria-pressed="true"] {
+  background: #fff;
+  color: #171717;
+  box-shadow: 0 1px 2px rgba(20, 20, 20, 0.1);
+}
+
+.assistant-head-icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.assistant-hint {
+  margin-right: 4px;
+  overflow: hidden;
+  color: #8a8a90;
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assistant-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #6b6b70;
+  cursor: pointer;
+}
+
+.assistant-icon:hover,
+.assistant-icon:focus-visible {
+  background: #f1f1f2;
+  color: #171717;
+}
+
+/* ---- Closed: the chat keeps its conversation but takes no room ---- */
+.home-sheet > .home-proforna.is-closed {
+  display: none;
+}
+
+/* ---- The assistant panel closed: the main card takes its width ---- */
+.home-sheet.is-panel-closed .home-story-layout {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.home-sheet.is-panel-closed .home-story-layout > .home-story-recent,
+.home-sheet.is-panel-closed .home-story-layout:has(> .home-role) > .home-story-recent.home-role-history {
+  display: none;
+}
+
+/* ---- Popped out: a window over the page, bottom right until dragged ---- */
+.home-sheet > .home-proforna.is-floating {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0 0.95rem 0.85rem;
+  transform: none;
+  border: 1px solid #e4e4e7;
+  border-radius: 12px;
+  background: #fff;
+  color: #171717;
+  box-shadow:
+    0 22px 60px rgba(20, 20, 20, 0.18),
+    0 2px 6px rgba(20, 20, 20, 0.06);
+}
+
+.assistant-float-head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 -0.5rem 8px 0;
+  padding: 9px 0 7px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.assistant-float-head:active {
+  cursor: grabbing;
+}
+
+.assistant-float-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.assistant-float-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22a06b;
+}
+
+/* Phones: a popped-out chat fills the screen and doesn't drag. */
+@media (max-width: 800px) {
+  .home-sheet > .home-proforna.is-floating {
+    inset: 0;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    border: 0;
+    border-radius: 0;
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .assistant-float-head {
+    cursor: default;
+  }
+}
+
+/* ---- Resizing: thin strips on the edges, bigger squares at the corners ---- */
+.assistant-edge {
+  position: absolute;
+  z-index: 2;
+  touch-action: none;
+}
+
+.assistant-edge.is-n,
+.assistant-edge.is-s {
+  left: 12px;
+  right: 12px;
+  height: 6px;
+  cursor: ns-resize;
+}
+
+.assistant-edge.is-n {
+  top: -3px;
+}
+
+.assistant-edge.is-s {
+  bottom: -3px;
+}
+
+.assistant-edge.is-e,
+.assistant-edge.is-w {
+  top: 12px;
+  bottom: 12px;
+  width: 6px;
+  cursor: ew-resize;
+}
+
+.assistant-edge.is-e {
+  right: -3px;
+}
+
+.assistant-edge.is-w {
+  left: -3px;
+}
+
+.assistant-edge.is-ne,
+.assistant-edge.is-nw,
+.assistant-edge.is-se,
+.assistant-edge.is-sw {
+  width: 14px;
+  height: 14px;
+}
+
+.assistant-edge.is-ne {
+  top: -4px;
+  right: -4px;
+  cursor: nesw-resize;
+}
+
+.assistant-edge.is-sw {
+  bottom: -4px;
+  left: -4px;
+  cursor: nesw-resize;
+}
+
+.assistant-edge.is-nw {
+  top: -4px;
+  left: -4px;
+  cursor: nwse-resize;
+}
+
+.assistant-edge.is-se {
+  right: -4px;
+  bottom: -4px;
+  cursor: nwse-resize;
+}
+
+/* ---- Minimized: just the bar, at the bottom right ---- */
+.home-sheet > .home-proforna.is-floating.is-minimized {
+  top: auto;
+  left: auto;
+  right: 24px;
+  bottom: 24px;
+  width: 15rem;
+  height: auto;
+  padding: 0 0.6rem 0 0.95rem;
+  border-radius: 10px;
+}
+
+.home-proforna.is-minimized > :not(.assistant-float-head) {
+  display: none !important;
+}
+
+.home-proforna.is-minimized .assistant-float-head {
+  margin: 0;
+  padding: 6px 0;
+  cursor: pointer;
+}
+
+@media (max-width: 800px) {
+  .assistant-edge {
+    display: none;
+  }
+
+  .home-sheet > .home-proforna.is-floating.is-minimized {
+    inset: auto 12px 12px auto;
+    left: auto !important;
+    top: auto !important;
+    width: 13rem !important;
+    height: auto !important;
+    border: 1px solid #e4e4e7;
+    border-radius: 10px;
+    padding-top: 0;
+  }
+}
+
+/*
+ * Docked on wider screens: chat lies over History's place (HomeProforna follows
+ * its box), so the cards around it don't move when you switch. History keeps its
+ * place underneath, hidden.
+ */
+.home-sheet.is-chat-docked .home-story-layout > .home-story-recent {
+  display: flex;
+  visibility: hidden;
+}
+
+.home-sheet > .home-proforna.is-over-rail {
+  position: fixed;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 1rem 1.05rem;
+  transform: none;
+  border: 1px solid #e4e4e7;
+  border-radius: 8px;
+  background: #fff;
+  color: #171717;
+  box-shadow: none;
+}

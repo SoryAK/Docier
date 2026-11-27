@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
+import { logRoleEvent, readRoleFields, recordFieldsEdit } from "./role-edits";
 import {
   presentCareerFile,
   type CareerFile,
@@ -207,6 +208,7 @@ async function importExtractedResume(
       if (job.site) {
         persistExtractedSite(db, occupantId, jobId, job.site);
       }
+      logRoleEvent(db, occupantId, jobId, "role", "Added from your resume");
       remember(linked, key, jobId);
       if (importId) rememberImport(linked, importId, jobId);
       roles.push({
@@ -283,6 +285,7 @@ async function importExtractedResume(
       if (school.site) {
         persistExtractedSite(db, occupantId, schoolId, school.site);
       }
+      logRoleEvent(db, occupantId, schoolId, "role", "Added from your resume");
       remember(linked, key, schoolId);
       if (importId) rememberImport(linked, importId, schoolId);
       roles.push({
@@ -438,6 +441,9 @@ function reviseImportedJob(
     .prepare("SELECT achievements_json FROM work_history WHERE id = ? AND occupant_id = ?")
     .get(roleId, occupantId) as { achievements_json: string } | undefined;
   if (!existing) return;
+  // Read once, so achievements kept by the merge keep the ids the change is described with.
+  const kept = readRoleAchievements(existing.achievements_json, randomUUID).items;
+  const before = { ...readRoleFields(db, occupantId, roleId)!, achievements: kept };
   db.prepare(
     `UPDATE work_history SET title = ?, company = ?, location = ?, start_date = ?,
        end_date = ?, is_current = ?, description = ?, achievements_json = ?
@@ -452,7 +458,7 @@ function reviseImportedJob(
     job.description,
     JSON.stringify(
       reconcileRoleAchievements(
-        readRoleAchievements(existing.achievements_json, randomUUID).items,
+        kept,
         achievements,
         randomUUID,
       ),
@@ -460,6 +466,7 @@ function reviseImportedJob(
     roleId,
     occupantId,
   );
+  recordFieldsEdit(db, occupantId, roleId, before, readRoleFields(db, occupantId, roleId)!, { from: "resume" });
   if (job.site) reviseImportedSite(db, occupantId, roleId, job.site);
 }
 
@@ -469,6 +476,7 @@ function reviseImportedSchool(
   roleId: string,
   school: ExtractedResume["education"][number],
 ) {
+  const before = readRoleFields(db, occupantId, roleId);
   db.prepare(
     `UPDATE work_history SET title = ?, company = ?, location = ?, start_date = ?,
        end_date = ?, description = ?, degree = ?, field = ?
@@ -485,6 +493,7 @@ function reviseImportedSchool(
     roleId,
     occupantId,
   );
+  if (before) recordFieldsEdit(db, occupantId, roleId, before, readRoleFields(db, occupantId, roleId)!, { from: "resume" });
   if (school.site) reviseImportedSite(db, occupantId, roleId, school.site);
 }
 
@@ -502,15 +511,25 @@ function reviseImportedSite(
   if (!prepared.ok) return;
   const existing = db
     .prepare(
-      `SELECT id FROM work_history_locations
+      `SELECT id, label, address, latitude, longitude FROM work_history_locations
        WHERE work_history_id = ? AND occupant_id = ? AND kind = 'primary'
        ORDER BY created_at LIMIT 1`,
     )
-    .get(roleId, occupantId) as { id: string } | undefined;
+    .get(roleId, occupantId) as
+    | { id: string; label: string; address: string; latitude: number; longitude: number }
+    | undefined;
+  const name = prepared.value.label || prepared.value.address || "a site";
   if (!existing) {
     persistExtractedSite(db, occupantId, roleId, site);
+    logRoleEvent(db, occupantId, roleId, "places", `From your resume: added a place: ${name}`);
     return;
   }
+  const same =
+    existing.label === prepared.value.label &&
+    existing.address === prepared.value.address &&
+    existing.latitude === prepared.value.latitude &&
+    existing.longitude === prepared.value.longitude;
+  if (same) return;
   db.prepare(
     `UPDATE work_history_locations
      SET label = ?, address = ?, latitude = ?, longitude = ?
@@ -523,6 +542,7 @@ function reviseImportedSite(
     existing.id,
     occupantId,
   );
+  logRoleEvent(db, occupantId, roleId, "places", `From your resume: moved a place to ${name}`);
 }
 
 /** Identity of one requested job, school, or skill already stored for this resume. */
@@ -783,6 +803,8 @@ export async function applyComparedResume(
       | { id: string; kind: string; achievements_json: string }
       | undefined;
     if (!existing) continue;
+    const kept = readRoleAchievements(existing.achievements_json, randomUUID).items;
+    const before = { ...readRoleFields(db, occupantId, role.id)!, achievements: kept };
     db.prepare(
       `UPDATE work_history SET title = ?, company = ?, location = ?, start_date = ?,
          end_date = ?, is_current = ?, description = ?, achievements_json = ?
@@ -797,7 +819,7 @@ export async function applyComparedResume(
       role.description,
       JSON.stringify(
         reconcileRoleAchievements(
-          readRoleAchievements(existing.achievements_json, randomUUID).items,
+          kept,
           role.achievements,
           randomUUID,
         ),
@@ -805,6 +827,7 @@ export async function applyComparedResume(
       role.id,
       occupantId,
     );
+    recordFieldsEdit(db, occupantId, role.id, before, readRoleFields(db, occupantId, role.id)!, { from: "resume" });
     const kind = existing.kind === "school" ? "school" : existing.kind === "internship" ? "internship" : "job";
     const facts = readCareerMemory(db, occupantId).facts;
     await commitOccupantFactOperations(

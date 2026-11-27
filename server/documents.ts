@@ -188,6 +188,8 @@ export function removeDocument(
   ).run(occupantId, current.store, current.id);
   const table = current.store === "resume" ? "resumes" : "documents";
   db.prepare(`DELETE FROM ${table} WHERE id = ? AND occupant_id = ?`).run(current.id, occupantId);
+  // A file that leaves Documents leaves every role it was kept with.
+  db.prepare("DELETE FROM role_documents WHERE occupant_id = ? AND document_id = ?").run(occupantId, current.id);
 }
 
 type StoredRecord = DocumentRow & { storedName: string; store: "document" | "resume" };

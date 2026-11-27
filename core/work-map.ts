@@ -1,9 +1,11 @@
 import { uniformLine, type EquipmentItem, type UniformItem } from "./role-gear";
 import { EMPTY_COMMUTE, EMPTY_LEAVING, EMPTY_RATINGS, type RoleCommute, type RoleLeaving, type RoleRatings } from "./role-reflection";
 import type { RoleEdit } from "./role-edits";
+import { EMPTY_GLANCE, type RoleGlanceChoice } from "./role-glance";
 import { EMPTY_PAY, type PayEvent, type RolePay, type TimeOffBalance } from "./role-pay";
 import { EMPTY_SCHEDULE, EMPTY_TEAM, type RolePromotion, type RoleSchedule, type RoleShift, type RoleTeam } from "./role-work-setup";
 import type { RolePerson } from "./role-people";
+import type { RoleDocument } from "./role-documents";
 import type { AchievementLinks } from "./role-achievements";
 import type { CanvasBoard } from "./canvas-board";
 import { formatHistoryPlace } from "./career-history";
@@ -308,6 +310,10 @@ export type WorkMapRoleDetails = {
   summary: string;
   website: string;
   linkedin: string;
+  instagram: string;
+  facebook: string;
+  x: string;
+  youtube: string;
   colleagues: WorkMapColleague[];
   overviewFields: WorkMapOverviewField[] | null;
   techStack: string[];
@@ -346,6 +352,8 @@ export type WorkMapRoleDetails = {
   skills: string[];
   skillsGained: string[];
   promotions: RolePromotion[];
+  /** What shows in the line under the role's name by choice. Never published. */
+  glance: RoleGlanceChoice;
   share: WorkMapShare;
 };
 
@@ -400,6 +408,8 @@ export type WorkMapRole = {
   canvasRevision?: number;
   /** My Network contacts linked to this role. */
   people?: RolePerson[];
+  /** Files from Documents kept with the role. Never published. */
+  documents?: RoleDocument[];
   /** Changes made to this role, newest first. Never published. */
   edits?: RoleEdit[];
 };
@@ -634,6 +644,10 @@ export const EMPTY_WORK_MAP_DETAILS: WorkMapRoleDetails = {
   summary: "",
   website: "",
   linkedin: "",
+  instagram: "",
+  facebook: "",
+  x: "",
+  youtube: "",
   colleagues: [],
   overviewFields: null,
   techStack: [],
@@ -663,6 +677,7 @@ export const EMPTY_WORK_MAP_DETAILS: WorkMapRoleDetails = {
   skills: [],
   skillsGained: [],
   promotions: [],
+  glance: { ...EMPTY_GLANCE },
   share: {
     growth: false,
     departure: false,
@@ -694,10 +709,15 @@ export function normalizeWorkMapDetails(
     commute: { ...empty.commute, ...details?.commute },
     equipmentItems: Array.isArray(details?.equipmentItems) ? details.equipmentItems : [],
     uniformItems: Array.isArray(details?.uniformItems) ? details.uniformItems : [],
+    glance: { pay: details?.glance?.pay === true },
     share: { ...empty.share, ...details?.share },
     summary: typeof details?.summary === "string" ? details.summary.trim() : "",
     website: workMapLink(details?.website),
     linkedin: workMapLink(details?.linkedin),
+    instagram: workMapLink(details?.instagram),
+    facebook: workMapLink(details?.facebook),
+    x: workMapLink(details?.x),
+    youtube: workMapLink(details?.youtube),
     colleagues: workMapColleagues(details?.colleagues),
     overviewFields: workMapOverviewFields(details?.overviewFields),
   };

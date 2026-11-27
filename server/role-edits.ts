@@ -42,7 +42,7 @@ export function readRoleFields(db: DatabaseSync, occupantId: string, roleId: str
   const row = db
     .prepare(
       `SELECT kind, title, company, location, start_date, end_date, is_current,
-              description, achievements_json
+              description, degree, field, achievements_json
        FROM work_history WHERE id = ? AND occupant_id = ?`,
     )
     .get(roleId, occupantId) as Record<string, unknown> | undefined;
@@ -56,6 +56,8 @@ export function readRoleFields(db: DatabaseSync, occupantId: string, roleId: str
     endDate: String(row.end_date),
     isCurrent: Boolean(row.is_current),
     description: String(row.description),
+    degree: String(row.degree ?? ""),
+    field: String(row.field ?? ""),
     achievements: readRoleAchievements(row.achievements_json, randomUUID).items,
   };
 }
@@ -93,12 +95,16 @@ export function recordFieldsEdit(
   roleId: string,
   before: RoleFields,
   after: RoleFields,
-  undo?: { of: StoredEdit },
+  undo?: { of?: StoredEdit; from?: "resume" },
 ) {
   const change = describeRoleFieldsChange(before, after);
   if (!change) return;
-  const summary = undo ? `Undid: ${undo.of.summary}` : change.summary;
-  insert(db, occupantId, roleId, "role", summary, { keys: change.keys, before: pick(before, change.keys), after: pick(after, change.keys), undoes: undo?.of.id });
+  const summary = undo?.of
+    ? `Undid: ${undo.of.summary}`
+    : undo?.from === "resume"
+      ? `From your resume: ${change.summary[0]!.toLowerCase()}${change.summary.slice(1)}`
+      : change.summary;
+  insert(db, occupantId, roleId, "role", summary, { keys: change.keys, before: pick(before, change.keys), after: pick(after, change.keys), undoes: undo?.of?.id });
 }
 
 /** Records a change to the role's details, if anything changed. */

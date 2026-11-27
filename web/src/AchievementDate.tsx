@@ -82,7 +82,7 @@ export function AchievementDate({
       onClick={() => setOpen(true)}
       title={date ? "Change when this happened" : "Add when this happened"}
     >
-      {date ? monthYear(date) : "+ When?"}
+      {date ? monthYear(date) : "+ When"}
     </button>
   );
 }

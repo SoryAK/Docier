@@ -28,22 +28,35 @@ import { HomeProfileEdit } from "./HomeProfileEdit";
 import { HomeSearch, type SearchPlace } from "./HomeSearch";
 import { HomeSettings, type SettingsSection } from "./HomeSettings";
 import { ResumeImport } from "./ResumeImport";
+import { SocialMark } from "./SocialMark";
 import type { DetailTab } from "./RoleDetailPanel";
 import { WorkHistory } from "./WorkHistory";
 import { CareerHistoryCard } from "./CareerHistoryCard";
 import { CareerWorkspace } from "./CareerWorkspace";
 import { HomeCenter } from "./HomeCenter";
 import { HomeProforna, type ChatRole } from "./HomeProforna";
+import {
+  assistantReducer,
+  chatInPanel,
+  chatShowing,
+  readAssistantState,
+  type AssistantAction,
+  type AssistantState,
+} from "@core/assistant-panel";
 import { RoleCanvasEntry } from "./RoleCanvas";
 import type { OnboardingProfileValue } from "./OnboardingProfile";
 import { WelcomeTour, type FirstRunMarks } from "./WelcomeTour";
 import { clearEvidenceRole } from "./onboarding-evidence";
 import { careerPreviewWindowUrl, isCareerPreview } from "./preview-placement";
+import type { RoleSearchTarget } from "@core/role-search";
+import type { RoleFocusRequest } from "./RoleView";
 import "./home.css";
 
 const NAV_COLLAPSED_KEY = "proforna.navCollapsed";
 const PANEL_OPEN_KEY = "proforna.panelOpen";
+const ASSISTANT_KEY = "proforna.assistant";
 const WORKBENCH = "(min-width: 760px)";
+const SPLIT_SCREEN = "(min-width: 801px)";
 
 export function Home({
   initialFocusJobId = null,
@@ -88,9 +101,16 @@ export function Home({
   const [photoTick, setPhotoTick] = useState(0);
   const [mapRevision, setMapRevision] = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
+  // Something found by search inside a role, shown when the role opens.
+  const [roleRequest, setRoleRequest] = useState<RoleFocusRequest | null>(null);
   const [collapsed, setCollapsed] = useState(() => (isCareerPreview() ? false : readCollapsed()));
   const bioPopRef = useRef<HTMLDivElement>(null);
-  const [profornaOpen, setProfornaOpen] = useState(readPanelOpen);
+  const [assistant, setAssistant] = useState<AssistantState>(readAssistant);
+  const chatDocked = chatInPanel(assistant);
+  // On wider screens docked chat sits over History's own place, so switching
+  // between them moves nothing else. Phones (and the old reserve page) give it a row of its own.
+  const [splitScreen, setSplitScreen] = useState(() => window.matchMedia(SPLIT_SCREEN).matches);
+  const chatOverRail = chatDocked && splitScreen && page !== "historyReserve";
   const [requests, setRequests] = useState<{ tab: RequestsTab; focusId: string | null } | null>(null);
   const [previewNote, setPreviewNote] = useState("");
   const [bioDialog, setBioDialog] = useState<"know" | "contact" | "place" | null>(null);
@@ -105,6 +125,13 @@ export function Home({
   const photoSrc = profile.avatarUrl
     ? `${profile.avatarUrl}?v=${photoTick}`
     : null;
+
+  useEffect(() => {
+    const mq = window.matchMedia(SPLIT_SCREEN);
+    const onChange = () => setSplitScreen(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
 
   useEffect(() => {
     const mq = window.matchMedia(WORKBENCH);
@@ -204,10 +231,26 @@ export function Home({
     goPage("home");
   }
 
-  function togglePanel() {
-    setProfornaOpen((open) => {
-      const next = !open;
-      writePanelOpen(next);
+  function assist(action: AssistantAction) {
+    setAssistant((current) => {
+      const next = assistantReducer(current, action);
+      writeAssistant(next);
+      return next;
+    });
+  }
+
+  function resizeChat(box: { x: number; y: number; width: number; height: number }) {
+    setAssistant((current) => {
+      const next = { ...current, float: { x: box.x, y: box.y }, size: { width: box.width, height: box.height } };
+      writeAssistant(next);
+      return next;
+    });
+  }
+
+  function moveChat(float: { x: number; y: number }) {
+    setAssistant((current) => {
+      const next = { ...current, float };
+      writeAssistant(next);
       return next;
     });
   }
@@ -301,15 +344,23 @@ export function Home({
       showCenter();
       return;
     }
-    setProfornaOpen(true);
-    writePanelOpen(true);
+    assist("openChat");
   }
 
-  function openSearchRole(id: string) {
+  function openSearchRole(id: string, target?: RoleSearchTarget) {
     showLeft();
     setEditing(false);
     setFocusJobId(id);
     goPage("history", id);
+    if (!target) return;
+    const nonce = Date.now();
+    setRoleRequest(
+      "tab" in target
+        ? { kind: "tab", id: target.tab, nonce }
+        : "achievement" in target
+          ? { kind: "achievement", id: target.achievement, nonce }
+          : { kind: "person", id: target.person, nonce },
+    );
   }
 
   function openSearchUpdate(id: string, roleId: string) {
@@ -379,8 +430,10 @@ export function Home({
       <div
         className={[
           "home-sheet",
-          leftClosed ? "is-left-closed" : "",
-          profornaOpen ? "is-right-open" : "",
+          leftClosed ? "is-left-closed has-rail" : "",
+          chatDocked && !chatOverRail ? "is-right-open" : "",
+          chatOverRail ? "is-chat-docked" : "",
+          assistant.open || chatDocked ? "" : "is-panel-closed",
           page === "historyReserve" ? "" : "is-home",
           page === "history" && bioMode === "preview" ? "" : "is-bio-hidden",
         ]
@@ -392,9 +445,11 @@ export function Home({
           headline={profile.headline}
           photoSrc={photoSrc}
           menuExpanded={desktop ? !collapsed : mobileOpen}
-          menuLabel={page === "history" ? "Home" : undefined}
+          menuLabel={page === "history" && !desktop ? "Home" : undefined}
           onMenu={() => {
-            if (page === "history") {
+            // On narrow screens Career history has no side column to close, so
+            // the button goes home; on wider ones it closes the column in place.
+            if (page === "history" && !desktop) {
               setEditing(false);
               goHome();
               return;
@@ -405,12 +460,11 @@ export function Home({
             setSettingsSection(section);
             setSettingsOpen(true);
           }}
-          onEditProfile={goProfile}
           onTour={() => setTourRequest((count) => count + 1)}
           onSearch={() => setSearchOpen(true)}
-          onProforna={togglePanel}
+          assistant={assistant}
+          onAssist={assist}
           onRequests={openRequests}
-          profornaOpen={profornaOpen}
           bioMode={bioMode}
           onBioMode={chooseBioMode}
           notice={previewNote}
@@ -462,11 +516,11 @@ export function Home({
                       {bioSocials(profile).map((item) =>
                         item.url ? (
                           <a key={item.name} href={item.url} target="_blank" rel="noreferrer" aria-label={item.name}>
-                            <BioSocialMark kind={item.kind} />
+                            <SocialMark kind={item.kind} />
                           </a>
                         ) : (
                           <span key={item.name} aria-label={`${item.name}, not added`} title={item.name}>
-                            <BioSocialMark kind={item.kind} />
+                            <SocialMark kind={item.kind} />
                           </span>
                         ),
                       )}
@@ -527,7 +581,7 @@ export function Home({
                       onImport={() => setImportOpen(true)}
                       addRequest={addRequest}
                       onAsk={() => {
-                        if (!profornaOpen) togglePanel();
+                        if (!chatShowing(assistant)) assist("openChat");
                       }}
                       onAdded={() => setCareerRevision((n) => n + 1)}
                       onRemoved={(ids) => {
@@ -551,6 +605,35 @@ export function Home({
             </section>
           </>
         )}
+        {leftClosed ? (
+          <section className="home-card home-rail" aria-label="Menu">
+            <HomeNav
+              collapsed
+              mobileOpen={false}
+              page={page}
+              onCloseMobile={() => setMobileOpen(false)}
+              onExpand={showLeft}
+              onGoHome={goHome}
+              onGoHistory={() => {
+                setEditing(false);
+                // Already on Career history: the icon brings the list back.
+                if (page === "history") {
+                  showLeft();
+                  return;
+                }
+                setFocusJobId(null);
+                goPage("history", null);
+              }}
+              onGoPage={(next) => {
+                setEditing(false);
+                setFocusJobId(null);
+                goPage(next);
+              }}
+              onCanvas={setCanvasFromNav}
+              canvasOpen={canvasFromNav}
+            />
+          </section>
+        ) : null}
         {page === "historyReserve" ? (
           <main className="home-card home-stage">
             <WorkHistory
@@ -573,8 +656,10 @@ export function Home({
             revision={careerRevision}
             focusRoleId={focusJobId}
             roleView={page === "history"}
+            assistant={{ chatPopped: assistant.chat === "floating", onAssist: assist }}
             onRoleSaved={() => setCareerRevision((n) => n + 1)}
             viewRequest={centerView}
+            roleRequest={roleRequest}
             pageContent={
               page !== "home" && page !== "history" ? <CareerWorkspace page={page} /> : null
             }
@@ -599,8 +684,15 @@ export function Home({
           />
         )}
         <HomeProforna
-          open={profornaOpen}
-          onToggle={togglePanel}
+          place={chatDocked ? "docked" : assistant.chat === "floating" ? "floating" : "closed"}
+          float={assistant.float}
+          size={assistant.size}
+          overRail={chatOverRail}
+          minimized={assistant.minimized}
+          onResize={resizeChat}
+          onAssist={assist}
+          onMove={moveChat}
+          historyLabel={page === "history" && focusJobId ? "History" : "Updates"}
           roles={chatRoles}
           focusRoleId={focusJobId}
           careerRevision={careerRevision}
@@ -1146,18 +1238,20 @@ function writeCollapsed(collapsed: boolean) {
   }
 }
 
-function readPanelOpen(): boolean {
+/** The assistant panel and chat as last left; the older chat-column choice carries over once. */
+function readAssistant(): AssistantState {
   try {
-    const value = window.localStorage.getItem(PANEL_OPEN_KEY);
-    return value !== "0";
+    const saved = window.localStorage.getItem(ASSISTANT_KEY);
+    if (saved) return readAssistantState(JSON.parse(saved));
+    return readAssistantState(null, window.localStorage.getItem(PANEL_OPEN_KEY) !== "0");
   } catch {
-    return true;
+    return readAssistantState(null);
   }
 }
 
-function writePanelOpen(open: boolean) {
+function writeAssistant(state: AssistantState) {
   try {
-    window.localStorage.setItem(PANEL_OPEN_KEY, open ? "1" : "0");
+    window.localStorage.setItem(ASSISTANT_KEY, JSON.stringify(state));
   } catch {
     /* ignore quota / private mode */
   }
@@ -1178,32 +1272,4 @@ function bioSocials(profile: {
 function httpUrl(value: string): string | null {
   const url = value.trim();
   return /^https?:\/\//i.test(url) ? url : null;
-}
-
-function BioSocialMark({ kind }: { kind: "linkedin" | "github" | "site" }) {
-  if (kind === "linkedin") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M4.7 3.2a1.7 1.7 0 1 0 .02 3.4 1.7 1.7 0 0 0-.02-3.4ZM3.2 8.4h3.1V20.8H3.2V8.4Zm5 0h3v1.7h.04c.42-.8 1.44-1.64 2.96-1.64 3.17 0 3.76 2.08 3.76 4.79v7.55h-3.1v-6.7c0-1.6-.03-3.66-2.23-3.66-2.23 0-2.57 1.74-2.57 3.54v6.82H8.2V8.4Z" />
-      </svg>
-    );
-  }
-  if (kind === "github") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M12 2C6.48 2 2 6.58 2 12.26c0 4.52 2.87 8.35 6.84 9.7.5.1.68-.22.68-.49 0-.24-.01-.87-.01-1.71-2.78.62-3.37-1.37-3.37-1.37-.45-1.18-1.11-1.5-1.11-1.5-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.9 1.57 2.36 1.12 2.94.86.09-.67.35-1.12.63-1.38-2.22-.26-4.55-1.14-4.55-5.07 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.71 0 0 .84-.27 2.75 1.05a9.3 9.3 0 0 1 5 0c1.91-1.32 2.75-1.05 2.75-1.05.55 1.41.2 2.45.1 2.71.64.72 1.03 1.63 1.03 2.75 0 3.94-2.34 4.8-4.57 5.06.36.32.68.94.68 1.9 0 1.38-.01 2.49-.01 2.83 0 .27.18.6.69.49A10.04 10.04 0 0 0 22 12.26C22 6.58 17.52 2 12 2Z" />
-      </svg>
-    );
-  }
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="12" cy="12" r="8.25" fill="none" stroke="currentColor" strokeWidth="1.6" />
-      <path
-        d="M3.75 12h16.5M12 3.75c2.15 2.25 3.25 5.05 3.25 8.25s-1.1 6-3.25 8.25c-2.15-2.25-3.25-5.05-3.25-8.25s1.1-6 3.25-8.25Z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-      />
-    </svg>
-  );
 }

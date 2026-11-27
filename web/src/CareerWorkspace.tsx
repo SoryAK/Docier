@@ -686,7 +686,7 @@ function OpportunitiesPage() {
           })}
           {!data?.opportunities.length ? (
             <p className="career-empty">
-              Search for a role, or inbound Work Map requests will land here.
+              Search for a role, or save one, and it shows up here.
             </p>
           ) : null}
         </main>
@@ -971,8 +971,8 @@ function ResumeStudioPage() {
         <div>
           <h1>Resume Studio</h1>
           <p className="career-lead">
-            Variants reference Career Memory. Revisions pin exact facts so an
-            exported claim can always be traced back to evidence.
+            Each resume is built from your career history and keeps the facts it
+            used, so every line can be traced back to where it came from.
           </p>
         </div>
         {selected ? (

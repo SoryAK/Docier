@@ -720,6 +720,18 @@ export function openDatabase(path: string): DatabaseSync {
       UNIQUE (occupant_id, role_id, contact_id)
     )
   `);
+  // Documents kept with a role: a file in Documents linked to a role. One file
+  // can sit on several roles; taking it off a role keeps it in Documents.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS role_documents (
+      id TEXT PRIMARY KEY,
+      occupant_id TEXT NOT NULL REFERENCES occupants(id),
+      role_id TEXT NOT NULL,
+      document_id TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      UNIQUE (occupant_id, role_id, document_id)
+    )
+  `);
   // A record of changes to a role. The role's own fields and its details keep
   // what each change replaced, so it can be undone; the rest is only logged.
   db.exec(`

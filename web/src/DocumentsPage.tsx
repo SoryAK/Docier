@@ -11,7 +11,7 @@ import { Selector } from "@astryxdesign/core/Selector";
 import { pixel, proportional, Table } from "@astryxdesign/core/Table";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { VStack } from "@astryxdesign/core/VStack";
-import { DOCUMENT_KINDS, type DocumentKind } from "@core/document-vault";
+import { DOCUMENT_KIND_LABEL, DOCUMENT_KINDS, type DocumentKind } from "@core/document-vault";
 import { File as FileIcon, Upload } from "lucide-react";
 import { getDocument, GlobalWorkerOptions, type PDFDocumentProxy, type RenderTask } from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
@@ -29,12 +29,7 @@ type VaultDocument = {
   createdAt: string;
 };
 
-const KIND_LABELS: Record<DocumentKind, string> = {
-  evidence: "Evidence",
-  resume: "Resume",
-  offer: "Offer",
-  certificate: "Certificate",
-};
+const KIND_LABELS: Record<DocumentKind, string> = DOCUMENT_KIND_LABEL;
 
 type FileSort = "newest" | "name" | "size";
 

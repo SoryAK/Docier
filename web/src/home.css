@@ -686,10 +686,77 @@
   }
 }
 
+/*
+ * Wide screens: the cards sit in a centred band with room around them, a clear
+ * gap between each, and the role about twice its side column's width. The top
+ * bar spans the same band.
+ */
+@media (min-width: 1280px) {
+  .home-sheet.is-home {
+    --home-gutter: max(1.5rem, calc((100vw - 1760px) / 2));
+    margin: 0 0 1rem;
+    padding-inline: var(--home-gutter);
+    row-gap: 1rem;
+  }
+
+  .home-sheet.is-home:has(.pch) {
+    grid-template-columns: 22rem minmax(0, 1fr);
+  }
+
+  /* Chat docked in the assistant panel is as wide as History is (the rail, plus the gap before it). */
+  .home-sheet.is-home.is-right-open:has(.pch) {
+    grid-template-columns: 22rem minmax(20rem, 1fr) minmax(14rem, 24.75rem);
+  }
+
+  .home-sheet.is-home:not(.is-left-closed) > .home-center,
+  .home-sheet.is-home:not(.is-left-closed) > .home-stage,
+  .home-sheet.is-home.is-right-open > .home-proforna {
+    margin-left: 0.75rem;
+  }
+
+  /* Under 1440 px the list is a little narrower; above it History is a little wider. Either way the role keeps room for its six tabs. */
+  @media (max-width: 1439px) {
+    .home-sheet.is-home:has(.pch) {
+      grid-template-columns: 20rem minmax(0, 1fr);
+    }
+
+    .home-sheet.is-home.is-right-open:has(.pch) {
+      grid-template-columns: 20rem minmax(20rem, 1fr) minmax(14rem, 22.75rem);
+    }
+  }
+
+  @media (min-width: 1440px) {
+    .home-sheet.is-home .home-center {
+      --home-rail: 24rem;
+    }
+  }
+
+  /* Big screens: the list and History take more of the width, so the role doesn't spread out. */
+  @media (min-width: 1600px) {
+    .home-sheet.is-home:has(.pch) {
+      grid-template-columns: 24rem minmax(0, 1fr);
+    }
+
+    .home-sheet.is-home.is-right-open:has(.pch) {
+      grid-template-columns: 24rem minmax(20rem, 1fr) minmax(14rem, 26.75rem);
+    }
+
+    .home-sheet.is-home .home-center {
+      --home-rail: 26rem;
+    }
+  }
+
+  .home-sheet.is-home:not(.is-right-open) .home-center.is-split .home-story-layout {
+    gap: 0.75rem;
+  }
+}
+
+/* The top bar lines up with the cards: its first and last buttons sit on their outer edges. */
 .home-sheet > .home-bar {
   grid-column: 1 / -1;
   grid-row: 1;
   margin: 0 0 -0.5rem;
+  padding-inline: 0;
 }
 
 .home-public-preview {
@@ -1539,32 +1606,9 @@ button.home-nav-item:focus-visible {
   cursor: pointer;
 }
 
-.home-request-node {
-  width: 7px;
-  height: 7px;
-  flex: none;
-  border-radius: 50%;
-  background: #3b3b3b;
-}
-
-.home-request-btn .home-request-link {
-  width: 22px;
-  height: 7px;
-  margin: 0 0 0 2px;
-  flex: none;
-  overflow: visible;
-}
-
-.home-request-btn .home-request-link path {
-  stroke: #6b6b70;
-  stroke-width: 2;
-  stroke-dasharray: 3 12 3 40;
-}
-
+/* The paper plane points up and to the right, as drawn. */
 .home-request-plane {
   display: inline-flex;
-  margin-left: -7px;
-  transform: rotate(45deg);
 }
 
 .home-request-btn .home-request-plane svg {
@@ -3037,3 +3081,70 @@ a.home-user-item {
 }
 .home-pub-menu .home-sync-share:hover,
 .home-pub-menu .home-sync-share:focus-visible { border-color: var(--color-text-primary, #171717); }
+
+/*
+ * The left column closed: an icons-only rail stays in its place, so every page
+ * is still one click away. Phones keep the menu button and its drawer.
+ */
+.home-rail {
+  display: none;
+}
+
+@media (min-width: 801px) {
+  .home-sheet.has-rail,
+  .home-sheet.is-home.is-left-closed.has-rail {
+    grid-template-columns: 3.75rem minmax(0, 1fr);
+  }
+
+  .home-sheet.has-rail.is-right-open,
+  .home-sheet.is-home.is-left-closed.is-right-open.has-rail {
+    grid-template-columns: 3.75rem minmax(12rem, 1fr) minmax(14rem, 26rem);
+  }
+
+  .home-sheet.has-rail > .home-center,
+  .home-sheet.has-rail > .home-stage,
+  .home-sheet.has-rail .home-media {
+    grid-column: 2;
+    margin-left: 0.4rem;
+  }
+
+  .home-sheet.is-left-closed.is-right-open.has-rail > .home-proforna {
+    grid-column: 3;
+  }
+
+  .home-rail {
+    display: flex;
+    grid-column: 1;
+    grid-row: 2 / -1;
+    align-self: stretch;
+  }
+
+  .home-rail .home-nav,
+  .home-rail .home-nav.is-collapsed {
+    display: flex;
+    position: relative;
+    inset: auto;
+    flex: 1;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    margin: 0;
+    padding: 0.55rem 0.4rem;
+    overflow: auto;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .home-rail .home-nav-foot::before {
+    right: 6px;
+    left: 6px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .home-sheet.is-home.has-rail > .home-center,
+  .home-sheet.is-home.has-rail > .home-stage {
+    margin-left: 0.75rem;
+  }
+}

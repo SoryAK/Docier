@@ -178,15 +178,19 @@ export function shiftLabel(shift: { start: string; end: string }): string {
   return `${clock(shift.start)} – ${clock(shift.end)}${overnight ? " (overnight)" : ""}`;
 }
 
+/** "On site", "Remote", or "Hybrid, 3 days on site". */
+export function workModeText(schedule: Pick<RoleSchedule, "workMode" | "daysOnSite">): string {
+  return schedule.workMode === "hybrid" && schedule.daysOnSite
+    ? `Hybrid, ${schedule.daysOnSite} day${schedule.daysOnSite === 1 ? "" : "s"} on site`
+    : WORK_MODE_LABEL[schedule.workMode];
+}
+
 /** One line for the closed section, or "" when nothing is set. */
 export function workSetupSummary(setup: { schedule: RoleSchedule; team: RoleTeam }): string {
   const { schedule, team } = setup;
   const parts: string[] = [];
   if (schedule.type) parts.push(SCHEDULE_TYPE_LABEL[schedule.type]);
-  const mode =
-    schedule.workMode === "hybrid" && schedule.daysOnSite
-      ? `Hybrid, ${schedule.daysOnSite} day${schedule.daysOnSite === 1 ? "" : "s"} on site`
-      : WORK_MODE_LABEL[schedule.workMode];
+  const mode = workModeText(schedule);
   const rest: string[] = [];
   if (schedule.hoursPerWeek) rest.push(`${schedule.hoursPerWeek} h/week`);
   if (team.reportsTo) rest.push(`Reports to ${team.reportsTo}`);

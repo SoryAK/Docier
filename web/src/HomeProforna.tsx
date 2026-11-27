@@ -15,6 +15,9 @@ import { Icon } from "@astryxdesign/core/Icon";
 import { Markdown } from "@astryxdesign/core/Markdown";
 import { formatHistoryPeriod } from "@core/career-history";
 import { ArrowLeft, AtSign, Check, ChevronDown, Copy, Paperclip, Pencil, Plus, Trash2 } from "lucide-react";
+import type { AssistantAction } from "@core/assistant-panel";
+import { clampFloat, floatSize } from "@core/assistant-panel";
+import { AssistantPanelHead, FloatingChatHead } from "./AssistantPanel";
 import "./home-chat.css";
 
 export type ChatRole = {
@@ -46,8 +49,15 @@ type LocalEdit = {
 };
 
 export function HomeProforna({
-  open,
-  onToggle,
+  place,
+  float = null,
+  size = null,
+  minimized = false,
+  overRail = false,
+  onAssist,
+  onMove,
+  onResize,
+  historyLabel = "History",
   width,
   roles = [],
   focusRoleId = null,
@@ -55,8 +65,21 @@ export function HomeProforna({
   onReleaseRole,
   onAttachRole,
 }: {
-  open: boolean;
-  onToggle: () => void;
+  /** Closed, docked in the assistant panel, or popped out over the page. */
+  place: "closed" | "docked" | "floating";
+  /** Where the popped-out chat sits; null puts it at the bottom right. */
+  float?: { x: number; y: number } | null;
+  onAssist: (action: AssistantAction) => void;
+  onMove: (point: { x: number; y: number }) => void;
+  /** The popped-out chat's size once resized; null sizes it to the window. */
+  size?: { width: number; height: number } | null;
+  /** The popped-out chat is down to a bar at the bottom right. */
+  minimized?: boolean;
+  /** Docked chat lies over History's place in the center, following its size. */
+  overRail?: boolean;
+  onResize: (box: { x: number; y: number; width: number; height: number }) => void;
+  /** The other side of the assistant panel's switch: "History" or "Updates". */
+  historyLabel?: string;
   width?: number;
   roles?: ChatRole[];
   focusRoleId?: string | null;
@@ -64,6 +87,10 @@ export function HomeProforna({
   onReleaseRole?: (id: string) => void;
   onAttachRole?: (role: ChatRole) => void;
 }) {
+  const open = place !== "closed";
+  const floating = place === "floating";
+  const floatBox = useFloatingBox(floating, float, size, onMove, onResize);
+  const railBox = useRailBox(place === "docked" && overRail);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selectedIdRef = useRef<string | null>(null);
@@ -126,14 +153,14 @@ export function HomeProforna({
     syncThreadScroll(scroller, false);
     scroller.addEventListener("scroll", read, { passive: true });
     return () => scroller.removeEventListener("scroll", read);
-  }, [open, sessionsOpen, messages]);
+  }, [open, place, sessionsOpen, messages]);
 
   useEffect(() => {
     if (!open || sessionsOpen || !pinned.current) return;
     const scroller = threadRef.current?.parentElement;
     if (!scroller) return;
     scroller.scrollTop = scroller.scrollHeight;
-  }, [open, messages, busy, sessionsOpen]);
+  }, [open, place, messages, busy, sessionsOpen]);
 
   function syncThreadScroll(scroller: HTMLElement, fromUser: boolean) {
     const distance = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
@@ -289,7 +316,7 @@ export function HomeProforna({
       }
       if (!response.ok) {
         setDraft(body);
-        setStatus("Connect a model in Settings before talking to Docier.");
+        setStatus("Connect a model in Settings before using chat.");
         return;
       }
       const thread = (await response.json()) as {
@@ -439,13 +466,43 @@ export function HomeProforna({
 
   return (
     <aside
-      className={open ? "home-proforna is-open" : "home-proforna is-collapsed"}
-      aria-label="Conversations"
+      className={
+        floating
+          ? minimized
+            ? "home-proforna is-open is-floating is-minimized"
+            : "home-proforna is-open is-floating"
+          : open
+            ? overRail
+              ? "home-proforna is-open is-over-rail"
+              : "home-proforna is-open"
+            : "home-proforna is-closed"
+      }
+      aria-label="Chat"
+      role={floating ? "dialog" : undefined}
       inert={!open}
-      style={width ? { width } : undefined}
+      hidden={!open}
+      style={
+        floating
+          ? minimized
+            ? undefined
+            : floatBox.style
+          : overRail
+            ? (railBox ?? { visibility: "hidden" })
+            : width
+              ? { width }
+              : undefined
+      }
     >
       {open ? (
         <>
+          {floating ? (
+            <>
+              <FloatingChatHead minimized={minimized} onAssist={onAssist} onGrab={floatBox.grab} />
+              {minimized ? null : <FloatingEdges onResize={floatBox.resize} />}
+            </>
+          ) : (
+            <AssistantPanelHead tab="chat" historyLabel={historyLabel} chatPopped={false} onAssist={onAssist} />
+          )}
           <div className="home-chat-sessions">
             {sessionsOpen ? null : (
               <button
@@ -473,8 +530,8 @@ export function HomeProforna({
               <button
                 type="button"
                 className="home-chat-sessions-action"
-                aria-label="New Chat"
-                title="New Chat"
+                aria-label="New chat"
+                title="New chat"
                 onClick={startNew}
               >
                 <Icon icon={Plus} size="sm" />
@@ -596,7 +653,7 @@ export function HomeProforna({
                   aria-selected={selectedId === null}
                   onClick={startNew}
                 >
-                  <span>New Chat</span>
+                  <span>New chat</span>
                 </button>
                 {sessions.map((session) => (
                   <div
@@ -748,15 +805,174 @@ export function HomeProforna({
             )}
           </ChatLayout>
         </>
-      ) : (
-        <h2>
-          <button type="button" onClick={onToggle}>
-            Docier
-          </button>
-        </h2>
-      )}
+      ) : null}
     </aside>
   );
+}
+
+const FLOAT_MARGIN = 24;
+
+type Box = { left: number; top: number; width: number; height: number; clipPath?: string; visibility?: "hidden" };
+
+/**
+ * Where History sits in the center, followed frame by frame while docked chat
+ * lies over it: the page can scroll, resize, or swap a role's History for the
+ * story's Updates, and chat keeps to the same place.
+ */
+function useRailBox(active: boolean): Box | null {
+  const [box, setBox] = useState<Box | null>(null);
+  useEffect(() => {
+    if (!active) {
+      setBox(null);
+      return;
+    }
+    let frame = 0;
+    let last = "";
+    const read = () => {
+      const rail = document.querySelector<HTMLElement>(".home-story-recent");
+      const rect = rail?.getBoundingClientRect();
+      // When History sits below the main card's content, it scrolls inside the
+      // center card; chat is cut off at that card's edges the way History is.
+      const frameRect = rail?.closest(".home-center")?.getBoundingClientRect();
+      let next: Box | null = null;
+      if (rect && rect.width > 0 && rect.height > 0) {
+        next = { left: Math.round(rect.left), top: Math.round(rect.top), width: Math.round(rect.width), height: Math.round(rect.height) };
+        if (frameRect) {
+          const above = Math.max(0, Math.round(frameRect.top - rect.top));
+          const below = Math.max(0, Math.round(rect.bottom - frameRect.bottom));
+          if (above + below >= next.height) next.visibility = "hidden";
+          else if (above || below) next.clipPath = `inset(${above}px 0 ${below}px 0)`;
+        }
+      }
+      const key = next ? `${next.left},${next.top},${next.width},${next.height},${next.clipPath ?? ""},${next.visibility ?? ""}` : "";
+      if (key !== last) {
+        last = key;
+        setBox(next);
+      }
+      frame = window.requestAnimationFrame(read);
+    };
+    read();
+    return () => window.cancelAnimationFrame(frame);
+  }, [active]);
+  return box;
+}
+
+type Edge = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
+const EDGES: Edge[] = ["n", "s", "e", "w", "ne", "nw", "se", "sw"];
+
+/** Thin strips on the popped-out chat's edges and corners that resize it. */
+function FloatingEdges({ onResize }: { onResize: (edge: Edge, event: React.PointerEvent<HTMLDivElement>) => void }) {
+  return (
+    <>
+      {EDGES.map((edge) => (
+        <div key={edge} className={`assistant-edge is-${edge}`} aria-hidden="true" onPointerDown={(event) => onResize(edge, event)} />
+      ))}
+    </>
+  );
+}
+
+/**
+ * Where the popped-out chat sits and how big it is, kept on screen. It starts
+ * at the bottom right, sized to the window; dragging its top moves it and
+ * dragging an edge resizes it. Phones show it full screen (CSS).
+ */
+export function useFloatingBox(
+  active: boolean,
+  savedAt: { x: number; y: number } | null,
+  savedSize: { width: number; height: number } | null,
+  onMove: (point: { x: number; y: number }) => void,
+  onResize: (box: { x: number; y: number; width: number; height: number }) => void,
+) {
+  const [screen, setScreen] = useState(() => ({ width: window.innerWidth, height: window.innerHeight }));
+  const [live, setLive] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+
+  useEffect(() => {
+    if (!active) return;
+    const onWindow = () => setScreen({ width: window.innerWidth, height: window.innerHeight });
+    // The window may have changed size while chat was docked or closed: start from its size now.
+    onWindow();
+    window.addEventListener("resize", onWindow);
+    return () => window.removeEventListener("resize", onWindow);
+  }, [active]);
+
+  const size = floatSize(live ?? savedSize, screen);
+  const start = live ?? savedAt ?? {
+    x: screen.width - size.width - FLOAT_MARGIN,
+    y: screen.height - size.height - FLOAT_MARGIN,
+  };
+  const at = clampFloat(start, size, screen);
+
+  function follow(
+    event: React.PointerEvent<HTMLDivElement>,
+    next: (dx: number, dy: number) => { x: number; y: number; width: number; height: number },
+    done: (box: { x: number; y: number; width: number; height: number }) => void,
+  ) {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    const target = event.currentTarget;
+    target.setPointerCapture(event.pointerId);
+    const from = { x: event.clientX, y: event.clientY };
+    let last = { ...at, ...size };
+    const move = (pointer: PointerEvent) => {
+      last = next(pointer.clientX - from.x, pointer.clientY - from.y);
+      setLive(last);
+    };
+    const up = () => {
+      target.removeEventListener("pointermove", move);
+      target.removeEventListener("pointerup", up);
+      target.removeEventListener("pointercancel", up);
+      setLive(null);
+      done(last);
+    };
+    target.addEventListener("pointermove", move);
+    target.addEventListener("pointerup", up);
+    target.addEventListener("pointercancel", up);
+  }
+
+  function grab(event: React.PointerEvent<HTMLDivElement>) {
+    if ((event.target as HTMLElement).closest("button")) return;
+    follow(
+      event,
+      (dx, dy) => ({ ...clampFloat({ x: at.x + dx, y: at.y + dy }, size, screen), ...size }),
+      (box) => onMove({ x: box.x, y: box.y }),
+    );
+  }
+
+  function resize(edge: Edge, event: React.PointerEvent<HTMLDivElement>) {
+    follow(
+      event,
+      (dx, dy) => {
+        // The edge being dragged moves; the opposite one stays put.
+        const right = at.x + size.width;
+        const bottom = at.y + size.height;
+        const wanted = {
+          width: edge.includes("e") ? size.width + dx : edge.includes("w") ? size.width - dx : size.width,
+          height: edge.includes("s") ? size.height + dy : edge.includes("n") ? size.height - dy : size.height,
+        };
+        // Keep the fixed edges inside the window too.
+        const room = {
+          width: edge.includes("w") ? right - 8 : screen.width - 8 - at.x,
+          height: edge.includes("n") ? bottom - 8 : screen.height - 8 - at.y,
+        };
+        const fitted = floatSize(
+          { width: Math.min(wanted.width, room.width), height: Math.min(wanted.height, room.height) },
+          screen,
+        );
+        return {
+          x: edge.includes("w") ? right - fitted.width : at.x,
+          y: edge.includes("n") ? bottom - fitted.height : at.y,
+          ...fitted,
+        };
+      },
+      onResize,
+    );
+  }
+
+  return {
+    style: { left: at.x, top: at.y, width: size.width, height: size.height },
+    grab,
+    resize,
+  };
 }
 
 function sessionWhen(iso: string): string {

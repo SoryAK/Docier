@@ -3,15 +3,16 @@ import { CommandPalette } from "@astryxdesign/core/CommandPalette";
 import type { SearchableItem, SearchSource } from "@astryxdesign/core/Typeahead";
 import { formatHistoryPlace } from "@core/career-history";
 import type { WorkMapRole } from "@core/work-map";
+import { roleSearchEntries, type RoleSearchTarget } from "@core/role-search";
 import { liveUpdates } from "./HomeCenter";
 
 const PLACES = [
   { id: "profile", label: "Profile", detail: "Name and links" },
   { id: "history", label: "Career history", detail: "Roles on this board" },
   { id: "map", label: "Map", detail: "Places for the roles" },
-  { id: "updates", label: "Live updates", detail: "Notes from current roles" },
+  { id: "updates", label: "Updates", detail: "Notes from current roles" },
   { id: "media", label: "Media and events", detail: "Photos and events" },
-  { id: "proforna", label: "Docier", detail: "The right panel" },
+  { id: "proforna", label: "Chat", detail: "Ask about your career" },
 ] as const;
 
 export type SearchPlace = (typeof PLACES)[number]["id"];
@@ -32,7 +33,8 @@ export function HomeSearch({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onPlace: (id: SearchPlace) => void;
-  onRole: (id: string) => void;
+  /** Opens a role, at the thing that was found in it when there is one. */
+  onRole: (id: string, target?: RoleSearchTarget) => void;
   onUpdate: (id: string, roleId: string) => void;
 }) {
   const [roles, setRoles] = useState<WorkMapRole[]>([]);
@@ -49,6 +51,10 @@ export function HomeSearch({
   }, [open]);
 
   const palette = useMemo(() => buildPalette(roles), [roles]);
+  const targets = useMemo(
+    () => new Map(roles.flatMap((role) => roleSearchEntries(role)).map((entry) => [entry.id, entry])),
+    [roles],
+  );
 
   function pick(value: string) {
     const split = value.indexOf(":");
@@ -59,6 +65,10 @@ export function HomeSearch({
       return;
     }
     if (kind === "role") onRole(target);
+    if (kind === "inside") {
+      const entry = targets.get(target);
+      if (entry) onRole(entry.roleId, entry.target);
+    }
     if (kind === "update") {
       const cut = target.indexOf(":");
       if (cut === -1) return;
@@ -103,22 +113,30 @@ function buildPalette(roles: WorkMapRole[]): SearchSource<PaletteHit> {
       auxiliaryData: {
         group: "Roles",
         detail,
-        haystack: `${label} ${detail} ${role.details.summary}`,
+        haystack: [label, detail, role.details.summary, role.description, ...role.details.skills, ...role.details.skillsGained].join(" "),
       },
     };
   });
   const updateHits: PaletteHit[] = roles.flatMap((role) =>
-    liveUpdates([role]).map((item) => ({
+    // Achievements have a group of their own, so Updates leaves them out.
+    liveUpdates([role]).filter((item) => item.kind !== "Achievement").map((item) => ({
       id: `update:${role.id}:${item.id}`,
       label: item.organization,
       auxiliaryData: {
-        group: "Live updates",
+        group: "Updates",
         detail: `${item.kind} · ${item.text}`,
         haystack: `${item.organization} ${item.kind} ${item.text}`,
       },
     })),
   );
-  const all = [...places, ...roleHits, ...updateHits];
+  const insideHits: PaletteHit[] = roles.flatMap((role) =>
+    roleSearchEntries(role).map((entry) => ({
+      id: `inside:${entry.id}`,
+      label: entry.label,
+      auxiliaryData: { group: entry.group, detail: entry.detail, haystack: `${entry.label} ${entry.detail}` },
+    })),
+  );
+  const all = [...places, ...roleHits, ...insideHits, ...updateHits];
   return {
     bootstrap: () => places,
     search: (query) => {

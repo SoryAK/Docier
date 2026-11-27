@@ -1,5 +1,6 @@
 import { answerReceivedAsk, readReceivedAsk, ReceivedAskError } from "./received-asks";
 import { linkRolePerson, RolePeopleError, unlinkRolePerson, updateRolePersonLink } from "./role-people";
+import { linkRoleDocument, RoleDocumentError, unlinkRoleDocument, uploadRoleDocument } from "./role-documents";
 import { Hono, type Context } from "hono";
 import type { DatabaseSync } from "node:sqlite";
 import { isFrameTarget, pageAllowsFrame, PRODUCT, type ApplicationStage } from "../core/index";
@@ -304,6 +305,8 @@ import {
   saveWorkMapDetails,
   saveWorkSetup,
   saveGear,
+  saveRoleGlance,
+  saveRoleLinks,
   saveReflection,
   undoRoleEdit,
   savePayAndBenefits,
@@ -1550,6 +1553,46 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
     }
   });
 
+  // Whether a role's pay shows in the line under its name. Never published.
+  app.put("/api/work-map/roles/:id/glance", async (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      const saved = saveRoleGlance(
+        db,
+        occupant.id,
+        c.req.param("id"),
+        (await c.req.json().catch(() => ({}))) as Record<string, unknown>,
+      );
+      if (!saved.ok) return c.json({ error: saved.error }, 400);
+      return c.json({ details: saved.details });
+    } catch (error) {
+      if (error instanceof WorkMapStoreError) {
+        return c.json({ error: error.code }, 404);
+      }
+      throw error;
+    }
+  });
+
+  app.put("/api/work-map/roles/:id/links", async (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      const saved = saveRoleLinks(
+        db,
+        occupant.id,
+        c.req.param("id"),
+        // An empty body is refused (as invalid-body) rather than read as "clear every link".
+        (await c.req.json()) as Record<string, unknown>,
+      );
+      if (!saved.ok) return c.json({ error: saved.error, field: saved.field }, 400);
+      return c.json({ details: saved.details });
+    } catch (error) {
+      if (error instanceof WorkMapStoreError) {
+        return c.json({ error: error.code }, 404);
+      }
+      throw error;
+    }
+  });
+
   // How a role looks in hindsight.
   app.put("/api/work-map/roles/:id/reflection", async (c) => {
     const occupant = ensureOccupant(db);
@@ -1612,6 +1655,47 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
       return c.json({ ok: true });
     } catch (error) {
       if (error instanceof RolePeopleError) return c.json({ error: error.code }, rolePeopleStatus(error.code));
+      throw error;
+    }
+  });
+
+  // Documents kept with a role: upload a new file, or link one already in Documents.
+  const roleDocumentStatus = (code: RoleDocumentError["code"]) =>
+    code === "already-linked" ? 409 : code === "role-missing" || code === "link-missing" || code === "document-missing" ? 404 : 400;
+  app.post("/api/work-map/roles/:id/documents", async (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      if ((c.req.header("content-type") ?? "").includes("multipart/form-data")) {
+        const form = await c.req.formData();
+        const file = form.get("file");
+        if (!(file instanceof File)) return c.json({ error: "file-required" }, 400);
+        const document = uploadRoleDocument(
+          db,
+          occupant.id,
+          uploadsDir,
+          c.req.param("id"),
+          { name: file.name, type: file.type, bytes: new Uint8Array(await file.arrayBuffer()) },
+          typeof form.get("kind") === "string" ? String(form.get("kind")) : "other",
+        );
+        return c.json({ document }, 201);
+      }
+      const body = (await c.req.json().catch(() => ({}))) as { documentId?: unknown };
+      const document = linkRoleDocument(db, occupant.id, c.req.param("id"), body.documentId);
+      return c.json({ document }, 201);
+    } catch (error) {
+      if (error instanceof RoleDocumentError) return c.json({ error: error.code }, roleDocumentStatus(error.code));
+      if (error instanceof DocumentStoreError) return c.json({ error: error.code }, error.code === "file-too-large" ? 413 : 400);
+      throw error;
+    }
+  });
+
+  app.delete("/api/work-map/roles/:id/documents/:linkId", (c) => {
+    const occupant = ensureOccupant(db);
+    try {
+      unlinkRoleDocument(db, occupant.id, c.req.param("id"), c.req.param("linkId"));
+      return c.json({ ok: true });
+    } catch (error) {
+      if (error instanceof RoleDocumentError) return c.json({ error: error.code }, roleDocumentStatus(error.code));
       throw error;
     }
   });

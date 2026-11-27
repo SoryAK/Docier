@@ -133,6 +133,8 @@ export type PersonalTool = {
   draft: boolean;
   roleIds: string[];
   kitIds: string[];
+  /** Shown on the published career page (drafts never are). */
+  onCareerPage: boolean;
   photos: ToolPhoto[];
   createdAt: string;
   updatedAt: string;
@@ -233,6 +235,7 @@ export function readToolInput(
       notes: text(value.notes, NOTES_MAX),
       roleIds: linked,
       kitIds: kits,
+      onCareerPage: value.onCareerPage === true,
     },
   };
 }
@@ -254,11 +257,12 @@ export type BulkChange =
   | { kind: "addKit"; kitId: string }
   | { kind: "addKit"; newKitName: string }
   | { kind: "removeKit"; kitId: string }
+  | { kind: "careerPage"; on: boolean }
   | { kind: "delete" };
 
 export type BulkError = "bulk-ids" | "bulk-too-many" | "bulk-change" | "not-found" | "kit-missing" | "kit-name-required" | "kit-name-taken";
 
-export type BulkFields = Pick<PersonalTool, "category" | "ownership" | "condition" | "tags" | "kitIds">;
+export type BulkFields = Pick<PersonalTool, "category" | "ownership" | "condition" | "tags" | "kitIds" | "onCareerPage">;
 
 function readBulkChange(raw: unknown, kits: ToolKit[]): { ok: true; change: BulkChange } | { ok: false; error: BulkError } {
   if (!raw || typeof raw !== "object") return { ok: false, error: "bulk-change" };
@@ -292,6 +296,8 @@ function readBulkChange(raw: unknown, kits: ToolKit[]): { ok: true; change: Bulk
     }
     case "removeKit":
       return kitKnown(value.kitId) ? { ok: true, change: { kind: "removeKit", kitId: value.kitId as string } } : { ok: false, error: "kit-missing" };
+    case "careerPage":
+      return typeof value.on === "boolean" ? { ok: true, change: { kind: "careerPage", on: value.on } } : bad;
     case "delete":
       return { ok: true, change: { kind: "delete" } };
     default:
@@ -336,6 +342,8 @@ export function applyBulkChange(fields: BulkFields, change: Exclude<BulkChange, 
     }
     case "removeKit":
       return { ...fields, kitIds: fields.kitIds.filter((id) => id !== change.kitId) };
+    case "careerPage":
+      return { ...fields, onCareerPage: change.on };
   }
 }
 

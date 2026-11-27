@@ -283,6 +283,21 @@ describe("changing many tools at once", () => {
     expect(byId[other]).toMatchObject({ ownership: "mine" });
   });
 
+  it("shows picked tools on the career page, and the edit form keeps it", async () => {
+    const { send, tools } = setup();
+    const a = (await send("POST", "/api/tools", { name: "Drill", onCareerPage: true })).body.tool;
+    expect(a.onCareerPage).toBe(true);
+    const b = (await send("POST", "/api/tools", { name: "Saw" })).body.tool.id as string;
+    await bulk(send, [b], { kind: "careerPage", on: true });
+    expect((await tools()).every((tool) => tool.onCareerPage)).toBe(true);
+    await send("PUT", `/api/tools/${a.id}`, { name: "Drill", onCareerPage: false });
+    const byId = Object.fromEntries((await tools()).map((tool) => [tool.id, tool]));
+    expect(byId[a.id].onCareerPage).toBe(false);
+    expect(byId[b].onCareerPage).toBe(true);
+    const copy = (await send("POST", `/api/tools/${b}/duplicate`, {})).body.tool;
+    expect(copy.onCareerPage).toBe(true);
+  });
+
   it("unknown id changes nothing", async () => {
     const { send, tools } = setup();
     const a = (await send("POST", "/api/tools", { name: "Drill" })).body.tool.id as string;

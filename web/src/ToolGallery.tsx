@@ -47,6 +47,7 @@ type Draft = {
   notes: string;
   roleIds: string[];
   kitIds: string[];
+  onCareerPage: boolean;
 };
 
 function draftOf(tool: PersonalTool | null): Draft {
@@ -67,6 +68,7 @@ function draftOf(tool: PersonalTool | null): Draft {
     notes: tool?.notes ?? "",
     roleIds: tool?.roleIds ?? [],
     kitIds: tool?.kitIds ?? [],
+    onCareerPage: tool?.onCareerPage ?? false,
   };
 }
 
@@ -732,6 +734,7 @@ export function ToolGallery({
         </HStack>
       </HStack>
       {tool.draft ? <Banner status="warning" title="Needs details" description="Added from a photo. Edit to fill in what you know." /> : null}
+      {tool.onCareerPage && !tool.draft ? <Text type="supporting">On your career page</Text> : null}
       <MetadataList columns={2}>
         <MetadataListItem label="Whose it is">{TOOL_OWNERSHIP_LABEL[tool.ownership]}</MetadataListItem>
         {tool.condition ? <MetadataListItem label="Condition">{TOOL_CONDITION_LABEL[tool.condition]}</MetadataListItem> : null}
@@ -867,6 +870,13 @@ export function ToolGallery({
         </div>
         {fieldError("roleIds")}
       </div>
+      <label className="tool-career">
+        <input type="checkbox" checked={draft.onCareerPage} onChange={(event) => set("onCareerPage", event.target.checked)} />
+        <span>
+          Show on my career page
+          <small>With its cover photo, how well you use it, and where. Shows once Tools is on in your published sections.</small>
+        </span>
+      </label>
 
       {/* Most people fill in the basics; the rest waits behind More details. */}
       <button

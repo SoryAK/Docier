@@ -350,6 +350,18 @@ describe("changing many tools at once", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
+  it("shows the picked tools on the career page", async () => {
+    await addToolThroughApi("Drill");
+    await addToolThroughApi("Saw");
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await choose(user, "Drill");
+    await user.selectOptions(within(bar()).getByLabelText("Set career page"), "show");
+    await waitFor(() => expect(status().textContent).toBe("1 tool changed."));
+    const byName = Object.fromEntries((await server.tools()).map((tool) => [tool.name, tool.onCareerPage]));
+    expect(byName).toEqual({ Drill: true, Saw: false });
+  });
+
   it("hidden picks are counted and changed", async () => {
     await addToolThroughApi("Drill");
     await addToolThroughApi("Saw");
@@ -705,6 +717,27 @@ describe("small touches", () => {
     expect(await screen.findByRole("group", { name: "Kits" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "All tools" })).toBeTruthy();
     expect(screen.getAllByRole("button", { name: "+ New kit" })).toHaveLength(1);
+  });
+});
+
+describe("the career page", () => {
+  it("switches a tool onto the career page, and an unrelated edit keeps it there", async () => {
+    await addToolThroughApi("Drill");
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await user.click(await screen.findByRole("button", { name: "Open Drill" }));
+    await startEditing(user, "Drill");
+    await user.click(within(panel("Drill")).getByRole("checkbox", { name: /Show on my career page/ }));
+    await user.click(within(panel("Drill")).getByRole("button", { name: "Save" }));
+    await waitFor(async () => expect((await server.tools())[0].onCareerPage).toBe(true));
+    expect(await within(panel("Drill")).findByText("On your career page")).toBeTruthy();
+
+    await startEditing(user, "Drill");
+    const maker = within(panel("Drill")).getByLabelText("Maker");
+    await user.type(maker, "Makita");
+    await user.click(within(panel("Drill")).getByRole("button", { name: "Save" }));
+    await waitFor(async () => expect((await server.tools())[0].maker).toBe("Makita"));
+    expect((await server.tools())[0].onCareerPage).toBe(true);
   });
 });
 

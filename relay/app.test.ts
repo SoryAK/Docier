@@ -174,6 +174,41 @@ describe("tools and photos on a publication", () => {
     expect(html).toContain(`src="${JPEG}"`);
   });
 
+  it("gives an agent each photo once", async () => {
+    const db = openRelayDatabase(":memory:");
+    const app = createRelayApp(db, "owner-secret");
+    const role = projection.roles[0]!;
+    await app.request("/relay/publications/tools", {
+      method: "PUT",
+      headers: { authorization: "Bearer owner-secret", "content-type": "application/json" },
+      body: JSON.stringify({
+        projection: {
+          ...projection,
+          slug: "tools",
+          sections: [...projection.sections, "tools", "media"],
+          roles: [{ ...role, media: [{ id: "m1", kind: "photo", title: "Panel", url: JPEG, caption: "", isPublic: true }] }],
+          tools: [{ id: "t1", name: "Drill", makerModel: "", facts: [], roleIds: [], photoUrl: JPEG }],
+        },
+      }),
+    });
+    const call = { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "read_publication", arguments: { slug: "tools" } } };
+    const modern = await (
+      await mcp(
+        app,
+        { ...call, params: { ...modernMeta(), ...call.params } },
+        { "mcp-protocol-version": "2026-07-28", "mcp-method": "tools/call", "mcp-name": "read_publication" },
+      )
+    ).text();
+    expect(modern.split(JPEG).length - 1).toBe(2);
+    const body = JSON.parse(modern) as { result: { content: Array<{ text: string }>; structuredContent: { tools: Array<{ photoUrl: string }> } } };
+    expect(body.result.structuredContent.tools[0]?.photoUrl).toBe(JPEG);
+    expect(body.result.content[0]?.text).toContain("Drill");
+    // An agent on the older protocol has only the text, so its photos stay there.
+    const legacy = await (await mcp(app, call)).text();
+    expect(legacy.split(JPEG).length - 1).toBe(2);
+    db.close();
+  });
+
   it("an older page without tools still opens", async () => {
     const html = await page({});
     expect(html).toContain("Lead Systems Engineer");

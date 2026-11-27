@@ -1333,3 +1333,62 @@ describe("paging without rebuilding the popout", () => {
     expect((within(panel("Saw")).getByLabelText("Maker") as HTMLInputElement).value).toBe("");
   });
 });
+
+describe("share pages", () => {
+  /** The page the Share dialog downloads, read back as text. */
+  async function downloaded(user: ReturnType<typeof userEvent.setup>) {
+    let blob: Blob | null = null;
+    const real = URL.createObjectURL;
+    URL.createObjectURL = (made: Blob | MediaSource) => {
+      blob = made as Blob;
+      return "blob:docier-test/share";
+    };
+    await user.click(await within(screen.getByRole("dialog", { name: "Share your tools" })).findByRole("button", { name: "Download page" }));
+    URL.createObjectURL = real;
+    expect(blob).not.toBeNull();
+    return (blob as unknown as Blob).text();
+  }
+
+  it("downloads a page for an employer: how well you use each tool and where, never the private parts", async () => {
+    const roleId = await server.addRole("Giants Direct");
+    const id = await addToolThroughApi("Drill", { maker: "Makita", skill: 4, roleIds: [roleId], serial: "SN-SECRET-1", paid: 159, keptAt: "Garage shelf B" });
+    const form = new FormData();
+    form.append("photos", photo("drill.png"));
+    await fetch(`/api/tools/${id}/photos`, { method: "POST", body: form });
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await user.click(await screen.findByRole("button", { name: "Share" }));
+    const html = await downloaded(user);
+    expect(html).toContain("Drill");
+    expect(html).toContain("Giants Direct");
+    expect(html).toContain("4 of 5");
+    expect(html).toContain("data:image/png;base64,");
+    for (const secret of ["SN-SECRET-1", "159", "Garage shelf B"]) expect(html).not.toContain(secret);
+  });
+
+  it("downloads a page for a crew, and can leave your name off", async () => {
+    await fetch("/api/profile", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ firstName: "Sam", lastName: "Rivera" }) });
+    await addToolThroughApi("Drill", { condition: "good" });
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await user.click(await screen.findByRole("button", { name: "Share" }));
+    const share = screen.getByRole("dialog", { name: "Share your tools" });
+    await user.click(within(share).getByRole("radio", { name: /crew/i }));
+    expect(await downloaded(user)).toContain("Good");
+    await user.click(within(share).getByRole("checkbox", { name: "Put my name on it" }));
+    const unnamed = await downloaded(user);
+    expect(unnamed).not.toContain("Rivera");
+  });
+
+  it("says there's nothing to share when only drafts are shown", async () => {
+    const user = userEvent.setup();
+    const { container } = render(<ToolsPage />);
+    await screen.findByRole("button", { name: "Add a tool" });
+    await user.upload(pageFiles(container), photo("saw.png"));
+    await user.click(within(await screen.findByRole("dialog", { name: "saw" })).getByRole("button", { name: "Close" }));
+    await user.click(await screen.findByRole("button", { name: "Share" }));
+    const share = screen.getByRole("dialog", { name: "Share your tools" });
+    expect(await within(share).findByText(/Nothing to share yet/)).toBeTruthy();
+    expect(within(share).queryByRole("button", { name: "Download page" })).toBeNull();
+  });
+});

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
-import { Check, Download, ImagePlus, ListChecks, Plus, Search, Wrench } from "lucide-react";
+import { Check, Download, ImagePlus, ListChecks, Plus, Search, Share2, Wrench } from "lucide-react";
 import { EQUIPMENT_CATEGORIES, EQUIPMENT_CATEGORY_LABEL, type EquipmentCategory } from "@core/role-gear";
 import {
   TOOL_CONDITIONS,
@@ -20,6 +20,7 @@ import { ToolBulkBar, type BulkResult } from "./ToolBulkBar";
 import { ToolKits } from "./ToolKits";
 import { FramedPhoto } from "./ToolPhotoFrame";
 import { ToolGallery, type ToolRoleChoice } from "./ToolGallery";
+import { ToolShareDialog } from "./ToolShareDialog";
 import "./tools.css";
 
 /** The tool open in the panel lives in the address, `#/tools/<id>` (or `#/tools/new`). */
@@ -113,6 +114,8 @@ export function ToolsPage() {
   // Choosing: a click picks a card instead of opening it, for changing many at once.
   const [choosing, setChoosing] = useState(false);
   const [picked, setPicked] = useState<string[]>([]);
+  // The Share dialog: a page about the tools shown (or picked) to send someone.
+  const [sharing, setSharing] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   // With no kits yet, "+ New kit" sits with the page's buttons and asks the kits row to open its name field.
@@ -384,6 +387,12 @@ export function ToolsPage() {
             </button>
           ) : null}
           {all.length > 0 ? (
+            <button type="button" className="tools-btn" disabled={visible.length === 0} onClick={() => setSharing(true)}>
+              <Share2 size={16} aria-hidden="true" />
+              Share
+            </button>
+          ) : null}
+          {all.length > 0 ? (
             <button type="button" className="tools-btn" disabled={visible.length === 0} onClick={exportCsv}>
               <Download size={16} aria-hidden="true" />
               Export CSV
@@ -615,6 +624,14 @@ export function ToolsPage() {
           onClose={() => openTool(null)}
           onOpen={showTool}
           nextDraft={nextDraft}
+        />
+      ) : null}
+      {sharing ? (
+        <ToolShareDialog
+          tools={choosing && picked.length ? all.filter((tool) => picked.includes(tool.id)) : visible}
+          roles={roles}
+          kits={kits}
+          onClose={() => setSharing(false)}
         />
       ) : null}
       {dragging ? <div className="tools-drop" aria-hidden="true">Drop photos to add them as drafts</div> : null}

@@ -1334,6 +1334,43 @@ describe("paging without rebuilding the popout", () => {
   });
 });
 
+/** A stand-in canvas: the test page has none. It records each photo's turn and flips. */
+function fakeCanvas() {
+  const drawn: Array<{ rotate: number; scale: [number, number] }> = [];
+  const realBitmap = globalThis.createImageBitmap;
+  const realContext = HTMLCanvasElement.prototype.getContext;
+  const realData = HTMLCanvasElement.prototype.toDataURL;
+  let closed = 0;
+  globalThis.createImageBitmap = (async () => ({ width: 1200, height: 800, close: () => (closed += 1) })) as never;
+  HTMLCanvasElement.prototype.getContext = function getContext() {
+    const step = { rotate: 0, scale: [1, 1] as [number, number] };
+    return {
+      fillStyle: "",
+      fillRect() {},
+      translate() {},
+      rotate(angle: number) {
+        step.rotate = Math.round((angle * 180) / Math.PI);
+      },
+      scale(x: number, y: number) {
+        step.scale = [x, y];
+      },
+      drawImage() {
+        drawn.push({ ...step });
+      },
+    } as never;
+  } as never;
+  HTMLCanvasElement.prototype.toDataURL = () => "data:image/jpeg;base64,U0hSVU5L";
+  return {
+    drawn,
+    closed: () => closed,
+    restore() {
+      globalThis.createImageBitmap = realBitmap;
+      HTMLCanvasElement.prototype.getContext = realContext;
+      HTMLCanvasElement.prototype.toDataURL = realData;
+    },
+  };
+}
+
 describe("share pages", () => {
   /** The page the Share dialog downloads, read back as text. */
   async function downloaded(user: ReturnType<typeof userEvent.setup>) {
@@ -1355,14 +1392,19 @@ describe("share pages", () => {
     const form = new FormData();
     form.append("photos", photo("drill.png"));
     await fetch(`/api/tools/${id}/photos`, { method: "POST", body: form });
+    const canvas = fakeCanvas();
     const user = userEvent.setup();
     render(<ToolsPage />);
     await user.click(await screen.findByRole("button", { name: "Share" }));
     const html = await downloaded(user);
+    canvas.restore();
     expect(html).toContain("Drill");
     expect(html).toContain("Giants Direct");
     expect(html).toContain("4 of 5");
-    expect(html).toContain("data:image/png;base64,");
+    // The photo goes in shrunk and re-encoded (which drops its location data), never as the original file.
+    expect(html).toContain("data:image/jpeg;base64,U0hSVU5L");
+    expect(html).not.toContain("data:image/png");
+    expect(canvas.closed()).toBe(1);
     for (const secret of ["SN-SECRET-1", "159", "Garage shelf B"]) expect(html).not.toContain(secret);
   });
 
@@ -1374,7 +1416,9 @@ describe("share pages", () => {
     await user.click(await screen.findByRole("button", { name: "Share" }));
     const share = screen.getByRole("dialog", { name: "Share your tools" });
     await user.click(within(share).getByRole("radio", { name: /crew/i }));
-    expect(await downloaded(user)).toContain("Good");
+    const named = await downloaded(user);
+    expect(named).toContain("Good");
+    expect(named).toContain("Sam Rivera");
     await user.click(within(share).getByRole("checkbox", { name: "Put my name on it" }));
     const unnamed = await downloaded(user);
     expect(unnamed).not.toContain("Rivera");
@@ -1390,5 +1434,51 @@ describe("share pages", () => {
     const share = screen.getByRole("dialog", { name: "Share your tools" });
     expect(await within(share).findByText(/Nothing to share yet/)).toBeTruthy();
     expect(within(share).queryByRole("button", { name: "Download page" })).toBeNull();
+  });
+
+  it("leaves out a photo it can't shrink, rather than sending the original file", async () => {
+    const id = await addToolThroughApi("Drill");
+    const form = new FormData();
+    form.append("photos", photo("drill.png"));
+    await fetch(`/api/tools/${id}/photos`, { method: "POST", body: form });
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await user.click(await screen.findByRole("button", { name: "Share" }));
+    const html = await downloaded(user);
+    expect(html).toContain("Drill");
+    expect(html).not.toContain("data:image");
+  });
+
+  it("turns and flips a photo the way it was framed", async () => {
+    const id = await addToolThroughApi("Drill");
+    const form = new FormData();
+    form.append("photos", photo("drill.png"));
+    const tool = ((await (await fetch(`/api/tools/${id}/photos`, { method: "POST", body: form })).json()) as { tool: { photos: Array<{ id: string }> } }).tool;
+    await fetch(`/api/tools/${id}/photos/${tool.photos[0]!.id}/framing`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ framing: { rotation: 90, flipH: true, flipV: false, zoom: 1, focusX: 50, focusY: 50 } }),
+    });
+    const canvas = fakeCanvas();
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await user.click(await screen.findByRole("button", { name: "Share" }));
+    await downloaded(user);
+    canvas.restore();
+    expect(canvas.drawn.at(-1)).toEqual({ rotate: 90, scale: [-1, 1] });
+  });
+
+  it("shares only the picked tools while picking, and needs something picked", async () => {
+    await addToolThroughApi("Drill");
+    await addToolThroughApi("Saw");
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    await user.click(await screen.findByRole("button", { name: "Select" }));
+    expect(screen.getByRole("button", { name: "Share" }).hasAttribute("disabled")).toBe(true);
+    await user.click(screen.getByRole("button", { name: "Pick Saw" }));
+    await user.click(screen.getByRole("button", { name: "Share" }));
+    const html = await downloaded(user);
+    expect(html).toContain("Saw");
+    expect(html).not.toContain("Drill");
   });
 });

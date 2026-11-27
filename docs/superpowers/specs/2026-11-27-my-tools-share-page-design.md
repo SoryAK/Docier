@@ -22,8 +22,11 @@ rules.
 - A dialog: who it's for, "Put my name on it", a preview, **Download page**
   (one HTML file, `my-tools-for-employers.html` / `my-tools-for-crew.html`,
   photos built in) and **Print or save as PDF**.
-- Photos are shrunk to card size (at most 640px wide) in the browser before
-  they go in, so the file stays small; a photo that can't be shrunk goes in as is.
+- Photos go in as framed (turned, flipped, zoomed on the focal point), shrunk
+  to card size (at most 640px wide) and re-encoded as JPEG on white, so the file
+  stays small and carries nothing the original file did (like where it was
+  taken). A photo that can't be read or redrawn is left out, never sent as is.
+  A few are read at a time, and one that takes too long is skipped.
 
 ## Approaches
 

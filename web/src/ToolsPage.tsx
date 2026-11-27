@@ -244,6 +244,12 @@ export function ToolsPage() {
     () => filterTools(all, { query, category, draftsOnly }).filter((tool) => kit === null || tool.kitIds.includes(kit)),
     [all, query, category, draftsOnly, kit],
   );
+  // What Share sends: the picked tools while picking (none picked, nothing), else the tools shown.
+  const shareSet = useMemo(
+    () => (choosing ? all.filter((tool) => picked.includes(tool.id)) : visible),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [choosing, picked, visible, tools],
+  );
   const roleName = (id: string) => roles.find((role) => role.id === id)?.name;
   const drafts = all.filter((tool) => tool.draft).length;
   const categories = EQUIPMENT_CATEGORIES.filter((key) => all.some((tool) => tool.category === key));
@@ -387,7 +393,13 @@ export function ToolsPage() {
             </button>
           ) : null}
           {all.length > 0 ? (
-            <button type="button" className="tools-btn" disabled={visible.length === 0} onClick={() => setSharing(true)}>
+            <button
+              type="button"
+              className="tools-btn"
+              disabled={shareSet.length === 0}
+              title={choosing && picked.length === 0 ? "Pick tools to share them" : undefined}
+              onClick={() => setSharing(true)}
+            >
               <Share2 size={16} aria-hidden="true" />
               Share
             </button>
@@ -628,7 +640,7 @@ export function ToolsPage() {
       ) : null}
       {sharing ? (
         <ToolShareDialog
-          tools={choosing && picked.length ? all.filter((tool) => picked.includes(tool.id)) : visible}
+          tools={shareSet}
           roles={roles}
           kits={kits}
           onClose={() => setSharing(false)}

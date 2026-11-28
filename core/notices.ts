@@ -1,4 +1,5 @@
 import { presentInboundMessageNotice } from "./conversation";
+import { isHiddenArea } from "./release-areas";
 
 export type OccupantNoticeKind =
   | "access-request"
@@ -7,6 +8,8 @@ export type OccupantNoticeKind =
 
 export type OccupantNoticeHref =
   | "opportunities"
+  /** The Requests dialog, on its Received tab. */
+  | "requests"
   | "worklog"
   | "history"
   | "resumes"
@@ -24,6 +27,12 @@ export type OccupantNotice = {
 export function noticeHrefForDestination(
   destination: string,
 ): OccupantNoticeHref {
+  const href = pageForDestination(destination);
+  // A hidden area can't be opened, so its notice opens Home.
+  return isHiddenArea(href) ? "worklog" : href;
+}
+
+function pageForDestination(destination: string): OccupantNoticeHref {
   const dest = destination.trim().toLowerCase();
   if (
     dest.startsWith("relay:") ||
@@ -83,7 +92,8 @@ export function presentOccupantNotices(input: {
       kind: "access-request" as const,
       title: `${request.requesterName} asked to view the Work Map`,
       detail: request.message.trim() || request.requesterEmail,
-      href: "opportunities" as const,
+      // Answered in Requests, under Received.
+      href: "requests" as const,
       createdAt: request.createdAt,
     })),
     ...input.proposedChangeSets.map((changeSet) => ({

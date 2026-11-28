@@ -1,6 +1,7 @@
 import { useState, useEffect, type ReactNode } from "react";
 import { Button } from "@astryxdesign/core/Button";
 import { Thumbnail } from "@astryxdesign/core/Thumbnail";
+import { isHiddenArea } from "@core/release-areas";
 import { roleCoverPhoto, type WorkMapRole } from "@core/work-map";
 
 const NAV_ID = "home-nav";
@@ -160,20 +161,24 @@ export function HomeNav({
           onSelect={() => go("network")}
         />
         <NavHeading label="Tools" slim={slim} />
-        <NavRow
-          icon="compass"
-          label="Opportunities"
-          current={customId ? false : page === "opportunities"}
-          slim={slim}
-          onSelect={() => go("opportunities")}
-        />
-        <NavRow
-          icon="studio"
-          label="Resume Studio"
-          current={customId ? false : page === "resumes"}
-          slim={slim}
-          onSelect={() => go("resumes")}
-        />
+        {isHiddenArea("opportunities") ? null : (
+          <NavRow
+            icon="compass"
+            label="Opportunities"
+            current={customId ? false : page === "opportunities"}
+            slim={slim}
+            onSelect={() => go("opportunities")}
+          />
+        )}
+        {isHiddenArea("resumes") ? null : (
+          <NavRow
+            icon="studio"
+            label="Resume Studio"
+            current={customId ? false : page === "resumes"}
+            slim={slim}
+            onSelect={() => go("resumes")}
+          />
+        )}
         <NavRow
           icon="docs"
           label="My Docs"

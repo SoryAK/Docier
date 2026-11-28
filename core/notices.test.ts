@@ -12,10 +12,11 @@ describe("noticeHrefForDestination", () => {
       "history",
     );
     expect(noticeHrefForDestination("relay:sory-systems")).toBe("history");
-    expect(noticeHrefForDestination("application:app-1")).toBe("opportunities");
+    // Opportunities and Resume Studio are hidden for this release, so their notices open Home.
+    expect(noticeHrefForDestination("application:app-1")).toBe("worklog");
     expect(noticeHrefForDestination("recruiter@example.com")).toBe("network");
     expect(noticeHrefForDestination("contact:alex")).toBe("network");
-    expect(noticeHrefForDestination("resume-studio")).toBe("resumes");
+    expect(noticeHrefForDestination("resume-studio")).toBe("worklog");
   });
 });
 
@@ -54,7 +55,7 @@ describe("presentOccupantNotices", () => {
         kind: "access-request",
         title: "Jordan Lee asked to view the Work Map",
         detail: "jordan@example.com",
-        href: "opportunities",
+        href: "requests",
         createdAt: "2026-09-19T14:00:00.000Z",
       },
       {
@@ -70,7 +71,7 @@ describe("presentOccupantNotices", () => {
         kind: "access-request",
         title: "Alex Rivera asked to view the Work Map",
         detail: "May I review the published map?",
-        href: "opportunities",
+        href: "requests",
         createdAt: "2026-09-19T12:00:00.000Z",
       },
     ]);

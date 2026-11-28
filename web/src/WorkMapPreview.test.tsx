@@ -82,5 +82,22 @@ describe("previewing tools on the career page", () => {
     render(<WorkMapPreviewPage />);
     const tools = await screen.findByRole("region", { name: "Tools" });
     await waitFor(() => expect(within(tools).getByRole("img", { name: "Drill" }).getAttribute("src")).toBe(JPEG));
+    expect(screen.queryByText(/couldn't be added/)).toBeNull();
+  });
+
+  it("says which photos would be left off", async () => {
+    const json = (method: string, body: unknown) => ({ method, headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    const tool = (await (await fetch("/api/tools", json("POST", { name: "Drill", onCareerPage: true }))).json()) as { tool: { id: string } };
+    const form = new FormData();
+    form.append("photos", new File([PNG], "drill.png", { type: "image/png" }));
+    await fetch(`/api/tools/${tool.tool.id}/photos`, { method: "POST", body: form });
+    await fetch("/api/work-map/settings", json("PUT", { slug: "sory", visibility: "unlisted", sections: ["profile", "tools"] }));
+    // This photo can't be read, so it can't be prepared.
+    globalThis.createImageBitmap = (async () => {
+      throw new Error("unreadable");
+    }) as never;
+
+    render(<WorkMapPreviewPage />);
+    expect(await screen.findByText("1 photo couldn't be added: Drill.")).toBeTruthy();
   });
 });

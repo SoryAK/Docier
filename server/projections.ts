@@ -157,11 +157,16 @@ export function previewWorkMapProjection(db: DatabaseSync, occupantId: string) {
  * browser's prepared photos; they go only into this page's copy, never into
  * the saved snapshot, and a local photo without one is left off.
  */
-export function createProjection(
+export function createProjection(db: DatabaseSync, occupantId: string, input: JsonObject): InteractiveProjection {
+  return createProjectionWithPhotos(db, occupantId, input).projection;
+}
+
+/** As createProjection, also naming the photos the page went without. */
+export function createProjectionWithPhotos(
   db: DatabaseSync,
   occupantId: string,
   input: JsonObject,
-): InteractiveProjection {
+): { projection: InteractiveProjection; photosLeftOut: string[] } {
   const snapshot = createWorkMapSnapshot(db, occupantId);
   const built = buildInteractiveProjection({
     snapshot,
@@ -207,7 +212,7 @@ export function createProjection(
       projection.createdAt,
     );
   }
-  return projection;
+  return { projection, photosLeftOut: result.leftOut };
 }
 
 async function publishProjectionNow(

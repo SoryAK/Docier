@@ -186,6 +186,7 @@ import {
   listProjections,
   previewWorkMapProjection,
   publishProjection,
+  createProjectionWithPhotos,
   readRelayStatus,
   recordProjectionEvent,
   resolveOpportunityAccess,
@@ -2043,14 +2044,16 @@ export function createApp(db: DatabaseSync, options: AppOptions = {}): Hono {
     // The body is optional: the browser's prepared photos, when it sends them.
     const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown> | null;
     try {
-      const projection = createProjection(db, occupant.id, { photos: body && typeof body === "object" ? body.photos : undefined });
+      const { projection, photosLeftOut } = createProjectionWithPhotos(db, occupant.id, {
+        photos: body && typeof body === "object" ? body.photos : undefined,
+      });
       const publication = await publishProjection(
         db,
         occupant.id,
         projection.id,
         relay,
       );
-      return c.json({ projection, publication }, 201);
+      return c.json({ projection, publication, photosLeftOut }, 201);
     } catch (error) {
       if (
         error instanceof WorkMapStoreError ||

@@ -23,7 +23,7 @@ import {
   type WorkMapRole,
   type WorkMapSnapshot,
 } from "@core/work-map";
-import { embedPublicPhotos } from "@core/career-page";
+import { embedPublicPhotos, photosLeftOutNote } from "@core/career-page";
 import { CareerMap } from "./CareerMap";
 import { preparePublicPhotos } from "./photo-data";
 import { PREVIEW_REFRESH } from "./preview-placement";
@@ -594,6 +594,7 @@ export function WorkMapPreviewPage() {
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
   const [mapSettings, setMapSettings] = useState<MapSettings | null>(null);
   const [error, setError] = useState("");
+  const [leftOut, setLeftOut] = useState("");
 
   useEffect(() => {
     void loadPreview();
@@ -631,6 +632,7 @@ export function WorkMapPreviewPage() {
       return;
     }
     setError("");
+    setLeftOut(photosLeftOutNote(embedded.leftOut));
     setPreview({ ...body, snapshot: embedded.value });
   }
 
@@ -644,6 +646,11 @@ export function WorkMapPreviewPage() {
       {error ? (
         <p className="work-map-message" role="alert">
           {error}
+        </p>
+      ) : null}
+      {leftOut ? (
+        <p className="work-map-message" role="status">
+          {leftOut}
         </p>
       ) : null}
       {preview ? (

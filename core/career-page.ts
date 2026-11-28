@@ -62,7 +62,7 @@ export function careerPageTools(
 }
 
 type PhotoPage = {
-  roles: Array<{ media: WorkMapMedia[] }>;
+  roles: Array<{ media: WorkMapMedia[]; organization?: string; title?: string }>;
   tools?: CareerPageTool[];
 };
 
@@ -87,11 +87,16 @@ export type EmbedError = "photos-invalid" | "photos-too-large";
  * other address is replaced by its prepared photo or left off. A photo is
  * used only for an item already on the page, and only as JPEG data.
  */
-export function embedPublicPhotos<T extends PhotoPage>(page: T, raw: unknown): { ok: true; value: T } | { ok: false; error: EmbedError } {
+export function embedPublicPhotos<T extends PhotoPage>(
+  page: T,
+  raw: unknown,
+): { ok: true; value: T; leftOut: string[] } | { ok: false; error: EmbedError } {
   if (raw !== undefined && raw !== null && (typeof raw !== "object" || Array.isArray(raw))) return { ok: false, error: "photos-invalid" };
   const sent = (raw ?? {}) as Record<string, unknown>;
   if (Object.values(sent).some((value) => typeof value !== "string")) return { ok: false, error: "photos-invalid" };
   let total = 0;
+  // Each photo the page meant to show but goes without, by a name the owner knows it by.
+  const leftOut: string[] = [];
   const photo = (key: string): string | null => {
     const value = Object.hasOwn(sent, key) ? (sent[key] as string) : "";
     if (value.length > PUBLIC_PHOTO_MAX || !JPEG_DATA.test(value)) return null;
@@ -104,13 +109,24 @@ export function embedPublicPhotos<T extends PhotoPage>(page: T, raw: unknown): {
       if (WEB_LINK.test(item.url)) return [item];
       if (item.kind !== "photo") return [];
       const data = photo(`media:${item.id}`);
-      return data ? [{ ...item, url: data }] : [];
+      if (data) return [{ ...item, url: data }];
+      const job = role.organization || role.title;
+      leftOut.push(job ? `${item.title || "A photo"} (${job})` : item.title || "A photo");
+      return [];
     }),
   }));
-  const tools = page.tools?.map(({ photoFraming: _framing, ...tool }) => ({
-    ...tool,
-    photoUrl: tool.photoUrl ? (photo(`tool:${tool.id}`) ?? "") : "",
-  }));
+  const tools = page.tools?.map(({ photoFraming: _framing, ...tool }) => {
+    const data = tool.photoUrl ? photo(`tool:${tool.id}`) : null;
+    if (tool.photoUrl && !data) leftOut.push(tool.name);
+    return { ...tool, photoUrl: data ?? "" };
+  });
   if (total > PUBLIC_PHOTOS_TOTAL_MAX) return { ok: false, error: "photos-too-large" };
-  return { ok: true, value: { ...page, roles, ...(tools ? { tools } : {}) } };
+  return { ok: true, value: { ...page, roles, ...(tools ? { tools } : {}) }, leftOut };
+}
+
+/** One line naming the photos a page went without, or "" when none. */
+export function photosLeftOutNote(names: string[]): string {
+  if (names.length === 0) return "";
+  const shown = names.length > 5 ? [...names.slice(0, 4), `and ${names.length - 4} more`] : names;
+  return `${names.length} ${names.length === 1 ? "photo" : "photos"} couldn't be added: ${shown.join(", ")}.`;
 }

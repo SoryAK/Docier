@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { publishCareerPage } from "./publish-page";
+import { photosLeftOutNote } from "@core/career-page";
 import { Divider } from "@astryxdesign/core/Divider";
 import { Popover } from "@astryxdesign/core/Popover";
 import { TextInput } from "@astryxdesign/core/TextInput";
@@ -266,8 +267,14 @@ export function HomeBar({
     try {
       const response = await publishCareerPage();
       if (response.ok) {
+        const published = (await response.json().catch(() => ({}))) as { photosLeftOut?: string[] };
         setPublishNote(
-          "Published this Work Map snapshot to the public link. Private edits stay local until you publish an update.",
+          [
+            "Published this Work Map snapshot to the public link. Private edits stay local until you publish an update.",
+            photosLeftOutNote(published.photosLeftOut ?? []),
+          ]
+            .filter(Boolean)
+            .join(" "),
         );
         announceRelayChange();
         return;

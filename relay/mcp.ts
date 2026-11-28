@@ -121,7 +121,8 @@ function callTool(
         : "This publication is not available.",
     );
   }
-  const text = JSON.stringify(result.snapshot);
+  // A current agent gets the page twice (as text and as data), so the text leaves the image data to the data copy.
+  const text = JSON.stringify(result.snapshot, modern ? withoutImageData : undefined);
   return {
     status: 200,
     servedPublicationSlug: slug,
@@ -142,6 +143,11 @@ function callTool(
       ),
     },
   };
+}
+
+/** Stands in for image data in the text copy of a page. */
+function withoutImageData(_key: string, value: unknown): unknown {
+  return typeof value === "string" && value.startsWith("data:image/") ? "(photo, in structuredContent)" : value;
 }
 
 function readPublicationTool(): JsonObject {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { limitProjection } from "./access";
-import { PUBLIC_PHOTO_MAX, PUBLIC_PHOTOS_TOTAL_MAX, careerPageTools, embedPublicPhotos, publicPhotoJobs } from "./career-page";
+import { PUBLIC_PHOTO_MAX, PUBLIC_PHOTOS_TOTAL_MAX, careerPageTools, embedPublicPhotos, photosLeftOutNote, publicPhotoJobs } from "./career-page";
 import type { PersonalTool } from "./personal-tools";
 import { describeRelayChanges } from "./projection";
 import { EMPTY_WORK_MAP_DETAILS, buildWorkMapSnapshot, type WorkMapPublishSection, type WorkMapRole } from "./work-map";
@@ -183,6 +183,22 @@ describe("embedding photos", () => {
     expect(done.value.roles[0]!.media.map((item) => item.id)).toEqual(["m2"]);
     expect(done.value.tools?.[0]?.photoUrl).toBe("");
     expect(embedPublicPhotos(snapshot(), undefined).ok).toBe(true);
+  });
+
+  it("names each photo it left off", () => {
+    const done = embedPublicPhotos(snapshot(), { "tool:t1": JPEG });
+    expect(done.ok && done.leftOut).toEqual(["Panel (Giants Direct)"]);
+    const none = embedPublicPhotos(snapshot(), {});
+    expect(none.ok && none.leftOut).toEqual(["Panel (Giants Direct)", "Drill"]);
+    expect(embedPublicPhotos(snapshot(), { "media:m1": JPEG, "tool:t1": JPEG }).ok && embedPublicPhotos(snapshot(), { "media:m1": JPEG, "tool:t1": JPEG })).toMatchObject({ leftOut: [] });
+  });
+
+  it("says which photos were left off, in a line", () => {
+    expect(photosLeftOutNote([])).toBe("");
+    expect(photosLeftOutNote(["Drill"])).toBe("1 photo couldn't be added: Drill.");
+    expect(photosLeftOutNote(["Panel (Giants Direct)", "Drill"])).toBe("2 photos couldn't be added: Panel (Giants Direct), Drill.");
+    const many = ["a", "b", "c", "d", "e", "f"];
+    expect(photosLeftOutNote(many)).toBe("6 photos couldn't be added: a, b, c, d, and 2 more.");
   });
 
   it("leaves off a photo that's too big, and refuses too much in all", () => {

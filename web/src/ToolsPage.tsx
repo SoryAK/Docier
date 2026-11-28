@@ -34,6 +34,12 @@ function readOpenTool(): string | null {
   }
 }
 
+/** The job whose tools to show, from `#/tools?job=<id>` (a job's page links here). */
+function readJob(): string | null {
+  const query = window.location.hash.split("?")[1];
+  return query ? new URLSearchParams(query).get("job") || null : null;
+}
+
 /** Shows another tool in the open popout without a new history step, so Back returns to the grid. */
 function showTool(id: string) {
   const hash = `#/tools/${encodeURIComponent(id)}`;
@@ -103,6 +109,8 @@ export function ToolsPage() {
   const [roles, setRoles] = useState<ToolRoleChoice[]>([]);
   const [kits, setKits] = useState<ToolKit[]>([]);
   const [kit, setKit] = useState<string | null>(null);
+  // Only one job's tools, while opened from that job. Opening a tool keeps it.
+  const [job, setJob] = useState<string | null>(readJob);
   const [failed, setFailed] = useState(false);
   const [open, setOpen] = useState<string | null>(readOpenTool);
   const [query, setQuery] = useState("");
@@ -139,7 +147,11 @@ export function ToolsPage() {
   }, [open]);
 
   useEffect(() => {
-    const onRoute = () => setOpen(readOpenTool());
+    const onRoute = () => {
+      setOpen(readOpenTool());
+      const next = readJob();
+      if (next) setJob(next);
+    };
     window.addEventListener("hashchange", onRoute);
     return () => window.removeEventListener("hashchange", onRoute);
   }, []);
@@ -241,8 +253,11 @@ export function ToolsPage() {
 
   const all = tools ?? [];
   const visible = useMemo(
-    () => filterTools(all, { query, category, draftsOnly }).filter((tool) => kit === null || tool.kitIds.includes(kit)),
-    [all, query, category, draftsOnly, kit],
+    () =>
+      filterTools(all, { query, category, draftsOnly }).filter(
+        (tool) => (kit === null || tool.kitIds.includes(kit)) && (job === null || tool.roleIds.includes(job)),
+      ),
+    [all, query, category, draftsOnly, kit, job],
   );
   // What Share sends: the picked tools while picking (none picked, nothing), else the tools shown.
   const shareSet = useMemo(
@@ -486,6 +501,20 @@ export function ToolsPage() {
                 <span>{key === "all" ? all.length : all.filter((tool) => tool.category === key).length}</span>
               </button>
             ))}
+            {job ? (
+              <button
+                type="button"
+                className="tools-chip is-job"
+                aria-pressed="true"
+                title="Show all your tools"
+                onClick={() => {
+                  setJob(null);
+                  if (readJob()) window.location.replace("#/tools");
+                }}
+              >
+                Used at {roleName(job) ?? "this job"} <span aria-hidden="true">×</span>
+              </button>
+            ) : null}
             {/* While the filter is on it keeps its button, even with no drafts left, so it can be turned off. */}
             {drafts > 0 || draftsOnly ? (
               <button type="button" className="tools-chip is-drafts" aria-pressed={draftsOnly} onClick={() => setDraftsOnly((on) => !on)}>

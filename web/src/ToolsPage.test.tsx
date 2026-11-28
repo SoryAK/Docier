@@ -131,6 +131,33 @@ describe("My Tools", () => {
   });
 });
 
+describe("one job's tools", () => {
+  it("opened from a job, shows only that job's tools until the filter is cleared", async () => {
+    const roleId = await server.addRole("Giants Direct");
+    await addToolThroughApi("Drill", { roleIds: [roleId] });
+    await addToolThroughApi("Saw");
+    window.location.hash = `#/tools?job=${encodeURIComponent(roleId)}`;
+    const user = userEvent.setup();
+    render(<ToolsPage />);
+    const chip = await screen.findByRole("button", { name: /Used at Giants Direct/ });
+    expect(chip.getAttribute("aria-pressed")).toBe("true");
+    await waitFor(() => expect(cardNames()).toEqual(["Open Drill"]));
+
+    // Opening and closing a tool keeps the filter.
+    await user.click(screen.getByRole("button", { name: "Open Drill" }));
+    await screen.findByRole("dialog", { name: "Drill" });
+    window.location.hash = "#/tools";
+    window.dispatchEvent(new HashChangeEvent("hashchange"));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Drill" })).toBeNull());
+    expect(cardNames()).toEqual(["Open Drill"]);
+
+    await user.click(screen.getByRole("button", { name: /Used at Giants Direct/ }));
+    await waitFor(() => expect(cardNames()).toHaveLength(2));
+    expect(screen.queryByRole("button", { name: /Used at Giants Direct/ })).toBeNull();
+    expect(window.location.hash).toBe("#/tools");
+  });
+});
+
 describe("kits, totals, and export", () => {
   it("makes a kit, puts a tool in it, and shows only its tools", async () => {
     await addToolThroughApi("Meter");

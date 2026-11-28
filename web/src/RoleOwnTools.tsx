@@ -53,11 +53,13 @@ export function RoleOwnTools({ roleId }: { roleId: string }) {
   }
   if (tools === null) return null;
   const shown = tools.slice(0, SHOWN);
+  // My Tools, showing only this job's tools.
+  const jobTools = `#/tools?job=${encodeURIComponent(roleId)}`;
   return (
     <section className={["role-group", "is-wide", "role-own-tools", tools.length ? "" : "is-empty"].filter(Boolean).join(" ")} aria-label="Your own tools">
       <div className="role-group-head">
         <h3>Your own tools</h3>
-        <a className="role-edit" href="#/tools">
+        <a className="role-edit" href={jobTools}>
           Open My Tools
         </a>
       </div>
@@ -81,6 +83,8 @@ export function RoleOwnTools({ roleId }: { roleId: string }) {
                       <small>
                         {TOOL_OWNERSHIP_LABEL[tool.ownership]} · {EQUIPMENT_CATEGORY_LABEL[tool.category]}
                       </small>
+                      {/* As the career page decides: switched on and not a draft. */}
+                      {tool.onCareerPage && !tool.draft ? <em className="role-own-tools-public">On your career page</em> : null}
                     </span>
                   </a>
                 </li>
@@ -88,7 +92,7 @@ export function RoleOwnTools({ roleId }: { roleId: string }) {
             })}
           </ul>
           {tools.length > SHOWN ? (
-            <a className="role-own-tools-more" href="#/tools">
+            <a className="role-own-tools-more" href={jobTools}>
               + {tools.length - SHOWN} more
             </a>
           ) : null}

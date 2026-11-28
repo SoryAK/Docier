@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { CanvasBoard } from "@core/canvas-board";
+import { isHiddenArea } from "@core/release-areas";
 import type { WorkMapRole } from "@core/work-map";
 import type { CareerFile } from "@core/career-file";
 import { planContactSubmission } from "@core/career-management";
@@ -481,6 +482,10 @@ export function Home({
             setMobileOpen(false);
             if (href === "worklog") {
               goHome();
+              return;
+            }
+            if (href === "requests") {
+              openRequests("received");
               return;
             }
             goPage(href);
@@ -1201,6 +1206,8 @@ function HomeCanvas({ onClose }: { onClose: () => void }) {
 
 function readPage(): HomePage {
   const value = window.location.hash.replace(/^#\/?/, "").split("?")[0];
+  // An old link to an area left out of this release opens Home.
+  if (isHiddenArea(value)) return "home";
   if (value === "history-reserve") return "historyReserve";
   if (value.startsWith("history/")) return "history";
   if (value === "tools" || value.startsWith("tools/")) return "tools";
